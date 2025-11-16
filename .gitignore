@@ -1,0 +1,68 @@
+# Dependencies
+/vendor/
+/node_modules/
+/composer.lock
+/package-lock.json
+/package.json
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+error_log
+access_log
+
+# Temporary files
+*.tmp
+*.temp
+*.cache
+.cache/
+
+# Uploads and user-generated content
+/uploads/*
+!/uploads/.gitkeep
+/uploads/response_evidence/*
+!/uploads/response_evidence/.gitkeep
+
+# Database
+*.sql
+*.db
+*.sqlite
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# PHP
+*.php~
+*.phps
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Session files
+sessions/
+
+# Compiled files
+*.compiled
+
