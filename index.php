@@ -104,7 +104,7 @@ include 'components/header.php';
             <!-- Title with Gradient -->
             <h1 class="text-5xl md:text-7xl font-black mb-4 leading-tight">
                 <span class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent animate-gradient">
-                    Buzón Digital XD
+                    Buzón Digital
                 </span>
             </h1>
             <h2 class="text-xl md:text-2xl font-semibold text-slate-700 mb-3">
