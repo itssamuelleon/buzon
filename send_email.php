@@ -60,7 +60,8 @@ function sendDepartmentNotification($department, $complaint) {
         
         // Contenido del correo
         $mail->isHTML(true);
-        $mail->Subject = 'Nuevo Reporte Asignado - Reporte #' . str_pad($complaint['id'], 6, '0', STR_PAD_LEFT);
+        $folio = $complaint['folio'] ?? str_pad($complaint['id'], 6, '0', STR_PAD_LEFT);
+        $mail->Subject = 'Nuevo Reporte Asignado - Folio #' . $folio;
 
         // Obtener y procesar adjuntos del reporte
         $inlineImagesHtml = '';
@@ -119,7 +120,16 @@ function sendDepartmentNotification($department, $complaint) {
  * Genera el cuerpo del correo en HTML
  */
 function generateEmailBody($department, $complaint, $inlineImagesHtml) {
-    $complaint_id = str_pad($complaint['id'], 6, '0', STR_PAD_LEFT);
+    $folio = $complaint['folio'] ?? str_pad($complaint['id'], 6, '0', STR_PAD_LEFT);
+    
+    // Generar URL según el modo de prueba
+    if (isTestMode()) {
+        // Modo de prueba: usar localhost
+        $view_url = 'http://127.0.0.1/buzon/view_complaint.php?id=' . $complaint['id'];
+    } else {
+        // Modo producción: usar IP pública
+        $view_url = 'http://200.56.132.62:8088/buzon/view_complaint.php?id=' . $complaint['id'];
+    }
     
     $mode_notice = '';
     if (isTestMode()) {
@@ -152,7 +162,7 @@ function generateEmailBody($department, $complaint, $inlineImagesHtml) {
             
             <div style="background-color: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
                 <h3 style="color: #2563EB; margin-top: 0; border-bottom: 2px solid #2563EB; padding-bottom: 10px;">
-                    📋 Detalles del Reporte #' . $complaint_id . '
+                    📋 Detalles del Reporte - Folio #' . $folio . '
                 </h3>
                 
                 <table style="width: 100%; border-collapse: collapse;">
@@ -171,9 +181,16 @@ function generateEmailBody($department, $complaint, $inlineImagesHtml) {
                 </table>
             </div>
             
+            <!-- Botón de Acción -->
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="' . $view_url . '" style="display: inline-block; background: linear-gradient(135deg, #2563EB 0%, #1d4ed8 100%); color: white; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);">
+                    🔍 Ver Reporte Completo y Dar Seguimiento
+                </a>
+            </div>
+            
             <div style="background-color: #EFF6FF; border-left: 4px solid #2563EB; padding: 12px; margin-top: 20px;">
                 <p style="margin: 0; color: #1e40af; font-size: 14px;">
-                    <strong>Nota:</strong> Por favor, responde a este correo con el texto de la respuesta al reporte. El administrador tomará una captura de tu respuesta y la registrará como evidencia en el sistema.
+                    <strong>Importante:</strong> Por favor, accede al sistema usando el botón de arriba para revisar el reporte completo, agregar respuestas y actualizar el estado del caso.
                 </p>
             </div>
 
@@ -182,7 +199,7 @@ function generateEmailBody($department, $complaint, $inlineImagesHtml) {
         
         <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 12px;">
             <p style="margin: 0;">Este es un correo automático del Sistema de Buzón de Quejas ITSCC</p>
-            <p style="margin: 5px 0 0 0;">Por favor, no respondas directamente a este correo</p>
+            <p style="margin: 5px 0 0 0;">© ' . date('Y') . ' Instituto Tecnológico Superior de Ciudad Constitución</p>
         </div>
     </body>
     </html>
@@ -195,7 +212,16 @@ function generateEmailBody($department, $complaint, $inlineImagesHtml) {
  * Genera el cuerpo del correo en texto plano
  */
 function generateEmailTextBody($department, $complaint) {
-    $complaint_id = str_pad($complaint['id'], 6, '0', STR_PAD_LEFT);
+    $folio = $complaint['folio'] ?? str_pad($complaint['id'], 6, '0', STR_PAD_LEFT);
+    
+    // Generar URL según el modo de prueba
+    if (isTestMode()) {
+        // Modo de prueba: usar localhost
+        $view_url = 'http://127.0.0.1/buzon/view_complaint.php?id=' . $complaint['id'];
+    } else {
+        // Modo producción: usar IP pública
+        $view_url = 'http://200.56.132.62:8088/buzon/view_complaint.php?id=' . $complaint['id'];
+    }
     
     $mode_notice = '';
     if (isTestMode()) {
@@ -207,15 +233,17 @@ function generateEmailTextBody($department, $complaint) {
     $text .= "Estimado/a " . $department['manager'] . ",\n\n";
     $text .= "Se ha asignado un nuevo reporte al departamento de " . $department['name'] . ". ";
     $text .= "Le solicitamos amablemente darle seguimiento a la brevedad posible.\n\n";
-    $text .= "DETALLES DEL REPORTE #" . $complaint_id . "\n";
+    $text .= "DETALLES DEL REPORTE - FOLIO #" . $folio . "\n";
     $text .= "----------------------------------------\n";
     $text .= "Categoría: " . $complaint['category_name'] . "\n";
     $text .= "Fecha: " . date('d/m/Y H:i', strtotime($complaint['created_at'])) . "\n";
     $text .= "Descripción: " . substr($complaint['description'], 0, 200) . (strlen($complaint['description']) > 200 ? '...' : '') . "\n\n";
-    $text .= "Nota: Por favor, responde a este correo con el texto de la respuesta al reporte. El administrador tomará una captura de tu respuesta y la registrará como evidencia en el sistema.\n\n";
+    $text .= "ACCEDER AL REPORTE:\n";
+    $text .= $view_url . "\n\n";
+    $text .= "Por favor, accede al sistema usando el enlace de arriba para revisar el reporte completo, agregar respuestas y actualizar el estado del caso.\n\n";
     $text .= "---\n";
     $text .= "Este es un correo automático del Sistema de Buzón de Quejas ITSCC\n";
-    $text .= "Por favor, no respondas directamente a este correo";
+    $text .= "© " . date('Y') . " Instituto Tecnológico Superior de Ciudad Constitución";
     
     return $text;
 }

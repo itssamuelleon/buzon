@@ -1,7 +1,20 @@
-<?php $page_title = 'Reportes - ITSCC Buzón'; include 'components/header.php'; require_once 'status_helper.php'; ?>
+<?php 
+// Load config first (before any output)
+require_once 'config.php';
+
+// Redirect if not logged in (must be before header.php sends any output)
+if (!isLoggedIn()) {
+    header('Location: login.php');
+    exit;
+}
+
+$page_title = 'Reportes - ITSCC Buzón'; 
+include 'components/header.php'; 
+require_once 'status_helper.php'; 
+?>
     <?php 
     
-    // Allow all users to view the reports
+    // Allow all logged-in users to view the reports
     // Only admins can modify them (handled in view_complaint.php)
     
     // Get filter parameters
@@ -48,6 +61,20 @@
         }
     }
     
+    // Get quick statistics (Admins only)
+    $stats = ['total' => 0, 'unattended' => 0, 'unassigned' => 0];
+    if (function_exists('isAdmin') && isAdmin()) {
+        $stats_query = "SELECT 
+            COUNT(*) as total,
+            SUM(CASE WHEN status IN ('unattended_ontime', 'unattended_late') THEN 1 ELSE 0 END) as unattended,
+            SUM(CASE WHEN NOT EXISTS (SELECT 1 FROM complaint_departments cd WHERE cd.complaint_id = c.id) THEN 1 ELSE 0 END) as unassigned
+        FROM complaints c";
+        $stats_result = $conn->query($stats_query);
+        if ($stats_result) {
+            $stats = $stats_result->fetch_assoc();
+        }
+    }
+
     // Pagination setup
     $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
     $per_page = 20;
@@ -105,116 +132,129 @@
     $dept_result = $conn->query("SELECT * FROM departments ORDER BY name");
     ?>
 
-    <main class="container mx-auto px-4 py-8">
-        <div class="mb-8">
-            <h1 class="text-3xl font-bold text-primary mb-6">Reportes</h1>
+    <main class="container mx-auto px-4 py-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">Reportes</h1>
             
-            <!-- Filters -->
-            <form method="GET" class="bg-white rounded-lg shadow p-4 mb-4">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                    <div class="md:col-span-2">
-                        <label for="q" class="block text-sm font-medium text-gray-700 mb-1">
-                            <i class="ph-magnifying-glass text-gray-500 mr-1"></i>
-                            Búsqueda (folio o descripción)
-                        </label>
-                        <input type="text" id="q" name="q" value="<?php echo htmlspecialchars($search); ?>"
-                            placeholder="Ej. 1-2025 o palabras de la descripción"
-                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50" />
+            <!-- Quick Stats (Admins only) -->
+            <?php if (function_exists('isAdmin') && isAdmin()): ?>
+            <div class="flex items-center gap-2 bg-white rounded-lg shadow-sm border border-gray-200 p-1.5">
+                <div class="flex items-center gap-3 px-3 border-r border-gray-200">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Total</span>
+                        <span class="text-lg font-bold text-gray-900 leading-none"><?php echo $stats['total']; ?></span>
                     </div>
-                    <div>
-                        <label for="category" class="block text-sm font-medium text-gray-700 mb-1">
-                            <i class="ph-tag text-gray-500 mr-1"></i>
-                            Categoría
-                        </label>
-                        <select id="category" name="category"
-                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50">
-                            <option value="">Todas las categorías</option>
-                            <?php while ($cat = $cat_result->fetch_assoc()): ?>
-                                <option value="<?php echo $cat['id']; ?>" <?php echo isset($_GET['category']) && $_GET['category'] == $cat['id'] ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($cat['name']); ?>
-                                </option>
-                            <?php endwhile; ?>
-                        </select>
+                </div>
+                <div class="flex items-center gap-3 px-3 border-r border-gray-200">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] uppercase tracking-wider text-orange-600 font-semibold">Sin Atender</span>
+                        <span class="text-lg font-bold text-orange-600 leading-none"><?php echo $stats['unattended']; ?></span>
                     </div>
-                    <?php if (function_exists('isAdmin') ? isAdmin() : false): ?>
-                        <div>
-                            <label for="department" class="block text-sm font-medium text-gray-700 mb-1">
-                                <i class="ph-buildings text-gray-500 mr-1"></i>
-                                Departamento
-                            </label>
-                            <select id="department" name="department"
-                                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50">
-                                <option value="">Todos los departamentos</option>
-                                <?php while ($dept = $dept_result->fetch_assoc()): ?>
-                                    <option value="<?php echo $dept['id']; ?>" <?php echo $department == $dept['id'] ? 'selected' : ''; ?>>
-                                        <?php echo htmlspecialchars($dept['name']); ?>
-                                    </option>
-                                <?php endwhile; ?>
-                            </select>
+                </div>
+                <div class="flex items-center gap-3 px-3 border-r border-gray-200">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] uppercase tracking-wider text-red-600 font-semibold">Sin Asignar</span>
+                        <span class="text-lg font-bold text-red-600 leading-none"><?php echo $stats['unassigned']; ?></span>
+                    </div>
+                </div>
+                <a href="statistics.php" class="px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors flex items-center gap-1">
+                    <i class="ph-chart-line text-base"></i>
+                    Ver más
+                </a>
+            </div>
+            <?php endif; ?>
+        </div>
+
+        <!-- Compact Filters -->
+        <form method="GET" class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-6">
+            <div class="flex flex-wrap items-end gap-3">
+                <div class="flex-grow min-w-[200px]">
+                    <label for="q" class="block text-xs font-medium text-gray-500 mb-1">Búsqueda</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
+                            <i class="ph-magnifying-glass text-gray-400"></i>
                         </div>
-                    <?php endif; ?>
-
-                    <div>
-                        <label for="status" class="block text-sm font-medium text-gray-700 mb-1">
-                            <i class="ph-status text-gray-500 mr-1"></i>
-                            Estado
-                        </label>
-                        <select id="status" name="status"
-                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50">
-                            <option value="">Todos los estados</option>
-                            <option value="unattended_ontime" <?php echo $status == 'unattended_ontime' ? 'selected' : ''; ?>>Sin atender (a tiempo)</option>
-                            <option value="unattended_late" <?php echo $status == 'unattended_late' ? 'selected' : ''; ?>>Sin atender (tarde)</option>
-                            <option value="attended_ontime" <?php echo $status == 'attended_ontime' ? 'selected' : ''; ?>>Atendido</option>
-                            <option value="attended_late" <?php echo $status == 'attended_late' ? 'selected' : ''; ?>>Atendido a destiempo</option>
-                            <option value="invalid" <?php echo $status == 'invalid' ? 'selected' : ''; ?>>Inválido</option>
-                            <option value="duplicate" <?php echo $status == 'duplicate' ? 'selected' : ''; ?>>Duplicado</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label for="date_range" class="block text-sm font-medium text-gray-700 mb-1">
-                            <i class="ph-calendar text-gray-500 mr-1"></i>
-                            Rango de Fechas
-                        </label>
-                        <select id="date_range" name="date_range"
-                            class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50">
-                            <option value="this_year" <?php echo $date_range == 'this_year' ? 'selected' : ''; ?>>Este año</option>
-                            <option value="7" <?php echo $date_range == '7' ? 'selected' : ''; ?>>Últimos 7 días</option>
-                            <option value="30" <?php echo $date_range == '30' ? 'selected' : ''; ?>>Últimos 30 días</option>
-                            <option value="90" <?php echo $date_range == '90' ? 'selected' : ''; ?>>Últimos 90 días</option>
-                            <option value="" <?php echo $date_range == '' ? 'selected' : ''; ?>>Todo el tiempo</option>
-                        </select>
+                        <input type="text" id="q" name="q" value="<?php echo htmlspecialchars($search); ?>"
+                            placeholder="Folio o descripción..."
+                            class="block w-full pl-8 pr-3 py-1.5 text-sm rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" />
                     </div>
                 </div>
 
-                <div class="mt-2 flex items-center justify-end space-x-2">
-                    <?php if (function_exists('isAdmin') ? isAdmin() : false): ?>
-                        <a href="statistics.php" class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm">
-                            <i class="ph-chart-line text-lg mr-2"></i>
-                            Ver Estadísticas
-                        </a>
-                    <?php endif; ?>
+                <div class="w-full sm:w-40">
+                    <label for="category" class="block text-xs font-medium text-gray-500 mb-1">Categoría</label>
+                    <select id="category" name="category" class="block w-full py-1.5 text-sm rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">Todas</option>
+                        <?php 
+                        $cat_result->data_seek(0);
+                        while ($cat = $cat_result->fetch_assoc()): 
+                        ?>
+                            <option value="<?php echo $cat['id']; ?>" <?php echo isset($_GET['category']) && $_GET['category'] == $cat['id'] ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($cat['name']); ?>
+                            </option>
+                        <?php endwhile; ?>
+                    </select>
+                </div>
 
+                <?php if (function_exists('isAdmin') ? isAdmin() : false): ?>
+                <div class="w-full sm:w-40">
+                    <label for="department" class="block text-xs font-medium text-gray-500 mb-1">Departamento</label>
+                    <select id="department" name="department" class="block w-full py-1.5 text-sm rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">Todos</option>
+                        <?php 
+                        $dept_result->data_seek(0);
+                        while ($dept = $dept_result->fetch_assoc()): 
+                        ?>
+                            <option value="<?php echo $dept['id']; ?>" <?php echo $department == $dept['id'] ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($dept['name']); ?>
+                            </option>
+                        <?php endwhile; ?>
+                    </select>
+                </div>
+                <?php endif; ?>
+
+                <div class="w-full sm:w-40">
+                    <label for="status" class="block text-xs font-medium text-gray-500 mb-1">Estado</label>
+                    <select id="status" name="status" class="block w-full py-1.5 text-sm rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">Todos</option>
+                        <option value="unattended_ontime" <?php echo $status == 'unattended_ontime' ? 'selected' : ''; ?>>Sin atender (a tiempo)</option>
+                        <option value="unattended_late" <?php echo $status == 'unattended_late' ? 'selected' : ''; ?>>Sin atender (tarde)</option>
+                        <option value="attended_ontime" <?php echo $status == 'attended_ontime' ? 'selected' : ''; ?>>Atendido</option>
+                        <option value="attended_late" <?php echo $status == 'attended_late' ? 'selected' : ''; ?>>Atendido a destiempo</option>
+                        <option value="invalid" <?php echo $status == 'invalid' ? 'selected' : ''; ?>>Inválido</option>
+                        <option value="duplicate" <?php echo $status == 'duplicate' ? 'selected' : ''; ?>>Duplicado</option>
+                    </select>
+                </div>
+
+                <div class="w-full sm:w-36">
+                    <label for="date_range" class="block text-xs font-medium text-gray-500 mb-1">Fecha</label>
+                    <select id="date_range" name="date_range" class="block w-full py-1.5 text-sm rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                        <option value="this_year" <?php echo $date_range == 'this_year' ? 'selected' : ''; ?>>Este año</option>
+                        <option value="7" <?php echo $date_range == '7' ? 'selected' : ''; ?>>Últimos 7 días</option>
+                        <option value="30" <?php echo $date_range == '30' ? 'selected' : ''; ?>>Últimos 30 días</option>
+                        <option value="90" <?php echo $date_range == '90' ? 'selected' : ''; ?>>Últimos 90 días</option>
+                        <option value="" <?php echo $date_range == '' ? 'selected' : ''; ?>>Todo</option>
+                    </select>
+                </div>
+
+                <div class="flex items-center gap-2 ml-auto">
                     <?php 
-                    // Verificar si hay filtros activos
                     $hasActiveFilters = !empty($_GET['department']) || !empty($_GET['category']) || 
                                       !empty($_GET['status']) || 
                                       (isset($_GET['date_range']) && $_GET['date_range'] !== 'this_year' && $_GET['date_range'] !== '');
                     if ($hasActiveFilters):
                     ?>
-                        <a href="dashboard.php" 
-                           class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                            <i class="ph-x-circle text-lg mr-2"></i>
-                            Eliminar Filtros
+                        <a href="dashboard.php" class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
+                            <i class="ph-x mr-1"></i>
+                            Limpiar
                         </a>
                     <?php endif; ?>
-                    <button type="submit"
-                        class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                        <i class="ph-magnifying-glass text-lg mr-2"></i>
-                        Buscar
+                    <button type="submit" class="inline-flex items-center px-4 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 shadow-sm transition-colors">
+                        <i class="ph-magnifying-glass mr-1.5"></i>
+                        Filtrar
                     </button>
                 </div>
-            </form>
+            </div>
+        </form>
 
             <!-- Complaints List -->
             <div class="bg-white rounded-lg shadow overflow-hidden overflow-x-auto">

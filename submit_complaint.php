@@ -107,6 +107,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             $conn->commit();
+            
+            // Enviar notificación al departamento de Buzón si está activado
+            require_once 'config/email_config.php';
+            if (shouldNotifyBuzon()) {
+                require_once 'send_email.php';
+                
+                // Obtener información del departamento de Buzón
+                $buzon_dept_query = $conn->prepare("SELECT id, name, manager, email FROM departments WHERE name LIKE '%Buzón%' OR name LIKE '%Quejas%' LIMIT 1");
+                $buzon_dept_query->execute();
+                $buzon_dept_result = $buzon_dept_query->get_result();
+                
+                if ($buzon_dept = $buzon_dept_result->fetch_assoc()) {
+                    // Obtener información del reporte recién creado
+                    $complaint_query = $conn->prepare("SELECT c.id, c.folio, c.description, c.created_at, cat.name as category_name 
+                                                       FROM complaints c 
+                                                       LEFT JOIN categories cat ON c.category_id = cat.id 
+                                                       WHERE c.id = ?");
+                    $complaint_query->bind_param("i", $complaint_id);
+                    $complaint_query->execute();
+                    $complaint_data = $complaint_query->get_result()->fetch_assoc();
+                    
+                    // Enviar notificación
+                    sendDepartmentNotification($buzon_dept, $complaint_data);
+                }
+            }
+            
             $_SESSION['success_message'] = '¡Tu reporte ha sido enviado con éxito!';
             header('Location: submit_complaint.php?submitted=1');
             exit;

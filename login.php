@@ -2,6 +2,13 @@
 // --- PHP LOGIC FIRST ---
 
 require_once 'config.php';
+
+// Redirect if already logged in
+if (isLoggedIn()) {
+    header('Location: index.php');
+    exit;
+}
+
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = $_POST['email'];

@@ -1,6 +1,13 @@
 <?php
 // --- PHP LOGIC FIRST ---
 require_once 'config.php'; // Includes DB connection and starts the session.
+
+// Redirect if already logged in
+if (isLoggedIn()) {
+    header('Location: index.php');
+    exit;
+}
+
 $error = '';
 $success = '';
 
@@ -19,6 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Las contraseñas no coinciden.';
     } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $error = 'El formato del correo electrónico no es válido.';
+    } elseif (substr(strtolower($email), -strlen('@cdconstitucion.tecnm.mx')) !== '@cdconstitucion.tecnm.mx') {
+        $error = 'Solo se permiten correos institucionales del TecNM Campus Ciudad Constitución (@cdconstitucion.tecnm.mx).';
     } else {
         // Check if email already exists
         $stmt = $conn->prepare("SELECT id FROM users WHERE email = ?");
@@ -111,7 +120,18 @@ include 'components/header.php';
                     </div>
                     <?php else: ?>
                     
-                    <form method="POST" action="register.php" class="space-y-6" x-data="{ name: '', email: '', password: '', confirm_password: '', showPassword: false, showConfirmPassword: false }">
+                    <form method="POST" action="register.php" autocomplete="off" class="space-y-6" x-data="{ 
+                        name: '', 
+                        email: '', 
+                        password: '', 
+                        confirm_password: '', 
+                        showPassword: false, 
+                        showConfirmPassword: false,
+                        isValidEmailDomain() {
+                            if (!this.email) return true;
+                            return this.email.toLowerCase().endsWith('@cdconstitucion.tecnm.mx');
+                        }
+                    }">
                         
                         <div>
                             <label for="name" class="block text-sm font-semibold text-slate-700 mb-2">Nombre Completo</label>
@@ -134,9 +154,19 @@ include 'components/header.php';
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                                     </svg>
                                 </div>
-                                <input type="email" id="email" name="email" required x-model="email" placeholder="tucorreo@ejemplo.com"
-                                    class="block w-full pl-12 pr-4 py-3.5 text-slate-900 bg-white border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 placeholder:text-slate-400">
+                                <input type="email" id="email" name="email" autocomplete="off" required x-model="email" placeholder="tu.correo@cdconstitucion.tecnm.mx"
+                                    :class="email && !isValidEmailDomain() ? 'border-red-500 focus:border-red-500 focus:ring-red-500/10' : 'border-slate-200 focus:border-blue-500 focus:ring-blue-500/10'"
+                                    class="block w-full pl-12 pr-4 py-3.5 text-slate-900 bg-white border-2 rounded-xl focus:ring-4 transition-all duration-200 placeholder:text-slate-400">
                             </div>
+                            <p class="mt-1 text-xs text-slate-500">Solo correos institucionales del TecNM Campus Ciudad Constitución</p>
+                            <template x-if="email && !isValidEmailDomain()">
+                                <p class="mt-1 text-sm text-red-600 flex items-center gap-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    Solo se permiten correos institucionales del TecNM Campus Ciudad Constitución (@cdconstitucion.tecnm.mx)
+                                </p>
+                            </template>
                         </div>
 
                         <div>
@@ -147,7 +177,7 @@ include 'components/header.php';
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
                                     </svg>
                                 </div>
-                                <input :type="showPassword ? 'text' : 'password'" id="password" name="password" required minlength="8" x-model="password" placeholder="Mínimo 8 caracteres"
+                                <input :type="showPassword ? 'text' : 'password'" id="password" name="password" autocomplete="new-password" required minlength="8" x-model="password" placeholder="Mínimo 8 caracteres"
                                     class="block w-full pl-12 pr-12 py-3.5 text-slate-900 bg-white border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 placeholder:text-slate-400">
                                 <button type="button" @click="showPassword = !showPassword" class="absolute inset-y-0 right-0 pr-4 flex items-center">
                                     <svg x-show="!showPassword" class="h-5 w-5 text-slate-400 hover:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -162,7 +192,7 @@ include 'components/header.php';
                                 <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                                     <svg class="h-5 w-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                                 </div>
-                                <input :type="showConfirmPassword ? 'text' : 'password'" id="confirm_password" name="confirm_password" required minlength="8" x-model="confirm_password" placeholder="Repite tu contraseña"
+                                <input :type="showConfirmPassword ? 'text' : 'password'" id="confirm_password" name="confirm_password" autocomplete="new-password" required minlength="8" x-model="confirm_password" placeholder="Repite tu contraseña"
                                     class="block w-full pl-12 pr-12 py-3.5 text-slate-900 bg-white border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 placeholder:text-slate-400">
                                 <button type="button" @click="showConfirmPassword = !showConfirmPassword" class="absolute inset-y-0 right-0 pr-4 flex items-center">
                                     <svg x-show="!showConfirmPassword" class="h-5 w-5 text-slate-400 hover:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -175,8 +205,8 @@ include 'components/header.php';
                         </div>
                         
                         <button type="submit"
-                            :disabled="!name || !email || password.length < 8 || password !== confirm_password"
-                            :class="{ 'opacity-50 cursor-not-allowed': !name || !email || password.length < 8 || password !== confirm_password }"
+                            :disabled="!name || !email || !isValidEmailDomain() || password.length < 8 || password !== confirm_password"
+                            :class="{ 'opacity-50 cursor-not-allowed': !name || !email || !isValidEmailDomain() || password.length < 8 || password !== confirm_password }"
                             class="group relative w-full flex justify-center items-center py-4 px-6 border border-transparent rounded-xl text-lg font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-4 focus:ring-blue-500/50 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl disabled:hover:scale-100">
                             Crear Cuenta
                             <svg class="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
