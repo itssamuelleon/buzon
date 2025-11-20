@@ -17,65 +17,70 @@ if ($complaint_id === 0) {
     exit;
 }
 
+// Helper to check if user is staff (admin or manager)
+function isStaff() {
+    return isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager');
+}
 
-
-// Handle response evidence upload
-if (isAdmin() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['response_evidence'])) {
-    $upload_dir = 'uploads/response_evidence/';
+// Handle Comment Submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_comment']) && isStaff()) {
+    $comment_text = trim($_POST['comment']);
     
-    // Create directory if it doesn't exist
-    if (!file_exists($upload_dir)) {
-        mkdir($upload_dir, 0777, true);
-    }
-    
-    $files = $_FILES['response_evidence'];
-    $file_count = count($files['name']);
-    
-    $conn->begin_transaction();
-    try {
-        for ($i = 0; $i < $file_count; $i++) {
-            if ($files['error'][$i] === UPLOAD_ERR_OK) {
-                $file_name = basename($files['name'][$i]);
-                $file_tmp = $files['tmp_name'][$i];
-                $file_type = $files['type'][$i];
-                $file_size = $files['size'][$i];
+    if (!empty($comment_text) || !empty($_FILES['attachments']['name'][0])) {
+        $conn->begin_transaction();
+        try {
+            // Insert comment
+            $stmt = $conn->prepare("INSERT INTO complaint_comments (complaint_id, user_id, comment) VALUES (?, ?, ?)");
+            $stmt->bind_param("iis", $complaint_id, $_SESSION['user_id'], $comment_text);
+            $stmt->execute();
+            $comment_id = $stmt->insert_id;
+            
+            // Handle Attachments
+            if (!empty($_FILES['attachments']['name'][0])) {
+                $upload_dir = 'uploads/comments/';
+                if (!file_exists($upload_dir)) {
+                    mkdir($upload_dir, 0777, true);
+                }
                 
-                // Generate unique filename
-                $file_extension = pathinfo($file_name, PATHINFO_EXTENSION);
-                $unique_name = uniqid() . '_' . time() . '.' . $file_extension;
-                $file_path = $upload_dir . $unique_name;
-                
-                if (move_uploaded_file($file_tmp, $file_path)) {
-                    // Insert into database
-                    $stmt = $conn->prepare("INSERT INTO response_evidence (complaint_id, file_name, file_path, file_type, file_size, uploaded_by) VALUES (?, ?, ?, ?, ?, ?)");
-                    $stmt->bind_param("issiii", $complaint_id, $file_name, $file_path, $file_type, $file_size, $_SESSION['user_id']);
-                    $stmt->execute();
+                $count = count($_FILES['attachments']['name']);
+                for ($i = 0; $i < $count; $i++) {
+                    if ($_FILES['attachments']['error'][$i] === UPLOAD_ERR_OK) {
+                        $file_name = basename($_FILES['attachments']['name'][$i]);
+                        $file_type = $_FILES['attachments']['type'][$i];
+                        $file_size = $_FILES['attachments']['size'][$i];
+                        $unique_name = uniqid() . '_' . $file_name;
+                        $target_path = $upload_dir . $unique_name;
+                        
+                        if (move_uploaded_file($_FILES['attachments']['tmp_name'][$i], $target_path)) {
+                            $stmt_att = $conn->prepare("INSERT INTO comment_attachments (comment_id, file_name, file_path, file_type, file_size) VALUES (?, ?, ?, ?, ?)");
+                            $stmt_att->bind_param("isssi", $comment_id, $file_name, $target_path, $file_type, $file_size);
+                            $stmt_att->execute();
+                        }
+                    }
                 }
             }
+            
+            // Mark as attended if it's the first response/comment
+            // Check if it was already attended
+            $stmt_check = $conn->prepare("SELECT status FROM complaints WHERE id = ?");
+            $stmt_check->bind_param("i", $complaint_id);
+            $stmt_check->execute();
+            $current_status = $stmt_check->get_result()->fetch_assoc()['status'];
+            
+            if ($current_status === 'unattended_ontime' || $current_status === 'unattended_late') {
+                 markComplaintAsAttended($conn, $complaint_id);
+            }
+
+            $conn->commit();
+            $_SESSION['success_message'] = 'Respuesta agregada exitosamente.';
+            header("Location: view_complaint.php?id=" . $complaint_id);
+            exit;
+        } catch (Exception $e) {
+            $conn->rollback();
+            $_SESSION['error_message'] = "Error al guardar el comentario: " . $e->getMessage();
         }
-        
-        // IMPORTANTE: Solo marcar como atendido si es la primera vez que se sube evidencia
-        // Verificar si ya existe evidencia previa
-        $stmt_check = $conn->prepare("SELECT COUNT(*) as count FROM response_evidence WHERE complaint_id = ?");
-        $stmt_check->bind_param("i", $complaint_id);
-        $stmt_check->execute();
-        $result_check = $stmt_check->get_result();
-        $evidence_count = $result_check->fetch_assoc()['count'];
-        
-        // Solo marcar como atendido si es la primera evidencia (antes de insertar, count era 0)
-        if ($evidence_count == $file_count) {
-            markComplaintAsAttended($conn, $complaint_id);
-        }
-        
-        $conn->commit();
-        $_SESSION['success_message'] = "Evidencia de respuesta subida exitosamente.";
-        header("Location: view_complaint.php?id=" . $complaint_id);
-        exit;
-    } catch (Exception $e) {
-        $conn->rollback();
-        $_SESSION['error_message'] = "Error al subir evidencia: " . $e->getMessage();
-        header("Location: view_complaint.php?id=" . $complaint_id);
-        exit;
+    } else {
+        $_SESSION['error_message'] = "El comentario no puede estar vacío si no hay archivos adjuntos.";
     }
 }
 
@@ -338,11 +343,25 @@ $stmt_att->bind_param("i", $complaint_id);
 $stmt_att->execute();
 $attachments = $stmt_att->get_result()->fetch_all(MYSQLI_ASSOC);
 
-// Get response evidence
-$stmt_resp = $conn->prepare("SELECT re.*, u.name as uploaded_by_name FROM response_evidence re LEFT JOIN users u ON re.uploaded_by = u.id WHERE re.complaint_id = ? ORDER BY re.uploaded_at DESC");
-$stmt_resp->bind_param("i", $complaint_id);
-$stmt_resp->execute();
-$response_evidence = $stmt_resp->get_result()->fetch_all(MYSQLI_ASSOC);
+// Get comments with attachments
+$stmt_comments = $conn->prepare("
+    SELECT cc.*, u.name as user_name, u.role as user_role
+    FROM complaint_comments cc 
+    LEFT JOIN users u ON cc.user_id = u.id 
+    WHERE cc.complaint_id = ? 
+    ORDER BY cc.created_at ASC
+");
+$stmt_comments->bind_param("i", $complaint_id);
+$stmt_comments->execute();
+$comments = $stmt_comments->get_result()->fetch_all(MYSQLI_ASSOC);
+
+// Get attachments for each comment
+foreach ($comments as $key => $comment) {
+    $stmt_att = $conn->prepare("SELECT * FROM comment_attachments WHERE comment_id = ?");
+    $stmt_att->bind_param("i", $comment['id']);
+    $stmt_att->execute();
+    $comments[$key]['attachments'] = $stmt_att->get_result()->fetch_all(MYSQLI_ASSOC);
+}
 
 // Recuperar mensajes de sesión
 $success_message = isset($_SESSION['success_message']) ? $_SESSION['success_message'] : null;
@@ -801,15 +820,76 @@ include 'components/header.php';
             <?php endif; ?>
             
 
-            <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div class="bg-white rounded-2xl shadow-xl overflow-hidden"
+                 <?php if (isAdmin()): ?>
+                 x-data="{ 
+                    isLoading: false, 
+                    result: <?php echo $gemini_result_data ? htmlspecialchars(json_encode($gemini_result_data)) : 'null'; ?>, 
+                    error: null,
+                    analyze() {
+                        this.isLoading = true;
+                        this.error = null;
+                        this.result = null;
+                        
+                        fetch('ajax_gemini_analyze.php', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ complaint_id: <?php echo $complaint_id; ?> })
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                this.result = data.data;
+                            } else {
+                                this.error = data.error || 'Ocurrió un error desconocido.';
+                            }
+                        })
+                        .catch(err => {
+                            this.error = 'Error de conexión: ' + err.message;
+                        })
+                        .finally(() => {
+                            this.isLoading = false;
+                        });
+                    }
+                 }"
+                 <?php endif; ?>
+            >
                 <div class="p-8 md:p-12">
                     <div class="border-b border-gray-200 pb-8 mb-8">
                         <div class="flex flex-col md:flex-row justify-between items-start gap-4">
                             <div>
                                 <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Detalles del Reporte</h1>
-                                <p class="text-gray-500 mt-1 text-lg">
-                                    Folio #<?php echo $complaint['folio'] ?? str_pad($complaint['id'], 6, '0', STR_PAD_LEFT); ?>
-                                </p>
+                                <div class="flex items-center gap-3 mt-1">
+                                    <p class="text-gray-500 text-lg">
+                                        Folio #<?php echo $complaint['folio'] ?? str_pad($complaint['id'], 6, '0', STR_PAD_LEFT); ?>
+                                    </p>
+                                    
+                                    <?php if (isAdmin()): ?>
+                                        <!-- Gemini Analyze Button (Inline with Folio) -->
+                                        <button type="button"
+                                                @click="analyze()"
+                                                :disabled="isLoading"
+                                                class="inline-flex items-center gap-2 text-purple-600 hover:text-purple-800 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                            <template x-if="!isLoading">
+                                                <div class="flex items-center gap-2">
+                                                    <i class="ph-sparkle text-lg"></i>
+                                                    <span class="text-sm">Analizar con Gemini</span>
+                                                </div>
+                                            </template>
+                                            <template x-if="isLoading">
+                                                <div class="flex items-center gap-2">
+                                                    <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    <span class="text-sm">Analizando...</span>
+                                                </div>
+                                            </template>
+                                        </button>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                             <?php $statusInfo = getStatusInfo($complaint['status']); ?>
                             <div class="inline-flex items-center gap-x-2 py-2 px-4 rounded-full text-base font-medium <?php echo $statusInfo['class']; ?> ring-1 ring-inset">
@@ -826,64 +906,8 @@ include 'components/header.php';
                     </div>
 
                     <?php if (isAdmin()): ?>
-                        <div class="mb-8 flex flex-col gap-4" 
-                             x-data="{ 
-                                isLoading: false, 
-                                result: <?php echo $gemini_result_data ? htmlspecialchars(json_encode($gemini_result_data)) : 'null'; ?>, 
-                                error: null,
-                                analyze() {
-                                    this.isLoading = true;
-                                    this.error = null;
-                                    this.result = null;
-                                    
-                                    fetch('ajax_gemini_analyze.php', {
-                                        method: 'POST',
-                                        headers: {
-                                            'Content-Type': 'application/json',
-                                        },
-                                        body: JSON.stringify({ complaint_id: <?php echo $complaint_id; ?> })
-                                    })
-                                    .then(response => response.json())
-                                    .then(data => {
-                                        if (data.success) {
-                                            this.result = data.data;
-                                        } else {
-                                            this.error = data.error || 'Ocurrió un error desconocido.';
-                                        }
-                                    })
-                                    .catch(err => {
-                                        this.error = 'Error de conexión: ' + err.message;
-                                    })
-                                    .finally(() => {
-                                        this.isLoading = false;
-                                    });
-                                }
-                             }">
+                        <div class="mb-8">
                             
-                            <!-- Analyze Button -->
-                            <div class="inline-flex self-start">
-                                <button type="button"
-                                        @click="analyze()"
-                                        :disabled="isLoading"
-                                        class="inline-flex items-center gap-2 bg-purple-600 text-white font-semibold py-2.5 px-6 rounded-lg hover:bg-purple-700 transition-colors shadow disabled:opacity-70 disabled:cursor-not-allowed">
-                                    <template x-if="!isLoading">
-                                        <div class="flex items-center gap-2">
-                                            <i class="ph-sparkle text-lg"></i>
-                                            <span>Analizar con Gemini AI</span>
-                                        </div>
-                                    </template>
-                                    <template x-if="isLoading">
-                                        <div class="flex items-center gap-2">
-                                            <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                            </svg>
-                                            <span>Analizando...</span>
-                                        </div>
-                                    </template>
-                                </button>
-                            </div>
-
                             <!-- Error Message -->
                             <div x-show="error" style="display: none;" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-3">
                                 <i class="ph-warning-circle text-xl"></i>
@@ -891,161 +915,177 @@ include 'components/header.php';
                             </div>
 
                             <!-- Results Container -->
-                            <div x-show="result" style="display: none;" class="bg-purple-50 border border-purple-200 rounded-xl p-6 transition-all duration-500 ease-in-out">
-                                <div class="flex items-start gap-3 mb-4">
-                                    <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
-                                        <i class="ph-sparkle text-2xl"></i>
+                            <div x-show="result" style="display: none;" class="bg-purple-50 border border-purple-200 rounded-xl p-4 transition-all duration-500 ease-in-out">
+                                <div class="flex items-start gap-3 mb-3">
+                                    <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 flex-shrink-0">
+                                        <i class="ph-sparkle text-xl"></i>
                                     </div>
-                                    <div>
-                                        <h2 class="text-lg font-semibold text-purple-900">Sugerencias automáticas de Gemini</h2>
-                                        <p class="text-sm text-purple-700">Revisa la categorización propuesta, departamentos sugeridos y resumen para agilizar la gestión del reporte.</p>
+                                    <div class="flex-1">
+                                        <h2 class="text-base font-semibold text-purple-900">Sugerencias automáticas de Gemini</h2>
+                                        <p class="text-xs text-purple-700">Revisa la categorización propuesta, departamentos sugeridos y resumen.</p>
                                     </div>
                                 </div>
 
-                                <div class="space-y-4">
-                                    <!-- Tipo -->
-                                    <div>
-                                        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Tipo</h3>
-                                        <p class="mt-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold"
-                                           :class="{
-                                                'bg-red-100 text-red-700': result?.tipo === 'queja',
-                                                'bg-blue-100 text-blue-700': result?.tipo === 'sugerencia',
-                                                'bg-green-100 text-green-700': result?.tipo === 'felicitacion',
-                                                'bg-gray-100 text-gray-700': !['queja', 'sugerencia', 'felicitacion'].includes(result?.tipo)
-                                           }">
-                                            <i class="ph-seal-check"></i>
-                                            <span x-text="result?.tipo ? result.tipo.charAt(0).toUpperCase() + result.tipo.slice(1) : 'Sin definir'"></span>
-                                        </p>
-                                    </div>
-
-                                    <!-- Categoría Sugerida -->
-                                    <div>
-                                        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Categoría Sugerida</h3>
-                                        <p class="mt-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold bg-purple-100 text-purple-700">
-                                            <i class="ph-tag"></i>
-                                            <span x-text="result?.categoria_nombre || 'ID: ' + (result?.categoria_id || 'N/A')"></span>
-                                        </p>
-                                    </div>
-
-                                    <!-- Departamentos Sugeridos -->
-                                    <div>
-                                        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Departamentos sugeridos</h3>
-                                        <template x-if="result?.lista_departamentos && result.lista_departamentos.length > 0">
-                                            <div class="mt-2 grid gap-3 md:grid-cols-2">
-                                                <template x-for="dept in result.lista_departamentos" :key="dept.id">
-                                                    <div class="rounded-lg border border-purple-200 bg-white p-4">
-                                                        <p class="font-semibold text-gray-900 flex items-center gap-2">
-                                                            <i class="ph-buildings text-purple-500"></i>
-                                                            <span x-text="dept.nombre"></span>
-                                                        </p>
-                                                        <p class="mt-2 text-sm text-gray-600" x-text="dept.motivo"></p>
-                                                    </div>
-                                                </template>
+                                <div class="space-y-3">
+                                    <!-- Tipo/Categoría (Left) y Departamentos (Right) -->
+                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                        <!-- Left: Tipo y Categoría apilados -->
+                                        <div class="space-y-3">
+                                            <!-- Tipo -->
+                                            <div>
+                                                <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Tipo</h3>
+                                                <p class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold"
+                                                   :class="{
+                                                        'bg-red-100 text-red-700': result?.tipo === 'queja',
+                                                        'bg-blue-100 text-blue-700': result?.tipo === 'sugerencia',
+                                                        'bg-green-100 text-green-700': result?.tipo === 'felicitacion',
+                                                        'bg-gray-100 text-gray-700': !['queja', 'sugerencia', 'felicitacion'].includes(result?.tipo)
+                                                   }">
+                                                    <i class="ph-seal-check"></i>
+                                                    <span x-text="result?.tipo ? result.tipo.charAt(0).toUpperCase() + result.tipo.slice(1) : 'Sin definir'"></span>
+                                                </p>
                                             </div>
-                                        </template>
-                                        <template x-if="!result?.lista_departamentos || result.lista_departamentos.length === 0">
-                                            <p class="mt-2 text-sm text-gray-500 italic">No hay departamentos sugeridos para este reporte.</p>
-                                        </template>
+
+                                            <!-- Categoría Sugerida -->
+                                            <div>
+                                                <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Categoría Sugerida</h3>
+                                                <p class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold bg-purple-100 text-purple-700">
+                                                    <i class="ph-tag"></i>
+                                                    <span x-text="result?.categoria_nombre || 'ID: ' + (result?.categoria_id || 'N/A')"></span>
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <!-- Right: Departamentos Sugeridos -->
+                                        <div>
+                                            <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Departamentos sugeridos</h3>
+                                            <template x-if="result?.lista_departamentos && result.lista_departamentos.length > 0">
+                                                <div class="space-y-2">
+                                                    <template x-for="dept in result.lista_departamentos" :key="dept.id">
+                                                        <div class="rounded-lg border border-purple-200 bg-white p-3">
+                                                            <p class="font-semibold text-gray-900 flex items-center gap-2 text-sm">
+                                                                <i class="ph-buildings text-purple-500"></i>
+                                                                <span x-text="dept.nombre"></span>
+                                                            </p>
+                                                            <p class="mt-1 text-xs text-gray-600" x-text="dept.motivo"></p>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                            <template x-if="!result?.lista_departamentos || result.lista_departamentos.length === 0">
+                                                <p class="text-xs text-gray-500 italic">No hay departamentos sugeridos para este reporte.</p>
+                                            </template>
+                                        </div>
                                     </div>
 
-                                    <!-- Resumen -->
+                                    <!-- Resumen (Full Width Below) -->
                                     <template x-if="result?.resumen">
                                         <div>
-                                            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Resumen generado</h3>
-                                            <p class="mt-2 text-gray-700 leading-relaxed bg-white border border-purple-200 rounded-lg p-4" x-text="result.resumen"></p>
+                                            <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Resumen generado</h3>
+                                            <p class="text-sm text-gray-700 leading-relaxed bg-white border border-purple-200 rounded-lg p-3" x-text="result.resumen"></p>
                                         </div>
                                     </template>
                                 </div>
 
                                 <!-- Apply Suggestions Form -->
-                                <form method="POST" class="mt-6">
+                                <form method="POST" class="mt-4">
                                     <input type="hidden" name="apply_gemini_suggestions" value="1">
                                     <input type="hidden" name="gemini_categoria_id" :value="result?.categoria_id || 0">
                                     <input type="hidden" name="gemini_departamentos" :value="JSON.stringify(result?.lista_departamentos || [])">
                                     
-                                    <div class="flex flex-col gap-3">
+                                    <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+                                        <!-- Note (Left) -->
+                                        <p class="text-xs text-gray-600 bg-green-50 border border-green-200 rounded-lg p-2.5 flex-1">
+                                            <i class="ph-info text-green-600 mr-1"></i>
+                                            Se actualizarán la categoría y departamentos asignados. Se enviarán correos de notificación a los departamentos.
+                                        </p>
+                                        
+                                        <!-- Button (Right) -->
                                         <button type="submit" 
-                                                class="inline-flex items-center justify-center gap-2 bg-green-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-green-700 transition-colors shadow">
+                                                class="inline-flex items-center justify-center gap-2 bg-green-600 text-white font-semibold py-2.5 px-5 rounded-lg hover:bg-green-700 transition-colors shadow whitespace-nowrap">
                                             <i class="ph-check-circle text-lg"></i>
                                             Aplicar Sugerencias
                                         </button>
-                                        <p class="text-xs text-gray-600 bg-green-50 border border-green-200 rounded-lg p-3">
-                                            <i class="ph-info text-green-600 mr-2"></i>
-                                            Se actualizarán la categoría y departamentos asignados. Se enviarán correos de notificación a los departamentos.
-                                        </p>
                                     </div>
                                 </form>
                             </div>
                         </div>
                     <?php endif; ?>
 
-                    <div class="grid grid-cols-1 gap-8 mb-8">
-                        <div class="flex items-start gap-4">
-                            <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <i class="ph-calendar text-2xl text-gray-500"></i>
-                            </div>
-                            <div>
-                                <h3 class="font-semibold text-gray-500 text-sm">Fecha de Envío</h3>
-                                <p class="text-lg font-bold text-gray-800">
-                                    <?php echo date('d/m/Y \a \l\a\s H:i', strtotime($complaint['created_at'])); ?>
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="flex items-start gap-4">
-                            <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <i class="ph-user-circle text-2xl text-gray-500"></i>
-                            </div>
-                            <div>
-                                <h3 class="font-semibold text-gray-500 text-sm">Enviado Por</h3>
-                                <?php if ($complaint['is_anonymous']): ?>
-                                    <?php if ($complaint['user_id'] == $_SESSION['user_id']): ?>
-                                        <div class="space-y-1">
-                                            <div class="flex items-center gap-2">
-                                                <p class="text-lg font-bold text-gray-800"><?php echo htmlspecialchars($complaint['user_name']); ?></p>
-                                                <span class="inline-flex items-center gap-x-1.5 py-1 px-2 rounded-md text-xs font-medium bg-purple-100 text-purple-700">
-                                                    <i class="ph-user-circle-gear"></i>
-                                                    Enviado de forma anónima
-                                                </span>
+                    <div class="mb-8">
+                        <!-- First Row: Enviado Por, Fecha, Categoría -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                            <!-- Enviado Por -->
+                            <div class="flex items-start gap-4">
+                                <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <i class="ph-user-circle text-2xl text-gray-500"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-gray-500 text-sm">Enviado Por</h3>
+                                    <?php if ($complaint['is_anonymous']): ?>
+                                        <?php if ($complaint['user_id'] == $_SESSION['user_id']): ?>
+                                            <div class="space-y-1">
+                                                <div class="flex items-center gap-2">
+                                                    <p class="text-base font-bold text-gray-800"><?php echo htmlspecialchars($complaint['user_name']); ?></p>
+                                                    <span class="inline-flex items-center gap-x-1.5 py-1 px-2 rounded-md text-xs font-medium bg-purple-100 text-purple-700">
+                                                        <i class="ph-user-circle-gear"></i>
+                                                        Anónimo
+                                                    </span>
+                                                </div>
+                                                <p class="text-xs text-gray-500"><?php echo htmlspecialchars($complaint['user_email']); ?></p>
+                                                <p class="text-xs text-purple-600">
+                                                    <i class="ph-info"></i>
+                                                    Solo tú puedes ver esto
+                                                </p>
                                             </div>
-                                            <p class="text-gray-500"><?php echo htmlspecialchars($complaint['user_email']); ?></p>
-                                            <p class="text-sm text-purple-600">
-                                                <i class="ph-info"></i>
-                                                Solo tú puedes ver esta información
-                                            </p>
-                                        </div>
+                                        <?php else: ?>
+                                            <p class="text-base font-bold text-gray-800">Reporte Anónimo</p>
+                                        <?php endif; ?>
                                     <?php else: ?>
-                                        <p class="text-lg font-bold text-gray-800">Reporte Anónimo</p>
-                                    <?php endif; ?>
-                                <?php else: ?>
-                                    <p class="text-lg font-bold text-gray-800"><?php echo htmlspecialchars($complaint['user_name']); ?></p>
-                                    <p class="text-gray-500"><?php echo htmlspecialchars($complaint['user_email']); ?></p>
-                                <?php endif; ?>
-                            </div>
-                        </div>
-
-                        <div class="flex items-start gap-4">
-                            <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <i class="ph-tag text-2xl text-gray-500"></i>
-                            </div>
-                            <div class="flex-1">
-                                <div class="flex items-center justify-between gap-3">
-                                    <h3 class="font-semibold text-gray-500 text-sm">Categoría</h3>
-                                    <?php if (isAdmin()): ?>
-                                        <button type="button"
-                                                @click="isAdminPanelOpen = true; adminModalMode = 'category'; activeTab = 'category';"
-                                                class="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-800">
-                                            <i class="ph-pencil-simple text-base"></i>
-                                            Editar
-                                        </button>
+                                        <p class="text-base font-bold text-gray-800"><?php echo htmlspecialchars($complaint['user_name']); ?></p>
+                                        <p class="text-xs text-gray-500"><?php echo htmlspecialchars($complaint['user_email']); ?></p>
                                     <?php endif; ?>
                                 </div>
-                                <p class="text-lg font-bold text-gray-800 mt-2">
-                                    <?php echo $complaint['category_name'] ? htmlspecialchars($complaint['category_name']) : 'Sin categoría'; ?>
-                                </p>
+                            </div>
+
+                            <!-- Fecha de Envío -->
+                            <div class="flex items-start gap-4">
+                                <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <i class="ph-calendar text-2xl text-gray-500"></i>
+                                </div>
+                                <div>
+                                    <h3 class="font-semibold text-gray-500 text-sm">Fecha de Envío</h3>
+                                    <p class="text-base font-bold text-gray-800">
+                                        <?php echo date('d/m/Y \a \l\a\s H:i', strtotime($complaint['created_at'])); ?>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Categoría -->
+                            <div class="flex items-start gap-4">
+                                <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <i class="ph-tag text-2xl text-gray-500"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <h3 class="font-semibold text-gray-500 text-sm">Categoría</h3>
+                                        <?php if (isAdmin()): ?>
+                                            <button type="button"
+                                                    @click="isAdminPanelOpen = true; adminModalMode = 'category'; activeTab = 'category';"
+                                                    class="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-800">
+                                                <i class="ph-pencil-simple text-base"></i>
+                                                Editar
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
+                                    <p class="text-base font-bold text-gray-800">
+                                        <?php echo $complaint['category_name'] ? htmlspecialchars($complaint['category_name']) : 'Sin categoría'; ?>
+                                    </p>
+                                </div>
                             </div>
                         </div>
 
+                        <!-- Second Row: Departamentos Asignados (Full Width) -->
                         <?php 
                         // Get assigned departments
                         if (!isset($assigned_departments)) {
@@ -1080,17 +1120,17 @@ include 'components/header.php';
                                     <?php endif; ?>
                                 </div>
                                 <?php if ($assigned_departments->num_rows == 0): ?>
-                                    <div class="mt-2 bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+                                    <div class="mt-2 bg-yellow-50 rounded-lg p-3 border border-yellow-200">
                                         <div class="flex items-center gap-3">
-                                            <i class="ph-warning-circle text-yellow-600 text-xl"></i>
+                                            <i class="ph-warning-circle text-yellow-600 text-lg"></i>
                                             <div>
-                                                <p class="font-medium text-yellow-800">Reporte sin asignar</p>
+                                                <p class="font-medium text-yellow-800 text-sm">Reporte sin asignar</p>
                                                 <?php if (isAdmin()): ?>
-                                                    <p class="text-yellow-700 text-sm mt-0.5">
+                                                    <p class="text-yellow-700 text-xs mt-0.5">
                                                         Usa el botón "Asignar Departamentos" para asignar departamentos responsables.
                                                     </p>
                                                 <?php else: ?>
-                                                    <p class="text-yellow-700 text-sm mt-0.5">
+                                                    <p class="text-yellow-700 text-xs mt-0.5">
                                                         El reporte aún no ha sido asignado a ningún departamento.
                                                     </p>
                                                 <?php endif; ?>
@@ -1098,21 +1138,21 @@ include 'components/header.php';
                                         </div>
                                     </div>
                                 <?php else: ?>
-                                    <div class="mt-2 space-y-3">
+                                    <div class="mt-2 space-y-2">
                                         <?php while ($dept = $assigned_departments->fetch_assoc()): ?>
-                                            <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                                                <div class="flex justify-between items-start">
-                                                    <div>
-                                                        <p class="font-bold text-gray-900"><?php echo htmlspecialchars($dept['name']); ?></p>
-                                                        <p class="text-gray-600 mt-1">
-                                                            <span class="font-medium"><?php echo htmlspecialchars($dept['manager']); ?></span><br>
+                                            <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                                                <div class="flex justify-between items-start gap-4">
+                                                    <div class="flex-1 min-w-0">
+                                                        <p class="font-bold text-gray-900 text-base"><?php echo htmlspecialchars($dept['name']); ?></p>
+                                                        <p class="text-gray-600 text-sm mt-1">
+                                                            <span class="font-medium"><?php echo htmlspecialchars($dept['manager']); ?></span> · 
                                                             <a href="mailto:<?php echo htmlspecialchars($dept['email']); ?>" class="text-blue-600 hover:text-blue-800">
                                                                 <?php echo htmlspecialchars($dept['email']); ?>
                                                             </a>
                                                         </p>
                                                     </div>
-                                                    <div class="text-sm text-gray-500">
-                                                        Asignado: <?php echo date('d/m/Y H:i', strtotime($dept['assigned_at'])); ?>
+                                                    <div class="text-xs text-gray-500 whitespace-nowrap">
+                                                        <?php echo date('d/m/Y H:i', strtotime($dept['assigned_at'])); ?>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1162,166 +1202,376 @@ include 'components/header.php';
                         <?php endif; ?>
                     </div>
 
-                    <!-- Response Evidence Section -->
-                    <div class="mb-8">
-                        <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <i class="ph-check-circle text-green-600"></i>
-                            Evidencia de Respuesta
-                        </h2>
-                        
-                        <?php if (isAdmin() && empty($response_evidence)): ?>
-                            <!-- Admin: Inline Upload (solo cuando NO hay evidencia) -->
-                            <div class="mb-6" x-data="{ 
-                                isDragging: false, 
-                                hasFiles: false,
-                                fileCount: 0,
-                                previews: [],
-                                updateFileCount() {
-                                    const input = document.getElementById('response_evidence_input');
-                                    this.fileCount = input.files.length;
-                                    this.hasFiles = this.fileCount > 0;
-                                    this.generatePreviews(input.files);
-                                },
-                                generatePreviews(files) {
-                                    this.previews = [];
-                                    for (let i = 0; i < files.length; i++) {
-                                        const file = files[i];
-                                        if (file.type.startsWith('image/')) {
-                                            const reader = new FileReader();
-                                            reader.onload = (e) => {
-                                                this.previews.push(e.target.result);
-                                            };
-                                            reader.readAsDataURL(file);
-                                        }
+                    <!-- Comments Section -->
+                    <div class="mb-8" x-data="{ 
+                        showForm: false,
+                        showAttachments: false,
+                        comment: '', 
+                        hasFiles: false,
+                        fileCount: 0,
+                        files: [],
+                        fileObjects: [],
+                        isDragging: false,
+                        updateFileCount() {
+                            const input = document.getElementById('comment_attachments');
+                            this.fileCount = input.files.length;
+                            this.hasFiles = this.fileCount > 0;
+                            this.fileObjects = Array.from(input.files);
+                            this.generateFileList();
+                        },
+                        handleFileSelect(event) {
+                            const input = event.target;
+                            const dt = new DataTransfer();
+                            
+                            // Add existing files first
+                            this.fileObjects.forEach(file => {
+                                dt.items.add(file);
+                            });
+                            
+                            // Add newly selected files
+                            Array.from(input.files).forEach(file => {
+                                dt.items.add(file);
+                            });
+                            
+                            input.files = dt.files;
+                            this.updateFileCount();
+                        },
+                        async generateFileList() {
+                            const newFiles = [];
+                            
+                            for (let i = 0; i < this.fileObjects.length; i++) {
+                                const file = this.fileObjects[i];
+                                const fileObj = {
+                                    index: i,
+                                    name: file.name,
+                                    size: this.formatFileSize(file.size),
+                                    type: file.type,
+                                    isImage: file.type.startsWith('image/'),
+                                    preview: null
+                                };
+                                
+                                if (fileObj.isImage) {
+                                    try {
+                                        fileObj.preview = await this.readFileAsDataURL(file);
+                                    } catch (error) {
+                                        console.error('Error reading file:', error);
                                     }
                                 }
-                            }">
-                                <form method="POST" enctype="multipart/form-data" class="space-y-4">
-                                    <div @drop.prevent="isDragging = false; $refs.fileInput.files = $event.dataTransfer.files; updateFileCount()"
-                                         @dragover.prevent="isDragging = true"
-                                         @dragleave.prevent="isDragging = false"
-                                         @click="$refs.fileInput.click()"
-                                         :class="{'border-blue-500 bg-blue-50': isDragging, 'border-gray-300 bg-white': !isDragging}"
-                                         class="relative border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-all hover:border-blue-400 hover:bg-blue-50">
+                                
+                                newFiles.push(fileObj);
+                            }
+                            
+                            this.files = newFiles;
+                        },
+                        readFileAsDataURL(file) {
+                            return new Promise((resolve, reject) => {
+                                const reader = new FileReader();
+                                reader.onload = (e) => resolve(e.target.result);
+                                reader.onerror = reject;
+                                reader.readAsDataURL(file);
+                            });
+                        },
+                        formatFileSize(bytes) {
+                            if (bytes === 0) return '0 Bytes';
+                            const k = 1024;
+                            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                            const i = Math.floor(Math.log(bytes) / Math.log(k));
+                            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+                        },
+                        removeFile(index) {
+                            this.fileObjects.splice(index, 1);
+                            const input = document.getElementById('comment_attachments');
+                            const dt = new DataTransfer();
+                            
+                            this.fileObjects.forEach((file) => {
+                                dt.items.add(file);
+                            });
+                            
+                            input.files = dt.files;
+                            this.updateFileCount();
+                        },
+                        handleDrop(e) {
+                            const input = document.getElementById('comment_attachments');
+                            const dt = new DataTransfer();
+                            
+                            // Add existing files first
+                            Array.from(input.files).forEach(file => {
+                                dt.items.add(file);
+                            });
+                            
+                            // Add new dropped files
+                            Array.from(e.dataTransfer.files).forEach(file => {
+                                dt.items.add(file);
+                            });
+                            
+                            input.files = dt.files;
+                            this.updateFileCount();
+                            this.isDragging = false;
+                        },
+                        getFileIcon(type) {
+                            if (type.includes('pdf')) return 'ph-file-pdf';
+                            if (type.includes('word') || type.includes('document')) return 'ph-file-doc';
+                            if (type.includes('excel') || type.includes('spreadsheet')) return 'ph-file-xls';
+                            return 'ph-file';
+                        }
+                    }">
+                        <div class="flex items-center justify-between mb-4">
+                            <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                <i class="ph-chats-circle text-blue-600"></i>
+                                Respuestas y Seguimiento
+                            </h2>
+                            
+                            <?php if (isStaff()): ?>
+                                <!-- Responder Button (Moved to Header) -->
+                                <button 
+                                    type="button"
+                                    @click="showForm = !showForm"
+                                    x-show="!showForm"
+                                    class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-md">
+                                    <i class="ph-chat-circle-dots text-lg"></i>
+                                    Responder
+                                </button>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <?php if (isStaff()): ?>
+                            <!-- Comment Form Container -->
+                            <div class="mb-6">
+                                
+                                <!-- Add Comment Form (Collapsible) -->
+                                <div 
+                                    x-show="showForm"
+                                    x-transition:enter="transition ease-out duration-200"
+                                    x-transition:enter-start="opacity-0 transform scale-95"
+                                    x-transition:enter-end="opacity-100 transform scale-100"
+                                    x-transition:leave="transition ease-in duration-150"
+                                    x-transition:leave-start="opacity-100 transform scale-100"
+                                    x-transition:leave-end="opacity-0 transform scale-95"
+                                    style="display: none;"
+                                    class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200 relative">
+                                    
+                                    <!-- Cancel Button (Top Right, Icon Only) -->
+                                    <button 
+                                        type="button"
+                                        @click="showForm = false; showAttachments = false; comment = ''; hasFiles = false; fileCount = 0; files = []; document.getElementById('comment_attachments').value = '';"
+                                        class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-full transition-colors">
+                                        <i class="ph-x text-xl"></i>
+                                    </button>
+                                    
+                                    <form method="POST" enctype="multipart/form-data" class="space-y-4">
+                                        <input type="hidden" name="add_comment" value="1">
                                         
-                                        <input type="file" 
-                                               id="response_evidence_input"
-                                               name="response_evidence[]" 
-                                               multiple 
-                                               accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
-                                               @change="updateFileCount()"
-                                               x-ref="fileInput"
-                                               class="hidden">
-                                        
-                                        <div class="flex flex-col items-center gap-3">
-                                            <div x-show="previews.length === 0" class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                                                <i class="ph-upload-simple text-3xl text-blue-600"></i>
-                                            </div>
-                                            
-                                            <div x-show="previews.length > 0" class="grid grid-cols-3 gap-2 w-full max-w-md">
-                                                <template x-for="(preview, index) in previews" :key="index">
-                                                    <div class="relative aspect-square rounded-lg overflow-hidden border-2 border-blue-200">
-                                                        <img :src="preview" class="w-full h-full object-cover">
-                                                    </div>
-                                                </template>
-                                            </div>
-                                            
-                                            <div>
-                                                <p class="text-base font-semibold text-gray-700 mb-1">
-                                                    <span x-show="!isDragging && !hasFiles">Arrastra archivos aquí o haz clic para seleccionar</span>
-                                                    <span x-show="isDragging" class="text-blue-600">Suelta los archivos aquí</span>
-                                                    <span x-show="hasFiles && !isDragging" class="text-green-600">
-                                                        <i class="ph-check-circle mr-1"></i>
-                                                        <span x-text="fileCount"></span> archivo<span x-show="fileCount > 1">s</span> listo<span x-show="fileCount > 1">s</span> para subir
-                                                    </span>
-                                                </p>
-                                                <p class="text-sm text-gray-500">Imágenes, PDF, Word, Excel</p>
+                                        <div>
+                                            <label for="comment" class="block text-sm font-semibold text-gray-700 mb-2">
+                                                <i class="ph-pencil-line mr-1"></i>
+                                                Agregar Respuesta
+                                            </label>
+                                            <div class="relative">
+                                                <!-- Textarea with Drag and Drop -->
+                                                <textarea 
+                                                    id="comment" 
+                                                    name="comment" 
+                                                    rows="4"
+                                                    x-model="comment"
+                                                    @drop.prevent="handleDrop($event)"
+                                                    @dragover.prevent="isDragging = true"
+                                                    @dragleave.prevent="isDragging = false"
+                                                    :class="isDragging ? 'border-blue-500 bg-blue-50' : 'border-gray-300'"
+                                                    placeholder="Escribe tu respuesta o arrastra archivos aquí..."
+                                                    class="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-colors"></textarea>
+                                                
+                                                <!-- Attachment Button (Bottom Left of Textarea) - Opens File Dialog -->
+                                                <button 
+                                                    type="button"
+                                                    @click="document.getElementById('comment_attachments').click();"
+                                                    class="absolute bottom-3 left-2 inline-flex items-center gap-1 px-2 py-1 text-sm font-medium transition-colors text-gray-600 hover:text-blue-600">
+                                                    <i class="ph-paperclip text-lg"></i>
+                                                    <span>Adjuntar</span>
+                                                </button>
+                                                
+                                                <!-- Hidden File Input -->
+                                                <input 
+                                                    type="file" 
+                                                    id="comment_attachments"
+                                                    name="attachments[]" 
+                                                    multiple 
+                                                    accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                                                    @change="handleFileSelect($event)"
+                                                    class="hidden">
                                             </div>
                                         </div>
-                                    </div>
-                                    
-                                    <div class="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3">
-                                        <p class="text-sm text-blue-700 flex items-center gap-2">
-                                            <i class="ph-info"></i>
-                                            La primera evidencia marcará el reporte como atendido
-                                        </p>
-                                        <button type="submit" 
-                                                :disabled="!hasFiles"
-                                                :class="hasFiles ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' : 'bg-gray-300 cursor-not-allowed'"
+                                        
+                                        <!-- Attachments Preview Section (Shows when files selected) -->
+                                        <div 
+                                            x-show="hasFiles"
+                                            x-transition:enter="transition ease-out duration-200"
+                                            x-transition:enter-start="opacity-0 max-h-0"
+                                            x-transition:enter-end="opacity-100 max-h-screen"
+                                            x-transition:leave="transition ease-in duration-150"
+                                            x-transition:leave-start="opacity-100 max-h-screen"
+                                            x-transition:leave-end="opacity-0 max-h-0"
+                                            style="display: none;"
+                                            class="overflow-hidden">
+                                            <div class="bg-white rounded-lg p-4 border border-blue-200">
+                                                <div class="flex items-center justify-between mb-3">
+                                                    <label class="block text-sm font-semibold text-gray-700">
+                                                        <i class="ph-images mr-1"></i>
+                                                        Archivos Adjuntos (<span x-text="fileCount"></span>)
+                                                    </label>
+                                                    <button 
+                                                        type="button"
+                                                        @click="document.getElementById('comment_attachments').value = ''; hasFiles = false; fileCount = 0; files = [];"
+                                                        class="text-xs text-red-600 hover:text-red-800 font-medium">
+                                                        <i class="ph-trash"></i> Limpiar Todo
+                                                    </button>
+                                                </div>
+                                                
+                                                <!-- File Cards -->
+                                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                                    <template x-for="(file, index) in files" :key="index">
+                                                        <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 hover:border-blue-300 transition-colors group">
+                                                            <!-- Icon/Thumbnail (Left) -->
+                                                            <div class="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-white border border-gray-200 flex items-center justify-center">
+                                                                <template x-if="file.isImage && file.preview">
+                                                                    <img :src="file.preview" class="w-full h-full object-cover">
+                                                                </template>
+                                                                <template x-if="!file.isImage || !file.preview">
+                                                                    <i :class="getFileIcon(file.type)" class="text-2xl text-gray-600"></i>
+                                                                </template>
+                                                            </div>
+                                                            
+                                                            <!-- File Info (Center) -->
+                                                            <div class="flex-1 min-w-0">
+                                                                <p class="text-sm font-medium text-gray-900 truncate" x-text="file.name"></p>
+                                                                <p class="text-xs text-gray-500" x-text="file.size"></p>
+                                                            </div>
+                                                            
+                                                            <!-- Remove Button (Right) -->
+                                                            <button 
+                                                                type="button"
+                                                                @click="removeFile(file.index)"
+                                                                class="flex-shrink-0 w-6 h-6 flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100">
+                                                                <i class="ph-x text-lg"></i>
+                                                            </button>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="flex items-center justify-between pt-2">
+                                            <p class="text-xs text-gray-600">
+                                                <i class="ph-info mr-1"></i>
+                                                Visible para el usuario
+                                            </p>
+                                            <button 
+                                                type="submit"
+                                                :disabled="comment.trim() === '' && !hasFiles"
+                                                :class="(comment.trim() !== '' || hasFiles) ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' : 'bg-gray-300 cursor-not-allowed'"
                                                 class="inline-flex items-center px-6 py-2.5 text-white font-semibold rounded-lg transition-colors shadow-md disabled:opacity-50">
-                                            <i class="ph-upload-simple text-lg mr-2"></i>
-                                            Subir
-                                        </button>
-                                    </div>
-                                </form>
+                                                <i class="ph-paper-plane-tilt text-lg mr-2"></i>
+                                                Enviar Respuesta
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
                             </div>
                         <?php endif; ?>
                         
-                        <!-- Display Response Evidence -->
-                        <?php if (empty($response_evidence)): ?>
-                            <div class="bg-gray-50 rounded-lg p-6 text-center border-2 border-dashed border-gray-200">
-                                <i class="ph-file-dashed text-5xl text-gray-400 mb-3"></i>
-                                <p class="text-gray-500">Aún no se ha adjuntado evidencia de respuesta para este reporte.</p>
+                        <!-- Comments Timeline -->
+                        <?php if (empty($comments)): ?>
+                            <div class="bg-gray-50 rounded-lg p-8 text-center border-2 border-dashed border-gray-200">
+                                <i class="ph-chats text-5xl text-gray-400 mb-3"></i>
+                                <p class="text-gray-500 font-medium">Aún no hay respuestas para este reporte.</p>
+                                <?php if (isStaff()): ?>
+                                    <p class="text-gray-400 text-sm mt-1">Sé el primero en responder usando el formulario de arriba.</p>
+                                <?php endif; ?>
                             </div>
                         <?php else: ?>
-                            <div class="bg-white rounded-lg border border-gray-200 p-6">
-                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    <!-- Add More Evidence Card (Solo para admins) -->
-                                    <?php if (isAdmin()): ?>
-                                        <button type="button"
-                                                @click="isUploadModalOpen = true"
-                                                class="border-2 border-dashed border-blue-300 rounded-lg overflow-hidden group transition-all hover:shadow-md hover:border-blue-500 hover:bg-blue-50 cursor-pointer">
-                                            <div class="w-full h-40 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-blue-50 to-indigo-50 group-hover:from-blue-100 group-hover:to-indigo-100 transition-all">
-                                                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
-                                                    <i class="ph-plus text-3xl text-blue-600"></i>
-                                                </div>
-                                                <p class="text-sm font-semibold text-blue-700">Agregar Más Evidencia</p>
-                                            </div>
-                                            <div class="p-4 bg-white border-t border-blue-100">
-                                                <p class="text-xs text-center text-gray-600">Haz clic para subir archivos adicionales</p>
-                                            </div>
-                                        </button>
-                                    <?php endif; ?>
-                                    
-                                    <?php foreach ($response_evidence as $evidence): ?>
-                                        <?php 
-                                        // Verificar si es imagen
-                                        $is_image = str_contains($evidence['file_type'], 'image') || 
-                                                   preg_match('/\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i', $evidence['file_name']);
-                                        ?>
-                                        <div class="border border-gray-200 rounded-lg overflow-hidden group transition-shadow hover:shadow-md">
-                                            <?php if ($is_image): ?>
-                                                <button type="button"
-                                                        @click.prevent="console.log('Click en imagen:', '<?php echo addslashes($evidence['file_path']); ?>'); isModalOpen = true; modalImageUrl = '<?php echo addslashes($evidence['file_path']); ?>'; console.log('Modal abierto:', isModalOpen, 'URL:', modalImageUrl);" 
-                                                        class="w-full h-40 block relative overflow-hidden group/img bg-gray-100 cursor-pointer">
-                                                    <img src="<?php echo htmlspecialchars($evidence['file_path']); ?>" 
-                                                         alt="<?php echo htmlspecialchars($evidence['file_name']); ?>" 
-                                                         class="w-full h-full object-cover transition-transform group-hover/img:scale-110 pointer-events-none"
-                                                         loading="lazy"
-                                                         onerror="console.error('Error cargando imagen:', this.src); this.parentElement.innerHTML='<div class=\'w-full h-full flex items-center justify-center bg-red-50\'><div class=\'text-center\'><i class=\'ph-image-broken text-4xl text-red-400 mb-2\'></i><p class=\'text-xs text-red-600\'>Error al cargar imagen</p></div></div>'">
-                                                    <div class="absolute inset-0 bg-black bg-opacity-0 group-hover/img:bg-opacity-30 transition-all flex items-center justify-center pointer-events-none">
-                                                        <i class="ph-magnifying-glass-plus text-white text-3xl opacity-0 group-hover/img:opacity-100 transition-opacity drop-shadow-lg"></i>
+                            <div class="space-y-6">
+                                <?php foreach ($comments as $comment): ?>
+                                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                                        <!-- Comment Header -->
+                                        <div class="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                                            <div class="flex items-start justify-between">
+                                                <div class="flex items-center gap-3">
+                                                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold">
+                                                        <?php echo strtoupper(substr($comment['user_name'], 0, 1)); ?>
                                                     </div>
-                                                </button>
-                                            <?php else: ?>
-                                                <div class="w-full h-40 bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center">
-                                                    <i class="<?php echo getFileIcon($evidence['file_type']); ?> text-6xl text-green-600"></i>
+                                                    <div>
+                                                        <p class="font-semibold text-gray-900">
+                                                            <?php echo htmlspecialchars($comment['user_name']); ?>
+                                                            <?php if ($comment['user_role'] === 'admin'): ?>
+                                                                <span class="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
+                                                                    <i class="ph-shield-check"></i>
+                                                                    Admin
+                                                                </span>
+                                                            <?php elseif ($comment['user_role'] === 'manager'): ?>
+                                                                <span class="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                                                                    <i class="ph-user-gear"></i>
+                                                                    Encargado
+                                                                </span>
+                                                            <?php endif; ?>
+                                                        </p>
+                                                        <p class="text-sm text-gray-500">
+                                                            <i class="ph-clock text-xs"></i>
+                                                            <?php echo date('d/m/Y \a \l\a\s H:i', strtotime($comment['created_at'])); ?>
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            <?php endif; ?>
-                                            <div class="p-4 bg-white">
-                                                <p class="text-sm font-semibold text-gray-700 truncate"><?php echo htmlspecialchars($evidence['file_name']); ?></p>
-                                                <p class="text-xs text-gray-500 mt-1">
-                                                    Subido por: <?php echo htmlspecialchars($evidence['uploaded_by_name']); ?><br>
-                                                    <?php echo date('d/m/Y H:i', strtotime($evidence['uploaded_at'])); ?>
-                                                </p>
-                                                <a href="<?php echo htmlspecialchars($evidence['file_path']); ?>" target="_blank" download
-                                                   class="inline-flex items-center mt-2 text-sm text-green-600 hover:text-green-800 font-semibold group/link">
-                                                    Descargar <i class="ph-download-simple text-lg ml-1 group-hover/link:translate-y-0.5 transition-transform"></i>
-                                                </a>
                                             </div>
                                         </div>
-                                    <?php endforeach; ?>
-                                </div>
+                                        
+                                        <!-- Comment Body -->
+                                        <div class="px-6 py-4">
+                                            <?php if (!empty($comment['comment'])): ?>
+                                                <p class="text-gray-700 whitespace-pre-wrap leading-relaxed"><?php echo htmlspecialchars($comment['comment']); ?></p>
+                                            <?php endif; ?>
+                                            
+                                            <!-- Attachments -->
+                                            <?php if (!empty($comment['attachments'])): ?>
+                                                <div class="mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                                                    <?php foreach ($comment['attachments'] as $attachment): ?>
+                                                        <?php 
+                                                        $is_image = str_contains($attachment['file_type'], 'image') || 
+                                                                   preg_match('/\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i', $attachment['file_name']);
+                                                        ?>
+                                                        <div class="group relative">
+                                                            <?php if ($is_image): ?>
+                                                                <!-- Image Thumbnail -->
+                                                                <button 
+                                                                    type="button"
+                                                                    @click="isModalOpen = true; modalImageUrl = '<?php echo addslashes($attachment['file_path']); ?>'"
+                                                                    class="block w-full aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-400 transition-all cursor-pointer">
+                                                                    <img 
+                                                                        src="<?php echo htmlspecialchars($attachment['file_path']); ?>" 
+                                                                        alt="<?php echo htmlspecialchars($attachment['file_name']); ?>"
+                                                                        class="w-full h-full object-cover group-hover:scale-110 transition-transform"
+                                                                        loading="lazy">
+                                                                    <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
+                                                                        <i class="ph-magnifying-glass-plus text-white text-2xl opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg"></i>
+                                                                    </div>
+                                                                </button>
+                                                            <?php else: ?>
+                                                                <!-- File Icon -->
+                                                                <a 
+                                                                    href="<?php echo htmlspecialchars($attachment['file_path']); ?>" 
+                                                                    target="_blank" 
+                                                                    download
+                                                                    class="block w-full aspect-square rounded-lg border-2 border-gray-200 hover:border-blue-400 bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col items-center justify-center gap-2 transition-all group-hover:shadow-md">
+                                                                    <i class="<?php echo getFileIcon($attachment['file_type']); ?> text-4xl text-gray-600"></i>
+                                                                    <p class="text-xs text-gray-600 font-medium px-2 text-center truncate w-full">
+                                                                        <?php echo htmlspecialchars($attachment['file_name']); ?>
+                                                                    </p>
+                                                                </a>
+                                                            <?php endif; ?>
+                                                        </div>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
                             </div>
                         <?php endif; ?>
                     </div>

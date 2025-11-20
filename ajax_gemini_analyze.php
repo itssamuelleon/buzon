@@ -1,6 +1,16 @@
 <?php
+// Start output buffering to catch any unexpected output
+ob_start();
+
+// Suppress error display (errors will still be logged)
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+
 require_once 'config.php';
 require_once 'services/gemini_service.php';
+
+// Clean any output that might have been generated
+ob_end_clean();
 
 header('Content-Type: application/json');
 
@@ -53,12 +63,33 @@ $stmt_att_ai->execute();
 $attachments_for_ai = $stmt_att_ai->get_result()->fetch_all(MYSQLI_ASSOC);
 $stmt_att_ai->close();
 
-// Obtener evidencia de respuesta
-$stmt_resp_ai = $conn->prepare("SELECT file_name, file_type FROM response_evidence WHERE complaint_id = ?");
-$stmt_resp_ai->bind_param("i", $complaint_id);
-$stmt_resp_ai->execute();
-$response_evidence_for_ai = $stmt_resp_ai->get_result()->fetch_all(MYSQLI_ASSOC);
-$stmt_resp_ai->close();
+// Obtener comentarios y sus adjuntos
+$stmt_comments_ai = $conn->prepare("
+    SELECT cc.id, cc.comment, cc.created_at, u.name as user_name, u.role as user_role
+    FROM complaint_comments cc
+    LEFT JOIN users u ON cc.user_id = u.id
+    WHERE cc.complaint_id = ?
+    ORDER BY cc.created_at ASC
+");
+$stmt_comments_ai->bind_param("i", $complaint_id);
+$stmt_comments_ai->execute();
+$comments_for_ai = $stmt_comments_ai->get_result()->fetch_all(MYSQLI_ASSOC);
+$stmt_comments_ai->close();
+
+// Obtener adjuntos de comentarios
+$comment_attachments_for_ai = [];
+if (!empty($comments_for_ai)) {
+    $stmt_comment_att = $conn->prepare("
+        SELECT ca.file_name, ca.file_type, ca.comment_id
+        FROM comment_attachments ca
+        INNER JOIN complaint_comments cc ON ca.comment_id = cc.id
+        WHERE cc.complaint_id = ?
+    ");
+    $stmt_comment_att->bind_param("i", $complaint_id);
+    $stmt_comment_att->execute();
+    $comment_attachments_for_ai = $stmt_comment_att->get_result()->fetch_all(MYSQLI_ASSOC);
+    $stmt_comment_att->close();
+}
 
 // Preparar contexto
 $folio = $complaint_for_ai['folio'] ?? str_pad($complaint_for_ai['id'], 6, '0', STR_PAD_LEFT);
@@ -82,17 +113,38 @@ $context_lines[] = trim($complaint_for_ai['description'] ?? '(sin descripción)'
 
 if (!empty($attachments_for_ai)) {
     $context_lines[] = '';
-    $context_lines[] = 'Archivos adjuntos:';
+    $context_lines[] = 'Archivos adjuntos al reporte inicial:';
     foreach ($attachments_for_ai as $attachment) {
         $context_lines[] = '- ' . ($attachment['file_name'] ?? 'sin nombre') . ' [' . ($attachment['file_type'] ?? 'tipo desconocido') . ']';
     }
 }
 
-if (!empty($response_evidence_for_ai)) {
+if (!empty($comments_for_ai)) {
     $context_lines[] = '';
-    $context_lines[] = 'Evidencia de respuesta cargada por administradores:';
-    foreach ($response_evidence_for_ai as $evidence) {
-        $context_lines[] = '- ' . ($evidence['file_name'] ?? 'sin nombre') . ' [' . ($evidence['file_type'] ?? 'tipo desconocido') . ']';
+    $context_lines[] = 'Comentarios y seguimiento del reporte:';
+    foreach ($comments_for_ai as $idx => $comment) {
+        $comment_num = $idx + 1;
+        $role_label = '';
+        if (isset($comment['user_role'])) {
+            $role_label = ($comment['user_role'] === 'admin' ? ' (Administrador)' : ($comment['user_role'] === 'manager' ? ' (Encargado)' : ''));
+        }
+        $context_lines[] = '';
+        $context_lines[] = "Comentario #{$comment_num} - " . ($comment['user_name'] ?? 'Usuario') . $role_label . ' - ' . date('d/m/Y H:i', strtotime($comment['created_at']));
+        $context_lines[] = trim($comment['comment']);
+        
+        // Buscar adjuntos de este comentario
+        $comment_id = $comment['id'] ?? null;
+        if ($comment_id) {
+            $attachments_in_comment = array_filter($comment_attachments_for_ai, function($att) use ($comment_id) {
+                return isset($att['comment_id']) && $att['comment_id'] == $comment_id;
+            });
+            if (!empty($attachments_in_comment)) {
+                $context_lines[] = 'Archivos adjuntos en este comentario:';
+                foreach ($attachments_in_comment as $att) {
+                    $context_lines[] = '  - ' . ($att['file_name'] ?? 'sin nombre') . ' [' . ($att['file_type'] ?? 'tipo desconocido') . ']';
+                }
+            }
+        }
     }
 }
 
@@ -117,13 +169,21 @@ foreach ($departments_list as $dept) {
 }
 
 $system_instruction = <<<TXT
-Eres un asistente de clasificación para el Buzón de Quejas del Instituto Tecnológico Superior de Ciudad Constitución (ITSCC).
+Eres un asistente de clasificación y análisis para el Buzón de Quejas del Instituto Tecnológico Superior de Ciudad Constitución (ITSCC).
 
 Objetivos:
 1. Clasifica el reporte estrictamente como "queja", "sugerencia" o "felicitacion" según el texto proporcionado (este es el "Tipo").
 2. Sugiere la categoría más apropiada de las disponibles en la base de datos (devuelve su ID).
 3. Propón entre uno y tres departamentos más adecuados para atenderlo usando sus IDs. SIEMPRE debes sugerir al menos un departamento, nunca un arreglo vacío.
-4. Genera un resumen breve (máximo 80 palabras) y claro en español, usando un tono formal.
+4. Genera un resumen COMPLETO Y DETALLADO del reporte en español, usando un tono formal y profesional.
+
+IMPORTANTE SOBRE EL RESUMEN:
+- El resumen debe incluir TODA la información relevante del reporte inicial Y de todos los comentarios de seguimiento.
+- Si hay comentarios de administradores o encargados, incluye sus opiniones, acciones tomadas, y cualquier información adicional que hayan proporcionado.
+- Si hay múltiples comentarios, sintetiza la conversación completa y el progreso del caso.
+- El resumen debe ser comprehensivo (entre 100-200 palabras), no solo del reporte inicial.
+- Incluye cualquier resolución, acción tomada, o estado actual mencionado en los comentarios.
+- Si no hay comentarios, enfócate solo en el reporte inicial.
 
 $categories_text
 
@@ -141,7 +201,7 @@ Responde EXCLUSIVAMENTE en JSON válido (sin texto adicional ni bloques Markdown
       "motivo": "Explicación breve en español"
     }
   ],
-  "resumen": "Texto del resumen en español"
+  "resumen": "Texto del resumen COMPLETO en español, incluyendo información del reporte inicial Y todos los comentarios de seguimiento"
 }
 
 Asegúrate de que:
@@ -151,7 +211,16 @@ Asegúrate de que:
 - Los campos "id" en lista_departamentos deben ser números enteros, no strings.
 - NUNCA devuelvas un arreglo vacío en "lista_departamentos". Siempre sugiere al menos un departamento.
 - NUNCA devuelvas nombres en lugar de IDs. Usa SOLO los IDs proporcionados.
+- El "resumen" debe ser COMPREHENSIVO e incluir información de TODOS los comentarios disponibles, no solo del reporte inicial.
 TXT;
+
+// Debug: Log the context being sent to Gemini (temporary - remove after verification)
+error_log("=== GEMINI CONTEXT DEBUG ===");
+error_log("Complaint ID: " . $complaint_id);
+error_log("Number of comments found: " . count($comments_for_ai));
+error_log("Context length: " . strlen($context) . " characters");
+error_log("Context preview (first 500 chars): " . substr($context, 0, 500));
+error_log("============================");
 
 $gemini_result = generateGeminiResponse($system_instruction, $context, [
     'responseMimeType' => 'application/json',

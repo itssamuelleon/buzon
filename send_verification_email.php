@@ -12,6 +12,33 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 function sendVerificationEmail($email, $name, $code) {
+    global $conn;
+    
+    // Check if test mode is enabled
+    $stmt_test = $conn->prepare("SELECT setting_value FROM admin_settings WHERE setting_key = 'test_mode'");
+    $stmt_test->execute();
+    $result_test = $stmt_test->get_result();
+    $test_mode = false;
+    $test_email = '';
+    
+    if ($row_test = $result_test->fetch_assoc()) {
+        $test_mode = $row_test['setting_value'] == '1';
+    }
+    
+    // If test mode is enabled, get test email
+    if ($test_mode) {
+        $stmt_email = $conn->prepare("SELECT setting_value FROM admin_settings WHERE setting_key = 'test_email'");
+        $stmt_email->execute();
+        $result_email = $stmt_email->get_result();
+        if ($row_email = $result_email->fetch_assoc()) {
+            $test_email = $row_email['setting_value'];
+        }
+    }
+    
+    // Determine actual recipient
+    $actual_recipient = ($test_mode && !empty($test_email)) ? $test_email : $email;
+    $original_email = $email;
+    
     $mail = new PHPMailer(true);
     
     try {
@@ -27,11 +54,32 @@ function sendVerificationEmail($email, $name, $code) {
         
         // Remitente y destinatario
         $mail->setFrom(SMTP_USERNAME, 'ITSCC Buzón Digital');
-        $mail->addAddress($email, $name);
+        $mail->addAddress($actual_recipient, $name);
+        
+        // Add test mode notice to subject if in test mode
+        $subject = 'Código de Verificación - ITSCC Buzón Digital';
+        if ($test_mode && $actual_recipient !== $original_email) {
+            $subject = '[MODO PRUEBA] ' . $subject;
+        }
         
         // Contenido del correo
         $mail->isHTML(true);
-        $mail->Subject = 'Código de Verificación - ITSCC Buzón Digital';
+        $mail->Subject = $subject;
+        
+        // Add test mode notice to body if applicable
+        $test_notice = '';
+        if ($test_mode && $actual_recipient !== $original_email) {
+            $test_notice = "
+            <div style='background-color: #fff3cd; border: 2px solid #ffc107; border-radius: 8px; padding: 15px; margin-bottom: 20px;'>
+                <p style='margin: 0; color: #856404; font-weight: 600;'>
+                    ⚠️ MODO DE PRUEBA ACTIVADO
+                </p>
+                <p style='margin: 5px 0 0 0; color: #856404; font-size: 14px;'>
+                    Este correo estaba destinado a: <strong>{$original_email}</strong>
+                </p>
+            </div>
+            ";
+        }
         
         // Cuerpo HTML del correo
         $mail->Body = "
@@ -63,6 +111,7 @@ function sendVerificationEmail($email, $name, $code) {
                     <h1>🔐 Verificación de Correo</h1>
                 </div>
                 <div class='content'>
+                    {$test_notice}
                     <h2 style='color: #333; margin-top: 0;'>¡Hola, " . htmlspecialchars($name) . "!</h2>
                     <p style='font-size: 16px; color: #555;'>
                         Gracias por registrarte en el <strong>Buzón Digital del ITSCC</strong>. Para completar tu registro, necesitamos verificar tu correo electrónico.
@@ -104,8 +153,17 @@ function sendVerificationEmail($email, $name, $code) {
         ";
         
         // Cuerpo alternativo en texto plano
-        $mail->AltBody = "
-Hola, " . $name . "!
+        $test_notice_plain = '';
+        if ($test_mode && $actual_recipient !== $original_email) {
+            $test_notice_plain = "
+*** MODO DE PRUEBA ACTIVADO ***
+Este correo estaba destinado a: {$original_email}
+***********************************
+
+";
+        }
+        
+        $mail->AltBody = "{$test_notice_plain}Hola, " . $name . "!
 
 Gracias por registrarte en el Buzón Digital del ITSCC.
 
