@@ -50,16 +50,24 @@ $total_reports = $result_total->fetch_assoc()['total'];
 $result_unattended = $conn->query("SELECT COUNT(*) as total FROM complaints WHERE status IN ('unattended_ontime', 'unattended_late')");
 $unattended_reports = $result_unattended->fetch_assoc()['total'];
 
-// Sin asignar (department_id IS NULL)
-$result_unassigned = $conn->query("SELECT COUNT(*) as total FROM complaints WHERE department_id IS NULL");
+// Sin asignar (No existen registros en complaint_departments para este reporte)
+$result_unassigned = $conn->query("
+    SELECT COUNT(*) as total 
+    FROM complaints c 
+    LEFT JOIN complaint_departments cd ON c.id = cd.complaint_id 
+    WHERE cd.department_id IS NULL
+");
 $unassigned_reports = $result_unassigned->fetch_assoc()['total'];
 
 // 4. Obtener detalles para la tabla (Sin atender o Sin asignar)
+// Usamos una subconsulta o LEFT JOIN para determinar si tiene departamentos asignados
 $query_details = "
-    SELECT description, status, created_at, department_id 
-    FROM complaints 
-    WHERE status IN ('unattended_ontime', 'unattended_late') OR department_id IS NULL 
-    ORDER BY created_at ASC
+    SELECT c.description, c.status, c.created_at, 
+           (SELECT COUNT(*) FROM complaint_departments cd WHERE cd.complaint_id = c.id) as dept_count
+    FROM complaints c 
+    WHERE c.status IN ('unattended_ontime', 'unattended_late') 
+       OR NOT EXISTS (SELECT 1 FROM complaint_departments cd WHERE cd.complaint_id = c.id)
+    ORDER BY c.created_at ASC
 ";
 $result_details = $conn->query($query_details);
 $details = [];
@@ -153,7 +161,7 @@ if (empty($details)) {
         $status_label = '';
         $status_style = '';
         
-        if ($row['department_id'] === null) {
+        if ($row['dept_count'] == 0) {
             $status_label = 'Sin Asignar';
             $status_style = "background-color: #fef3c7; color: #92400e;"; // Amarillo
         } elseif ($row['status'] == 'unattended_ontime') {
