@@ -1,11 +1,13 @@
 <?php
 // daily_summary.php
-// Script para enviar reporte diario de quejas
+// Script para enviar reporte diario de reportes
 // Ejecutar con cron diariamente a las 7:00 AM
 
 // Asegurar que se ejecuta desde la línea de comandos
 if (php_sapi_name() !== 'cli') {
-    die('Este script solo puede ejecutarse desde la línea de comandos.');
+    //die('Este script solo puede ejecutarse desde la línea de comandos.');
+    header('Location: index.php');
+    die();
 }
 
 // Definir ruta base
@@ -80,7 +82,7 @@ $unassigned_reports = $result_unassigned->fetch_assoc()['total'];
 // Usamos una subconsulta o LEFT JOIN para determinar si tiene departamentos asignados
 // ORDEN CAMBIADO: DESC (Más nuevo primero)
 $query_details = "
-    SELECT c.description, c.status, c.created_at, 
+    SELECT c.id, c.description, c.status, c.created_at, 
            (SELECT COUNT(*) FROM complaint_departments cd WHERE cd.complaint_id = c.id) as dept_count
     FROM complaints c 
     WHERE c.status IN ('unattended_ontime', 'unattended_late') 
@@ -93,12 +95,13 @@ while ($row = $result_details->fetch_assoc()) {
     $details[] = $row;
 }
 
-// Definir URL del Dashboard
-$dashboard_url = $test_mode ? 'http://127.0.0.1/buzon/dashboard.php' : 'http://200.56.132.62:8088/buzon/dashboard.php';
+// Definir URL del Dashboard y Base
+$base_url = $test_mode ? 'http://127.0.0.1/buzon' : 'http://200.56.132.62:8088/buzon';
+$dashboard_url = $base_url . '/dashboard.php';
 
 // 5. Construir el correo HTML
 $date_str = date('d/m/Y');
-$subject = "Resumen Diario de Quejas - $date_str";
+$subject = "Resumen Diario de Reportes - $date_str";
 
 // Estilos CSS en línea para email
 $css_body = "font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f4f7fa; margin: 0; padding: 0;";
@@ -124,6 +127,7 @@ $html_content = "
 <head>
     <meta charset='UTF-8'>
     <title>$subject</title>
+    <script src='https://cdn.jsdelivr.net/npm/phosphor-icons'></script>
 </head>
 <body style=\"$css_body\">
     <div style=\"$css_container\">
@@ -134,7 +138,7 @@ $html_content = "
         
         <div style=\"$css_content\">
             <h2 style=\"margin-top: 0; color: #1e293b;\">¡Buenos días, " . htmlspecialchars($manager_name) . "! ☀️</h2>
-            <p style=\"color: #64748b; margin-bottom: 25px;\">Aquí tienes el estado actual del Buzón de Quejas.</p>
+            <p style=\"color: #64748b; margin-bottom: 25px;\">Aquí tienes el estado actual del Buzón de Quejas, Sugerencias y Felicitaciones.</p>
 
             <!-- Estadísticas -->
             <table style=\"$css_stat_table\">
@@ -167,8 +171,9 @@ $html_content = "
                 <thead>
                     <tr>
                         <th style=\"$css_th\">Descripción</th>
-                        <th style=\"$css_th\">Estado</th>
+                        <th style=\"$css_th min-width: 110px;\">Estado</th>
                         <th style=\"$css_th\">Antigüedad</th>
+                        <th style=\"$css_th width: 50px;\"></th>
                     </tr>
                 </thead>
                 <tbody>";
@@ -203,12 +208,19 @@ if (empty($details)) {
         $interval = $created->diff($now);
         $days_ago = $interval->days;
         $time_text = $days_ago == 0 ? 'Hoy' : ($days_ago == 1 ? 'Ayer' : "Hace $days_ago días");
+        
+        $view_url = $base_url . '/view_complaint.php?id=' . $row['id'];
 
         $html_content .= "
                     <tr>
                         <td style=\"$css_td\">$desc</td>
                         <td style=\"$css_td\"><span style=\"$css_badge $status_style\">$status_label</span></td>
                         <td style=\"$css_td\">$time_text</td>
+                        <td style=\"$css_td text-align: center;\">
+                            <a href=\"$view_url\" style=\"display: inline-block; background-color: #3b82f6; color: #ffffff; padding: 8px 12px; border-radius: 6px; text-decoration: none; line-height: 1;\" title=\"Ver Reporte\">
+                                <img src=\"https://img.icons8.com/ios-glyphs/30/ffffff/visible.png\" alt=\"Ver\" width=\"20\" height=\"20\" style=\"vertical-align: middle; display: block;\">
+                            </a>
+                        </td>
                     </tr>";
     }
 }
