@@ -185,29 +185,29 @@ include 'components/header.php';
             
             // Using ph-fill for solid icons as requested/consistent with previous design
             $category_info = [
-                0  => ['color' => 'text-gray-600',    'bg' => 'bg-gray-100',    'icon' => 'ph-file-text'],
-                1  => ['color' => 'text-blue-600',    'bg' => 'bg-blue-100',    'icon' => 'ph-wifi-high'],
-                2  => ['color' => 'text-indigo-600',  'bg' => 'bg-indigo-100',  'icon' => 'ph-chair'],
-                3  => ['color' => 'text-emerald-600', 'bg' => 'bg-emerald-100', 'icon' => 'ph-books'],
-                4  => ['color' => 'text-amber-600',   'bg' => 'bg-amber-100',   'icon' => 'ph-flask'],
-                5  => ['color' => 'text-green-600',   'bg' => 'bg-green-100',   'icon' => 'ph-basketball'],
-                6  => ['color' => 'text-orange-600',  'bg' => 'bg-orange-100',  'icon' => 'ph-fork-knife'],
-                7  => ['color' => 'text-sky-600',     'bg' => 'bg-sky-100',     'icon' => 'ph-toilet'],
-                8  => ['color' => 'text-zinc-600',    'bg' => 'bg-zinc-100',    'icon' => 'ph-car'],
-                9  => ['color' => 'text-fuchsia-600', 'bg' => 'bg-fuchsia-100', 'icon' => 'ph-chalkboard'],
-                10 => ['color' => 'text-blue-600',    'bg' => 'bg-blue-100',    'icon' => 'ph-book-open'],
-                11 => ['color' => 'text-yellow-600',  'bg' => 'bg-yellow-100',  'icon' => 'ph-clipboard-text'],
-                12 => ['color' => 'text-indigo-600',  'bg' => 'bg-indigo-100',  'icon' => 'ph-folders'],
-                13 => ['color' => 'text-teal-600',    'bg' => 'bg-teal-100',    'icon' => 'ph-handshake'],
-                14 => ['color' => 'text-rose-600',    'bg' => 'bg-rose-100',    'icon' => 'ph-credit-card'],
-                15 => ['color' => 'text-cyan-600',    'bg' => 'bg-cyan-100',    'icon' => 'ph-headset'],
-                16 => ['color' => 'text-violet-600',  'bg' => 'bg-violet-100',  'icon' => 'ph-megaphone'],
-                17 => ['color' => 'text-red-600',     'bg' => 'bg-red-100',     'icon' => 'ph-prohibit'],
-                18 => ['color' => 'text-orange-600',  'bg' => 'bg-orange-100',  'icon' => 'ph-warning'],
-                19 => ['color' => 'text-emerald-600', 'bg' => 'bg-emerald-100', 'icon' => 'ph-shield-check'],
-                20 => ['color' => 'text-pink-600',    'bg' => 'bg-pink-100',    'icon' => 'ph-target'],
+                0  => ['from' => 'from-gray-500',    'to' => 'to-slate-500',   'icon' => 'ph-file-text'],
+                1  => ['from' => 'from-blue-500',    'to' => 'to-cyan-500',    'icon' => 'ph-wifi-high'],
+                2  => ['from' => 'from-indigo-500',  'to' => 'to-purple-500',  'icon' => 'ph-chalkboard'],
+                3  => ['from' => 'from-emerald-500', 'to' => 'to-teal-500',    'icon' => 'ph-books'],
+                4  => ['from' => 'from-amber-500',   'to' => 'to-orange-500',  'icon' => 'ph-flask'],
+                5  => ['from' => 'from-green-500',   'to' => 'to-emerald-600', 'icon' => 'ph-basketball'],
+                6  => ['from' => 'from-amber-500',   'to' => 'to-orange-600',  'icon' => 'ph-fork-knife'],
+                7  => ['from' => 'from-sky-500',     'to' => 'to-blue-500',    'icon' => 'ph-toilet'],
+                8  => ['from' => 'from-zinc-500',    'to' => 'to-slate-600',   'icon' => 'ph-car'],
+                9  => ['from' => 'from-fuchsia-500', 'to' => 'to-purple-600',  'icon' => 'ph-chalkboard-teacher'],
+                10 => ['from' => 'from-indigo-500',  'to' => 'to-blue-600',    'icon' => 'ph-book-open'],
+                11 => ['from' => 'from-yellow-500',  'to' => 'to-amber-600',   'icon' => 'ph-exam'],
+                12 => ['from' => 'from-blue-500',    'to' => 'to-indigo-600',  'icon' => 'ph-folders'],
+                13 => ['from' => 'from-emerald-500', 'to' => 'to-teal-600',    'icon' => 'ph-handshake'],
+                14 => ['from' => 'from-rose-500',    'to' => 'to-pink-600',    'icon' => 'ph-credit-card'],
+                15 => ['from' => 'from-sky-500',     'to' => 'to-cyan-600',    'icon' => 'ph-headphones'],
+                16 => ['from' => 'from-violet-500',  'to' => 'to-purple-600',  'icon' => 'ph-megaphone'],
+                17 => ['from' => 'from-red-600',     'to' => 'to-rose-700',    'icon' => 'ph-prohibit'],
+                18 => ['from' => 'from-red-500',     'to' => 'to-orange-600',  'icon' => 'ph-warning'],
+                19 => ['from' => 'from-green-600',   'to' => 'to-emerald-700', 'icon' => 'ph-shield-check'],
+                20 => ['from' => 'from-pink-500',    'to' => 'to-fuchsia-600', 'icon' => 'ph-target'],
             ];
-            $default_info = ['color' => 'text-slate-600', 'bg' => 'bg-slate-100', 'icon' => 'ph-file-text'];
+            $default_info = ['from' => 'from-gray-500', 'to' => 'to-slate-500', 'icon' => 'ph-file-text'];
 
             $delay = 0;
             while ($row = $result->fetch_assoc()) {
@@ -217,9 +217,9 @@ include 'components/header.php';
             ?>
                 <div class="glass-card rounded-2xl p-6 transition-all duration-300 group" data-aos="fade-up" data-aos-delay="<?php echo $delay; ?>">
                     <div class="flex items-center justify-between mb-4">
-                        <div class="w-12 h-12 rounded-xl <?php echo $info['bg']; ?> flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br <?php echo $info['from']; ?> <?php echo $info['to']; ?> flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
                             <!-- Added ph-fill class explicitly for solid icons -->
-                            <i class="<?php echo $info['icon']; ?> <?php echo $info['color']; ?> ph-fill text-2xl"></i>
+                            <i class="<?php echo $info['icon']; ?> text-white ph-fill text-2xl"></i>
                         </div>
                         <span class="text-3xl font-black text-slate-800"><?php echo $row['count']; ?></span>
                     </div>

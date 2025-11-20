@@ -15,6 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply_settings'])) {
     $test_mode = (isset($_POST['test_mode']) && $_POST['test_mode'] === '1') ? '1' : '0';
     $test_email = trim($_POST['test_email'] ?? '');
     $notify_buzon = (isset($_POST['notify_buzon_on_new_report']) && $_POST['notify_buzon_on_new_report'] === '1') ? '1' : '0';
+    $disable_email_check = (isset($_POST['disable_institutional_email_check']) && $_POST['disable_institutional_email_check'] === '1') ? '1' : '0';
     
     // Verificar contraseña del admin actual
     $stmt = $conn->prepare("SELECT password FROM users WHERE id = ? AND role = 'admin'");
@@ -47,6 +48,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply_settings'])) {
             $stmt_notify = $conn->prepare("INSERT INTO admin_settings (setting_key, setting_value, updated_by) VALUES ('notify_buzon_on_new_report', ?, ?) ON DUPLICATE KEY UPDATE setting_value = ?, updated_by = ?");
             $stmt_notify->bind_param("sisi", $notify_buzon, $_SESSION['user_id'], $notify_buzon, $_SESSION['user_id']);
             $stmt_notify->execute();
+            
+            // Actualizar restricción de correo institucional
+            $stmt_check = $conn->prepare("INSERT INTO admin_settings (setting_key, setting_value, updated_by) VALUES ('disable_institutional_email_check', ?, ?) ON DUPLICATE KEY UPDATE setting_value = ?, updated_by = ?");
+            $stmt_check->bind_param("sisi", $disable_email_check, $_SESSION['user_id'], $disable_email_check, $_SESSION['user_id']);
+            $stmt_check->execute();
             
             // Actualizar encargados de departamentos
             if (isset($_POST['managers']) && is_array($_POST['managers'])) {
@@ -96,6 +102,15 @@ $result_notify = $stmt_notify->get_result();
 $notify_buzon_enabled = false;
 if ($row_notify = $result_notify->fetch_assoc()) {
     $notify_buzon_enabled = $row_notify['setting_value'] == '1';
+}
+
+// Obtener configuración de restricción de correo
+$stmt_check = $conn->prepare("SELECT setting_value FROM admin_settings WHERE setting_key = 'disable_institutional_email_check'");
+$stmt_check->execute();
+$result_check = $stmt_check->get_result();
+$disable_email_check = false;
+if ($row_check = $result_check->fetch_assoc()) {
+    $disable_email_check = $row_check['setting_value'] == '1';
 }
 
 // Obtener departamentos y encargados
@@ -155,7 +170,11 @@ include 'components/header.php';
             </div>
 
             <!-- Formulario de Configuración -->
-            <div class="bg-white rounded-2xl shadow-xl overflow-hidden" x-data="{ showPasswordModal: false, testMode: <?php echo $test_mode_enabled ? 'true' : 'false'; ?>, notifyBuzon: <?php echo $notify_buzon_enabled ? 'true' : 'false'; ?> }">
+            <div class="bg-white rounded-2xl shadow-xl overflow-hidden" x-data="{ showPasswordModal: false,
+            testMode: <?php echo $test_mode_enabled ? 'true' : 'false'; ?>,
+            notifyBuzon: <?php echo $notify_buzon_enabled ? 'true' : 'false'; ?>,
+            disableEmailCheck: <?php echo $disable_email_check ? 'true' : 'false'; ?>
+        }">
                 <div class="p-8">
                     <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                         <i class="ph-envelope text-blue-600"></i>
@@ -164,6 +183,9 @@ include 'components/header.php';
 
                     <form method="POST" action="admin_settings.php" id="settingsForm">
                         <input type="hidden" name="apply_settings" value="1">
+                        <input type="hidden" name="test_mode" :value="testMode ? '1' : '0'">
+                        <input type="hidden" name="notify_buzon_on_new_report" :value="notifyBuzon ? '1' : '0'">
+                        <input type="hidden" name="disable_institutional_email_check" :value="disableEmailCheck ? '1' : '0'">
                         <!-- Modo de Prueba -->
                         <div class="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-6">
                             <div class="flex items-start justify-between">
@@ -239,6 +261,69 @@ include 'components/header.php';
                                     <i class="ph-warning mr-2"></i>
                                     <strong>Nota:</strong> Este correo solo se usará cuando el Modo de Prueba esté activado. Asegúrate de que sea una dirección válida.
                                 </p>
+                            </div>
+                        </div>
+
+                        <!-- Restricciones de Registro -->
+                        <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6 border-2 border-orange-100">
+                            <div class="bg-gradient-to-r from-orange-500 to-red-500 p-6 text-white">
+                                <div class="flex items-center gap-3">
+                                    <i class="ph-shield-warning text-3xl"></i>
+                                    <div>
+                                        <h3 class="text-xl font-bold">Restricciones de Registro</h3>
+                                        <p class="text-orange-100 text-sm mt-1">Configura las reglas de registro de usuarios</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="p-6 bg-gray-50">
+                                <div class="bg-white border border-gray-200 rounded-xl p-6">
+                                    <div class="flex items-start justify-between">
+                                        <div class="flex-1">
+                                            <div class="flex items-center gap-3 mb-2">
+                                                <i class="ph-at text-2xl text-orange-600"></i>
+                                                <h4 class="text-lg font-semibold text-gray-800">Desactivar Verificación de Correo Institucional</h4>
+                                            </div>
+                                            <p class="text-gray-600 mb-4">
+                                                Cuando está activado, <strong>cualquier dirección de correo electrónico</strong> podrá registrarse en el sistema.
+                                                <br>
+                                                <span class="text-sm text-gray-500">Útil para pruebas o registros externos temporales.</span>
+                                            </p>
+                                            
+                                            <div class="bg-orange-50 border-l-4 border-orange-400 p-4 rounded">
+                                                <p class="text-sm text-orange-800">
+                                                    <i class="ph-warning mr-2"></i>
+                                                    <strong>Advertencia:</strong> Desactivar esta opción permitirá que usuarios sin correo institucional (@cdconstitucion.tecnm.mx) creen cuentas.
+                                                </p>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="ml-6">
+                                            <label class="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" 
+                                                       name="disable_institutional_email_check" 
+                                                       value="1"
+                                                       class="sr-only peer"
+                                                       x-model="disableEmailCheck"
+                                                       :checked="disableEmailCheck">
+                                                <div class="w-14 h-7 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-orange-600"></div>
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Estado actual -->
+                                    <div class="mt-4 pt-4 border-t border-gray-200">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-sm font-medium text-gray-700">Estado actual:</span>
+                                            <span x-show="disableEmailCheck" class="px-3 py-1 bg-orange-100 text-orange-700 text-sm font-semibold rounded-full">
+                                                <i class="ph-lock-open mr-1"></i>Cualquier correo permitido
+                                            </span>
+                                            <span x-show="!disableEmailCheck" class="px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-full">
+                                                <i class="ph-lock-key mr-1"></i>Solo institucional
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

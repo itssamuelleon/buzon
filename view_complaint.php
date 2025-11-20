@@ -17,160 +17,7 @@ if ($complaint_id === 0) {
     exit;
 }
 
-if (isAdmin() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['gemini_analyze'])) {
-    if (!isGeminiConfigured()) {
-        $_SESSION['error_message'] = 'Configura GEMINI_API_KEY para habilitar el análisis automático.';
-        header('Location: view_complaint.php?id=' . $complaint_id);
-        exit;
-    }
 
-    $stmt_comp = $conn->prepare("
-        SELECT c.*, u.name as user_name, u.email as user_email, cat.name as category_name 
-        FROM complaints c 
-        LEFT JOIN users u ON c.user_id = u.id 
-        LEFT JOIN categories cat ON c.category_id = cat.id 
-        WHERE c.id = ?
-    ");
-    $stmt_comp->bind_param("i", $complaint_id);
-    $stmt_comp->execute();
-    $complaint_for_ai = $stmt_comp->get_result()->fetch_assoc();
-    $stmt_comp->close();
-
-    if (!$complaint_for_ai) {
-        $_SESSION['error_message'] = 'No se encontró el reporte solicitado para analizar.';
-        header('Location: view_complaint.php?id=' . $complaint_id);
-        exit;
-    }
-
-    $stmt_att_ai = $conn->prepare("SELECT file_name, file_type FROM attachments WHERE complaint_id = ?");
-    $stmt_att_ai->bind_param("i", $complaint_id);
-    $stmt_att_ai->execute();
-    $attachments_for_ai = $stmt_att_ai->get_result()->fetch_all(MYSQLI_ASSOC);
-    $stmt_att_ai->close();
-
-    $stmt_resp_ai = $conn->prepare("SELECT file_name, file_type FROM response_evidence WHERE complaint_id = ?");
-    $stmt_resp_ai->bind_param("i", $complaint_id);
-    $stmt_resp_ai->execute();
-    $response_evidence_for_ai = $stmt_resp_ai->get_result()->fetch_all(MYSQLI_ASSOC);
-    $stmt_resp_ai->close();
-
-    $folio = $complaint_for_ai['folio'] ?? str_pad($complaint_for_ai['id'], 6, '0', STR_PAD_LEFT);
-
-    $context_lines = [
-        'Folio del reporte: ' . $folio,
-        'Fecha de envío: ' . date('d/m/Y H:i', strtotime($complaint_for_ai['created_at'])),
-        'Estado actual: ' . ($complaint_for_ai['status'] ?? 'desconocido'),
-        'Categoría seleccionada por el usuario: ' . ($complaint_for_ai['category_name'] ?? 'Sin categoría'),
-        'Es anónimo: ' . ($complaint_for_ai['is_anonymous'] ? 'sí' : 'no'),
-    ];
-
-    if (!$complaint_for_ai['is_anonymous']) {
-        $context_lines[] = 'Nombre de quien reporta: ' . ($complaint_for_ai['user_name'] ?? '');
-        $context_lines[] = 'Correo de quien reporta: ' . ($complaint_for_ai['user_email'] ?? '');
-    }
-
-    $context_lines[] = '';
-    $context_lines[] = 'Descripción original del reporte:';
-    $context_lines[] = trim($complaint_for_ai['description'] ?? '(sin descripción)');
-
-    if (!empty($attachments_for_ai)) {
-        $context_lines[] = '';
-        $context_lines[] = 'Archivos adjuntos:';
-        foreach ($attachments_for_ai as $attachment) {
-            $context_lines[] = '- ' . ($attachment['file_name'] ?? 'sin nombre') . ' [' . ($attachment['file_type'] ?? 'tipo desconocido') . ']';
-        }
-    }
-
-    if (!empty($response_evidence_for_ai)) {
-        $context_lines[] = '';
-        $context_lines[] = 'Evidencia de respuesta cargada por administradores:';
-        foreach ($response_evidence_for_ai as $evidence) {
-            $context_lines[] = '- ' . ($evidence['file_name'] ?? 'sin nombre') . ' [' . ($evidence['file_type'] ?? 'tipo desconocido') . ']';
-        }
-    }
-
-    $context = implode("\n", $context_lines);
-
-    // Get available categories from database
-    $stmt_cat = $conn->query("SELECT id, name, description FROM categories ORDER BY name");
-    $categories_list = $stmt_cat->fetch_all(MYSQLI_ASSOC);
-    
-    $categories_text = "Categorías disponibles:\n";
-    foreach ($categories_list as $cat) {
-        $categories_text .= "- ID: " . $cat['id'] . ", Nombre: " . $cat['name'] . " (" . ($cat['description'] ?? '') . ")\n";
-    }
-
-    // Get available departments from database
-    $stmt_dept = $conn->query("SELECT id, name FROM departments ORDER BY name");
-    $departments_list = $stmt_dept->fetch_all(MYSQLI_ASSOC);
-    
-    $departments_text = "Departamentos disponibles (con sus IDs):\n";
-    foreach ($departments_list as $dept) {
-        $departments_text .= "- ID: " . $dept['id'] . ", Nombre: " . $dept['name'] . "\n";
-    }
-
-    $system_instruction = <<<TXT
-Eres un asistente de clasificación para el Buzón de Quejas del Instituto Tecnológico Superior de Ciudad Constitución (ITSCC).
-
-Objetivos:
-1. Clasifica el reporte estrictamente como "queja", "sugerencia" o "felicitación" según el texto proporcionado (este es el "Tipo").
-2. Sugiere la categoría más apropiada de las disponibles en la base de datos (devuelve su ID).
-3. Propón entre uno y tres departamentos más adecuados para atenderlo usando sus IDs. SIEMPRE debes sugerir al menos un departamento, nunca un arreglo vacío.
-4. Genera un resumen breve (máximo 80 palabras) y claro en español, usando un tono formal.
-
-$categories_text
-
-$departments_text
-
-Formato de salida:
-Responde EXCLUSIVAMENTE en JSON válido (sin texto adicional ni bloques Markdown) con la siguiente estructura:
-{
-  "tipo": "queja|sugerencia|felicitacion",
-  "categoria_id": ID_NUMERICO_DE_LA_CATEGORIA,
-  "lista_departamentos": [
-    {
-      "id": ID_NUMERICO_DEL_DEPARTAMENTO,
-      "nombre": "Nombre exacto del departamento",
-      "motivo": "Explicación breve en español"
-    }
-  ],
-  "resumen": "Texto del resumen en español"
-}
-
-Asegúrate de que:
-- El campo "tipo" sea exactamente "queja", "sugerencia" o "felicitacion".
-- El campo "categoria_id" contenga el ID numérico exacto de una categoría disponible (no el nombre, el ID).
-- El campo "lista_departamentos" SIEMPRE contenga al menos un departamento (mínimo 1, máximo 3 elementos) con sus IDs numéricos exactos.
-- Los campos "id" en lista_departamentos deben ser números enteros, no strings.
-- NUNCA devuelvas un arreglo vacío en "lista_departamentos". Siempre sugiere al menos un departamento.
-- NUNCA devuelvas nombres en lugar de IDs. Usa SOLO los IDs proporcionados.
-TXT;
-
-    $gemini_result = generateGeminiResponse($system_instruction, $context, [
-        'responseMimeType' => 'application/json',
-    ]);
-
-    if ($gemini_result['success']) {
-        $content = trim($gemini_result['content'] ?? '');
-        if (preg_match('/```(?:json)?\s*(.+?)```/is', $content, $matches)) {
-            $content = trim($matches[1]);
-        }
-
-        $decoded = json_decode($content, true);
-        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-            $_SESSION['gemini_result_data'] = $decoded;
-        } else {
-            $_SESSION['gemini_result_raw'] = $content;
-        }
-
-        $_SESSION['success_message'] = 'Análisis generado con Gemini AI.';
-    } else {
-        $_SESSION['error_message'] = $gemini_result['error'] ?? 'No se pudo analizar el reporte con Gemini AI.';
-    }
-
-    header('Location: view_complaint.php?id=' . $complaint_id);
-    exit;
-}
 
 // Handle response evidence upload
 if (isAdmin() && $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['response_evidence'])) {
@@ -850,7 +697,7 @@ include 'components/header.php';
                     $category_info = [
                         0  => ['from' => 'from-gray-500',    'to' => 'to-slate-500',   'icon' => 'ph-file-text'],
                         1  => ['from' => 'from-blue-500',    'to' => 'to-cyan-500',    'icon' => 'ph-wifi-high'],
-                        2  => ['from' => 'from-indigo-500',  'to' => 'to-purple-500',  'icon' => 'ph-chair'],
+                        2  => ['from' => 'from-indigo-500',  'to' => 'to-purple-500',  'icon' => 'ph-armchair'],
                         3  => ['from' => 'from-emerald-500', 'to' => 'to-teal-500',    'icon' => 'ph-books'],
                         4  => ['from' => 'from-amber-500',   'to' => 'to-orange-500',  'icon' => 'ph-flask'],
                         5  => ['from' => 'from-green-500',   'to' => 'to-emerald-600', 'icon' => 'ph-basketball'],
@@ -979,134 +826,156 @@ include 'components/header.php';
                     </div>
 
                     <?php if (isAdmin()): ?>
-                        <div class="mb-8 flex flex-col gap-4">
-                            <form method="POST" class="inline-flex self-start">
-                                <input type="hidden" name="gemini_analyze" value="1">
-                                <button type="submit"
-                                        class="inline-flex items-center gap-2 bg-purple-600 text-white font-semibold py-2.5 px-6 rounded-lg hover:bg-purple-700 transition-colors shadow">
-                                    <i class="ph-sparkle text-lg"></i>
-                                    Analizar con Gemini AI
+                        <div class="mb-8 flex flex-col gap-4" 
+                             x-data="{ 
+                                isLoading: false, 
+                                result: <?php echo $gemini_result_data ? htmlspecialchars(json_encode($gemini_result_data)) : 'null'; ?>, 
+                                error: null,
+                                analyze() {
+                                    this.isLoading = true;
+                                    this.error = null;
+                                    this.result = null;
+                                    
+                                    fetch('ajax_gemini_analyze.php', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                        },
+                                        body: JSON.stringify({ complaint_id: <?php echo $complaint_id; ?> })
+                                    })
+                                    .then(response => response.json())
+                                    .then(data => {
+                                        if (data.success) {
+                                            this.result = data.data;
+                                        } else {
+                                            this.error = data.error || 'Ocurrió un error desconocido.';
+                                        }
+                                    })
+                                    .catch(err => {
+                                        this.error = 'Error de conexión: ' + err.message;
+                                    })
+                                    .finally(() => {
+                                        this.isLoading = false;
+                                    });
+                                }
+                             }">
+                            
+                            <!-- Analyze Button -->
+                            <div class="inline-flex self-start">
+                                <button type="button"
+                                        @click="analyze()"
+                                        :disabled="isLoading"
+                                        class="inline-flex items-center gap-2 bg-purple-600 text-white font-semibold py-2.5 px-6 rounded-lg hover:bg-purple-700 transition-colors shadow disabled:opacity-70 disabled:cursor-not-allowed">
+                                    <template x-if="!isLoading">
+                                        <div class="flex items-center gap-2">
+                                            <i class="ph-sparkle text-lg"></i>
+                                            <span>Analizar con Gemini AI</span>
+                                        </div>
+                                    </template>
+                                    <template x-if="isLoading">
+                                        <div class="flex items-center gap-2">
+                                            <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                            </svg>
+                                            <span>Analizando...</span>
+                                        </div>
+                                    </template>
                                 </button>
-                            </form>
+                            </div>
 
-                            <?php if ($gemini_result_data || $gemini_result_raw): ?>
-                                <div class="bg-purple-50 border border-purple-200 rounded-xl p-6">
-                                    <div class="flex items-start gap-3 mb-4">
-                                        <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
-                                            <i class="ph-sparkle text-2xl"></i>
-                                        </div>
-                                        <div>
-                                            <h2 class="text-lg font-semibold text-purple-900">Sugerencias automáticas de Gemini</h2>
-                                            <p class="text-sm text-purple-700">Revisa la categorización propuesta, departamentos sugeridos y resumen para agilizar la gestión del reporte.</p>
-                                        </div>
+                            <!-- Error Message -->
+                            <div x-show="error" style="display: none;" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-3">
+                                <i class="ph-warning-circle text-xl"></i>
+                                <span x-text="error"></span>
+                            </div>
+
+                            <!-- Results Container -->
+                            <div x-show="result" style="display: none;" class="bg-purple-50 border border-purple-200 rounded-xl p-6 transition-all duration-500 ease-in-out">
+                                <div class="flex items-start gap-3 mb-4">
+                                    <div class="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600">
+                                        <i class="ph-sparkle text-2xl"></i>
+                                    </div>
+                                    <div>
+                                        <h2 class="text-lg font-semibold text-purple-900">Sugerencias automáticas de Gemini</h2>
+                                        <p class="text-sm text-purple-700">Revisa la categorización propuesta, departamentos sugeridos y resumen para agilizar la gestión del reporte.</p>
+                                    </div>
+                                </div>
+
+                                <div class="space-y-4">
+                                    <!-- Tipo -->
+                                    <div>
+                                        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Tipo</h3>
+                                        <p class="mt-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold"
+                                           :class="{
+                                                'bg-red-100 text-red-700': result?.tipo === 'queja',
+                                                'bg-blue-100 text-blue-700': result?.tipo === 'sugerencia',
+                                                'bg-green-100 text-green-700': result?.tipo === 'felicitacion',
+                                                'bg-gray-100 text-gray-700': !['queja', 'sugerencia', 'felicitacion'].includes(result?.tipo)
+                                           }">
+                                            <i class="ph-seal-check"></i>
+                                            <span x-text="result?.tipo ? result.tipo.charAt(0).toUpperCase() + result.tipo.slice(1) : 'Sin definir'"></span>
+                                        </p>
                                     </div>
 
-                                    <?php if ($gemini_result_data): ?>
-                                        <div class="space-y-4">
-                                            <!-- Tipo -->
-                                            <div>
-                                                <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Tipo</h3>
-                                                <p class="mt-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold
-                                                    <?php
-                                                        $type_class = [
-                                                            'queja' => 'bg-red-100 text-red-700',
-                                                            'sugerencia' => 'bg-blue-100 text-blue-700',
-                                                            'felicitacion' => 'bg-green-100 text-green-700',
-                                                        ];
-                                                        $tipo = $gemini_result_data['tipo'] ?? 'sin_definir';
-                                                        echo $type_class[$tipo] ?? 'bg-gray-100 text-gray-700';
-                                                    ?>
-                                                ">
-                                                    <i class="ph-seal-check"></i>
-                                                    <?php echo ucfirst($gemini_result_data['tipo'] ?? 'Sin definir'); ?>
-                                                </p>
-                                            </div>
+                                    <!-- Categoría Sugerida -->
+                                    <div>
+                                        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Categoría Sugerida</h3>
+                                        <p class="mt-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold bg-purple-100 text-purple-700">
+                                            <i class="ph-tag"></i>
+                                            <span x-text="result?.categoria_nombre || 'ID: ' + (result?.categoria_id || 'N/A')"></span>
+                                        </p>
+                                    </div>
 
-                                            <!-- Categoría Sugerida -->
-                                            <div>
-                                                <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Categoría Sugerida</h3>
-                                                <p class="mt-1 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold bg-purple-100 text-purple-700">
-                                                    <i class="ph-tag"></i>
-                                                    <?php 
-                                                        $cat_id = $gemini_result_data['categoria_id'] ?? null;
-                                                        $cat_name = 'Sin definir';
-                                                        if ($cat_id) {
-                                                            $stmt_cat = $conn->prepare("SELECT name FROM categories WHERE id = ?");
-                                                            $stmt_cat->bind_param("i", $cat_id);
-                                                            $stmt_cat->execute();
-                                                            $cat_result = $stmt_cat->get_result()->fetch_assoc();
-                                                            if ($cat_result) {
-                                                                $cat_name = $cat_result['name'];
-                                                            }
-                                                        }
-                                                        echo htmlspecialchars($cat_name);
-                                                    ?>
-                                                </p>
-                                            </div>
-
-                                            <!-- Departamentos Sugeridos -->
-                                            <div>
-                                                <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Departamentos sugeridos</h3>
-                                                <?php 
-                                                    $departamentos = $gemini_result_data['lista_departamentos'] ?? [];
-                                                    if (is_array($departamentos) && !empty($departamentos)): 
-                                                ?>
-                                                    <div class="mt-2 grid gap-3 md:grid-cols-2">
-                                                        <?php foreach ($departamentos as $dept): ?>
-                                                            <div class="rounded-lg border border-purple-200 bg-white p-4">
-                                                                <p class="font-semibold text-gray-900 flex items-center gap-2">
-                                                                    <i class="ph-buildings text-purple-500"></i>
-                                                                    <?php echo htmlspecialchars($dept['nombre'] ?? ''); ?>
-                                                                </p>
-                                                                <p class="mt-2 text-sm text-gray-600">
-                                                                    <?php echo htmlspecialchars($dept['motivo'] ?? ''); ?>
-                                                                </p>
-                                                            </div>
-                                                        <?php endforeach; ?>
+                                    <!-- Departamentos Sugeridos -->
+                                    <div>
+                                        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Departamentos sugeridos</h3>
+                                        <template x-if="result?.lista_departamentos && result.lista_departamentos.length > 0">
+                                            <div class="mt-2 grid gap-3 md:grid-cols-2">
+                                                <template x-for="dept in result.lista_departamentos" :key="dept.id">
+                                                    <div class="rounded-lg border border-purple-200 bg-white p-4">
+                                                        <p class="font-semibold text-gray-900 flex items-center gap-2">
+                                                            <i class="ph-buildings text-purple-500"></i>
+                                                            <span x-text="dept.nombre"></span>
+                                                        </p>
+                                                        <p class="mt-2 text-sm text-gray-600" x-text="dept.motivo"></p>
                                                     </div>
-                                                <?php else: ?>
-                                                    <p class="mt-2 text-sm text-gray-500 italic">No hay departamentos sugeridos para este reporte.</p>
-                                                <?php endif; ?>
+                                                </template>
                                             </div>
+                                        </template>
+                                        <template x-if="!result?.lista_departamentos || result.lista_departamentos.length === 0">
+                                            <p class="mt-2 text-sm text-gray-500 italic">No hay departamentos sugeridos para este reporte.</p>
+                                        </template>
+                                    </div>
 
-                                            <?php if (!empty($gemini_result_data['resumen'])): ?>
-                                                <div>
-                                                    <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Resumen generado</h3>
-                                                    <p class="mt-2 text-gray-700 leading-relaxed bg-white border border-purple-200 rounded-lg p-4">
-                                                        <?php echo nl2br(htmlspecialchars($gemini_result_data['resumen'])); ?>
-                                                    </p>
-                                                </div>
-                                            <?php endif; ?>
+                                    <!-- Resumen -->
+                                    <template x-if="result?.resumen">
+                                        <div>
+                                            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide">Resumen generado</h3>
+                                            <p class="mt-2 text-gray-700 leading-relaxed bg-white border border-purple-200 rounded-lg p-4" x-text="result.resumen"></p>
                                         </div>
-                                    <?php else: ?>
-                                        <div class="bg-white border border-purple-200 rounded-lg p-4">
-                                            <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">Respuesta recibida</h3>
-                                            <pre class="text-xs text-gray-700 whitespace-pre-wrap"><?php echo htmlspecialchars($gemini_result_raw); ?></pre>
-                                        </div>
-                                    <?php endif; ?>
-
-                                    <!-- Apply Suggestions Button -->
-                                    <?php if ($gemini_result_data && isAdmin()): ?>
-                                        <form method="POST" class="mt-6">
-                                            <input type="hidden" name="apply_gemini_suggestions" value="1">
-                                            <input type="hidden" name="gemini_categoria_id" value="<?php echo intval($gemini_result_data['categoria_id'] ?? 0); ?>">
-                                            <input type="hidden" name="gemini_departamentos" value="<?php echo htmlspecialchars(json_encode($gemini_result_data['lista_departamentos'] ?? [])); ?>">
-                                            
-                                            <div class="flex flex-col gap-3">
-                                                <button type="submit" 
-                                                        class="inline-flex items-center justify-center gap-2 bg-green-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-green-700 transition-colors shadow">
-                                                    <i class="ph-check-circle text-lg"></i>
-                                                    Aplicar Sugerencias
-                                                </button>
-                                                <p class="text-xs text-gray-600 bg-green-50 border border-green-200 rounded-lg p-3">
-                                                    <i class="ph-info text-green-600 mr-2"></i>
-                                                    Se actualizarán la categoría y departamentos asignados. Se enviarán correos de notificación a los departamentos.
-                                                </p>
-                                            </div>
-                                        </form>
-                                    <?php endif; ?>
+                                    </template>
                                 </div>
-                            <?php endif; ?>
+
+                                <!-- Apply Suggestions Form -->
+                                <form method="POST" class="mt-6">
+                                    <input type="hidden" name="apply_gemini_suggestions" value="1">
+                                    <input type="hidden" name="gemini_categoria_id" :value="result?.categoria_id || 0">
+                                    <input type="hidden" name="gemini_departamentos" :value="JSON.stringify(result?.lista_departamentos || [])">
+                                    
+                                    <div class="flex flex-col gap-3">
+                                        <button type="submit" 
+                                                class="inline-flex items-center justify-center gap-2 bg-green-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-green-700 transition-colors shadow">
+                                            <i class="ph-check-circle text-lg"></i>
+                                            Aplicar Sugerencias
+                                        </button>
+                                        <p class="text-xs text-gray-600 bg-green-50 border border-green-200 rounded-lg p-3">
+                                            <i class="ph-info text-green-600 mr-2"></i>
+                                            Se actualizarán la categoría y departamentos asignados. Se enviarán correos de notificación a los departamentos.
+                                        </p>
+                                    </div>
+                                </form>
+                            </div>
                         </div>
                     <?php endif; ?>
 

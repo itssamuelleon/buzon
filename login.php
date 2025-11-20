@@ -53,7 +53,7 @@ include 'components/header.php';
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
             
             <!-- Left Side: Login Form -->
-            <div class="order-2 lg:order-1">
+            <div class="order-1 lg:order-1">
                 <div class="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl p-8 md:p-12 border border-white/20 animate-slide-in-left">
                     <!-- Logo and Header -->
                     <div class="text-center mb-8">
@@ -174,7 +174,7 @@ include 'components/header.php';
             </div>
 
             <!-- Right Side: Welcome Message -->
-            <div class="order-1 lg:order-2 text-center lg:text-left animate-slide-in-right">
+            <div class="order-2 lg:order-2 text-center lg:text-left animate-slide-in-right">
                 <div class="relative">
                     <!-- Decorative Elements -->
                     <div class="absolute -top-10 -left-10 w-72 h-72 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-3xl"></div>
