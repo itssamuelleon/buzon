@@ -27,7 +27,7 @@ echo "Actualizando estados de reportes...\n";
 updateAllPendingStatuses($conn);
 
 // 2. Obtener configuración de admin (Modo Prueba)
-$stmt_settings = $conn->prepare("SELECT setting_key, setting_value FROM admin_settings WHERE setting_key IN ('test_mode_enabled', 'test_email')");
+$stmt_settings = $conn->prepare("SELECT setting_key, setting_value FROM admin_settings WHERE setting_key IN ('test_mode', 'test_email')");
 $stmt_settings->execute();
 $result_settings = $stmt_settings->get_result();
 $settings = [];
@@ -35,7 +35,7 @@ while ($row = $result_settings->fetch_assoc()) {
     $settings[$row['setting_key']] = $row['setting_value'];
 }
 
-$test_mode = isset($settings['test_mode_enabled']) && $settings['test_mode_enabled'] == '1';
+$test_mode = isset($settings['test_mode']) && $settings['test_mode'] == '1';
 $test_email = isset($settings['test_email']) ? $settings['test_email'] : '';
 $target_email = ($test_mode && !empty($test_email)) ? $test_email : 'buzon@cdconstitucion.tecnm.mx';
 
