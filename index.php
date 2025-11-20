@@ -187,7 +187,7 @@ include 'components/header.php';
             $category_info = [
                 0  => ['from' => 'from-gray-500',    'to' => 'to-slate-500',   'icon' => 'ph-file-text'],
                 1  => ['from' => 'from-blue-500',    'to' => 'to-cyan-500',    'icon' => 'ph-wifi-high'],
-                2  => ['from' => 'from-indigo-500',  'to' => 'to-purple-500',  'icon' => 'ph-chalkboard'],
+                2  => ['from' => 'from-indigo-500',  'to' => 'to-purple-500',  'icon' => 'ph-chalkboard-teacher'],
                 3  => ['from' => 'from-emerald-500', 'to' => 'to-teal-500',    'icon' => 'ph-books'],
                 4  => ['from' => 'from-amber-500',   'to' => 'to-orange-500',  'icon' => 'ph-flask'],
                 5  => ['from' => 'from-green-500',   'to' => 'to-emerald-600', 'icon' => 'ph-basketball'],

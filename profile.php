@@ -27,6 +27,8 @@ $stats = $stmt_stats->get_result()->fetch_assoc();
 // Helper function to format the role name
 function formatRoleName($role) {
     if ($role === 'admin') return 'Administrador';
+    if ($role === 'manager') return 'Encargado';
+    if ($role === 'student') return 'Estudiante';
     return 'Usuario Estándar';
 }
 ?>

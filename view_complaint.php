@@ -17,13 +17,65 @@ if ($complaint_id === 0) {
     exit;
 }
 
-// Helper to check if user is staff (admin or manager)
+// Get complaint details FIRST - before processing any logic
+$stmt = $conn->prepare("
+    SELECT c.*, u.name as user_name, u.email as user_email, cat.name as category_name 
+    FROM complaints c 
+    LEFT JOIN users u ON c.user_id = u.id 
+    LEFT JOIN categories cat ON c.category_id = cat.id 
+    WHERE c.id = ?
+");
+$stmt->bind_param("i", $complaint_id);
+$stmt->execute();
+$complaint = $stmt->get_result()->fetch_assoc();
+
+if (!$complaint) {
+    header('Location: dashboard.php');
+    exit;
+}
+
+// Helper to check if user is staff (admin or manager) or original complaint author
 function isStaff() {
-    return isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager');
+    global $complaint;
+    return isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager') || (isset($_SESSION['user_id']) && isset($complaint['user_id']) && $_SESSION['user_id'] == $complaint['user_id']);
+}
+
+// Helper to check if user can close reports (admin or assigned manager)
+function canCloseReport() {
+    global $complaint, $complaint_id, $conn;
+    
+    // Admins can always close reports
+    if (isAdmin()) {
+        return true;
+    }
+    
+    // Managers can close reports only if they are assigned to this complaint's departments
+    if (isset($_SESSION['role']) && $_SESSION['role'] === 'manager' && isset($_SESSION['email'])) {
+        // Check if this manager's email is in one of the departments assigned to this complaint
+        $stmt = $conn->prepare("
+            SELECT COUNT(*) as count FROM complaint_departments cd
+            JOIN departments d ON cd.department_id = d.id
+            WHERE cd.complaint_id = ? AND d.email = ?
+        ");
+        $stmt->bind_param("is", $complaint_id, $_SESSION['email']);
+        $stmt->execute();
+        $result = $stmt->get_result()->fetch_assoc();
+        return $result['count'] > 0;
+    }
+    
+    return false;
 }
 
 // Handle Comment Submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_comment']) && isStaff()) {
+// Allow: admin, manager, or the original complaint author
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_comment'])) {
+    $can_comment = isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager') || (isset($_SESSION['user_id']) && isset($complaint['user_id']) && $_SESSION['user_id'] == $complaint['user_id']);
+    
+    if (!$can_comment) {
+        $_SESSION['error_message'] = 'No tienes permiso para agregar comentarios a este reporte.';
+        header("Location: view_complaint.php?id=" . $complaint_id);
+        exit;
+    }
     $comment_text = trim($_POST['comment']);
     
     if (!empty($comment_text) || !empty($_FILES['attachments']['name'][0])) {
@@ -59,17 +111,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_comment']) && isS
                     }
                 }
             }
-            
-            // Mark as attended if it's the first response/comment
-            // Check if it was already attended
-            $stmt_check = $conn->prepare("SELECT status FROM complaints WHERE id = ?");
-            $stmt_check->bind_param("i", $complaint_id);
-            $stmt_check->execute();
-            $current_status = $stmt_check->get_result()->fetch_assoc()['status'];
-            
-            if ($current_status === 'unattended_ontime' || $current_status === 'unattended_late') {
-                 markComplaintAsAttended($conn, $complaint_id);
-            }
 
             $conn->commit();
             $_SESSION['success_message'] = 'Respuesta agregada exitosamente.';
@@ -85,7 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_comment']) && isS
 }
 
 // Handle status update and department assignments
-if (isAdmin() && $_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isAdmin() || canCloseReport())) {
     if (isset($_POST['status'])) {
         $new_status = $_POST['status'];
         
@@ -108,8 +149,28 @@ if (isAdmin() && $_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['success_message'] = "Estado actualizado a 'Sin atender'. El sistema calculó automáticamente si está a tiempo o tarde.";
             header("Location: view_complaint.php?id=" . $complaint_id);
             exit;
+        } elseif ($new_status === 'attended') {
+            // Cuando se marca como atendido, calcular automáticamente si es a tiempo o a destiempo
+            $stmt_get = $conn->prepare("SELECT created_at FROM complaints WHERE id = ?");
+            $stmt_get->bind_param("i", $complaint_id);
+            $stmt_get->execute();
+            $result = $stmt_get->get_result();
+            $complaint_data = $result->fetch_assoc();
+            
+            // Calcular el estado correcto basado en días hábiles (attended_ontime o attended_late)
+            // Pasar la fecha actual en formato string, no timestamp
+            $attended_date = date('Y-m-d H:i:s');
+            $new_status = determineReportStatus($complaint_data['created_at'], $attended_date);
+            
+            // Actualizar el estado y la fecha de atención
+            $stmt = $conn->prepare("UPDATE complaints SET status = ?, attended_at = ? WHERE id = ?");
+            $stmt->bind_param("ssi", $new_status, $attended_date, $complaint_id);
+            $stmt->execute();
+            $_SESSION['success_message'] = "Reporte cerrado como " . ($new_status === 'attended_ontime' ? 'atendido (a tiempo)' : 'atendido (a destiempo)') . ".";
+            header("Location: view_complaint.php?id=" . $complaint_id);
+            exit;
         } else {
-            $valid_statuses = ['attended_ontime', 'attended_late', 'invalid', 'duplicate'];
+            $valid_statuses = ['invalid', 'duplicate'];
             if (in_array($new_status, $valid_statuses)) {
                 $stmt = $conn->prepare("UPDATE complaints SET status = ? WHERE id = ?");
                 $stmt->bind_param("si", $new_status, $complaint_id);
@@ -120,7 +181,12 @@ if (isAdmin() && $_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     } elseif (isset($_POST['assign_departments'])) {
-        // Handle department assignments
+        // Handle department assignments - Only admins
+        if (!isAdmin()) {
+            $_SESSION['error_message'] = "No tienes permiso para asignar departamentos.";
+            header("Location: view_complaint.php?id=" . $complaint_id);
+            exit;
+        }
         $selected_departments = isset($_POST['departments']) ? $_POST['departments'] : [];
         
         $conn->begin_transaction();
@@ -194,7 +260,12 @@ if (isAdmin() && $_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
     } elseif (isset($_POST['update_category'])) {
-        // Handle category update
+        // Handle category update - Only admins
+        if (!isAdmin()) {
+            $_SESSION['error_message'] = "No tienes permiso para actualizar la categoría.";
+            header("Location: view_complaint.php?id=" . $complaint_id);
+            exit;
+        }
         $new_category_id = isset($_POST['category_id']) && $_POST['category_id'] !== '' ? intval($_POST['category_id']) : null;
         
         try {
@@ -223,7 +294,12 @@ if (isAdmin() && $_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
     } elseif (isset($_POST['apply_gemini_suggestions'])) {
-        // Handle applying Gemini suggestions
+        // Handle applying Gemini suggestions - Only admins
+        if (!isAdmin()) {
+            $_SESSION['error_message'] = "No tienes permiso para aplicar sugerencias de Gemini.";
+            header("Location: view_complaint.php?id=" . $complaint_id);
+            exit;
+        }
         $categoria_id = isset($_POST['gemini_categoria_id']) ? intval($_POST['gemini_categoria_id']) : null;
         $departamentos_json = isset($_POST['gemini_departamentos']) ? $_POST['gemini_departamentos'] : '[]';
         
@@ -321,22 +397,7 @@ if (isAdmin() && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Get complaint details
-$stmt = $conn->prepare("
-    SELECT c.*, u.name as user_name, u.email as user_email, cat.name as category_name 
-    FROM complaints c 
-    LEFT JOIN users u ON c.user_id = u.id 
-    LEFT JOIN categories cat ON c.category_id = cat.id 
-    WHERE c.id = ?
-");
-$stmt->bind_param("i", $complaint_id);
-$stmt->execute();
-$complaint = $stmt->get_result()->fetch_assoc();
-
-if (!$complaint) {
-    header('Location: dashboard.php');
-    exit;
-}
+// Complaint details already loaded at the top of the file
 
 $stmt_att = $conn->prepare("SELECT * FROM attachments WHERE complaint_id = ?");
 $stmt_att->bind_param("i", $complaint_id);
@@ -345,9 +406,10 @@ $attachments = $stmt_att->get_result()->fetch_all(MYSQLI_ASSOC);
 
 // Get comments with attachments
 $stmt_comments = $conn->prepare("
-    SELECT cc.*, u.name as user_name, u.role as user_role
+    SELECT cc.*, u.name as user_name, u.role as user_role, c.is_anonymous
     FROM complaint_comments cc 
     LEFT JOIN users u ON cc.user_id = u.id 
+    LEFT JOIN complaints c ON cc.complaint_id = c.id
     WHERE cc.complaint_id = ? 
     ORDER BY cc.created_at ASC
 ");
@@ -682,6 +744,104 @@ include 'components/header.php';
                         </button>
                     </form>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Cerrar Reporte -->
+    <div x-show="isAdminPanelOpen && adminModalMode === 'close'" 
+         @click.away="isAdminPanelOpen = false;"
+         @keydown.escape.window="isAdminPanelOpen = false;"
+         x-transition:enter="ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4" 
+         style="display: none;">
+        <div @click="isAdminPanelOpen = false;" class="fixed inset-0 bg-black/70 backdrop-blur-sm"></div>
+        <div class="relative bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl shadow-2xl" @click.stop>
+            <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                <h3 class="text-xl font-bold text-gray-800">Cerrar Reporte</h3>
+                <button @click="isAdminPanelOpen = false;" class="text-gray-400 hover:text-gray-500">
+                    <i class="ph-x text-2xl"></i>
+                </button>
+            </div>
+
+            <div class="p-6">
+                <!-- Advertencia -->
+                <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+                    <div class="flex items-start gap-3">
+                        <i class="ph-warning text-amber-600 text-xl flex-shrink-0 mt-0.5"></i>
+                        <div>
+                            <h4 class="text-sm font-semibold text-amber-900 mb-1">Importante</h4>
+                            <p class="text-sm text-amber-700">
+                                Asegúrate de haber respondido completamente al reporte antes de cerrarlo. Una vez cerrado, no se podrán agregar más comentarios a este reporte.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Close Form -->
+                <form method="POST" class="space-y-6" x-data="{ selectedCloseStatus: '' }">
+                    <input type="hidden" name="status" :value="selectedCloseStatus">
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-4">
+                            Cerrar como
+                        </label>
+                        
+                        <!-- Radio Buttons Grid -->
+                        <div class="grid grid-cols-3 gap-4">
+                            <!-- Option 1: Atendido -->
+                            <label class="cursor-pointer" @click="selectedCloseStatus === 'attended' ? selectedCloseStatus = '' : selectedCloseStatus = 'attended'">
+                                <div :class="selectedCloseStatus === 'attended' ? 'border-green-500 bg-green-50 ring-2 ring-green-500' : 'border-gray-200 bg-white hover:border-green-300'" class="border-2 rounded-xl p-4 transition-all h-full flex flex-col">
+                                    <div class="flex items-center justify-center mb-3 flex-shrink-0">
+                                        <div class="w-12 h-12 bg-gradient-to-br from-green-400 to-emerald-500 rounded-lg flex items-center justify-center">
+                                            <i class="ph-check-circle text-white text-2xl"></i>
+                                        </div>
+                                    </div>
+                                    <h3 class="font-semibold text-gray-800 text-center mb-2 flex-shrink-0">Atendido</h3>
+                                    <p class="text-xs text-gray-600 text-center flex-shrink-0">Se le dio seguimiento y se llegó a una solución</p>
+                                </div>
+                            </label>
+
+                            <!-- Option 2: Duplicado -->
+                            <label class="cursor-pointer" @click="selectedCloseStatus === 'duplicate' ? selectedCloseStatus = '' : selectedCloseStatus = 'duplicate'">
+                                <div :class="selectedCloseStatus === 'duplicate' ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-500' : 'border-gray-200 bg-white hover:border-blue-300'" class="border-2 rounded-xl p-4 transition-all h-full flex flex-col">
+                                    <div class="flex items-center justify-center mb-3 flex-shrink-0">
+                                        <div class="w-12 h-12 bg-gradient-to-br from-blue-400 to-indigo-500 rounded-lg flex items-center justify-center">
+                                            <i class="ph-copy text-white text-2xl"></i>
+                                        </div>
+                                    </div>
+                                    <h3 class="font-semibold text-gray-800 text-center mb-2 flex-shrink-0">Duplicado</h3>
+                                    <p class="text-xs text-gray-600 text-center flex-shrink-0">Es un duplicado de otro reporte existente</p>
+                                </div>
+                            </label>
+
+                            <!-- Option 3: Inválido -->
+                            <label class="cursor-pointer" @click="selectedCloseStatus === 'invalid' ? selectedCloseStatus = '' : selectedCloseStatus = 'invalid'">
+                                <div :class="selectedCloseStatus === 'invalid' ? 'border-red-500 bg-red-50 ring-2 ring-red-500' : 'border-gray-200 bg-white hover:border-red-300'" class="border-2 rounded-xl p-4 transition-all h-full flex flex-col">
+                                    <div class="flex items-center justify-center mb-3 flex-shrink-0">
+                                        <div class="w-12 h-12 bg-gradient-to-br from-red-400 to-rose-500 rounded-lg flex items-center justify-center">
+                                            <i class="ph-prohibit text-white text-2xl"></i>
+                                        </div>
+                                    </div>
+                                    <h3 class="font-semibold text-gray-800 text-center mb-2 flex-shrink-0">Inválido</h3>
+                                    <p class="text-xs text-gray-600 text-center flex-shrink-0">No cumple con los requisitos o información inválida</p>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" 
+                            :disabled="!selectedCloseStatus"
+                            :class="selectedCloseStatus ? 'bg-blue-600 hover:bg-blue-700 cursor-pointer' : 'bg-gray-300 cursor-not-allowed'"
+                            class="w-full text-white font-semibold py-2.5 px-6 rounded-lg transition-colors shadow disabled:opacity-50">
+                        Cerrar Reporte
+                    </button>
+                </form>
             </div>
         </div>
     </div>
@@ -1025,21 +1185,15 @@ include 'components/header.php';
                                     <?php if ($complaint['is_anonymous']): ?>
                                         <?php if ($complaint['user_id'] == $_SESSION['user_id']): ?>
                                             <div class="space-y-1">
-                                                <div class="flex items-center gap-2">
-                                                    <p class="text-base font-bold text-gray-800"><?php echo htmlspecialchars($complaint['user_name']); ?></p>
-                                                    <span class="inline-flex items-center gap-x-1.5 py-1 px-2 rounded-md text-xs font-medium bg-purple-100 text-purple-700">
-                                                        <i class="ph-user-circle-gear"></i>
-                                                        Anónimo
-                                                    </span>
-                                                </div>
+                                                <p class="text-base font-bold text-gray-800"><?php echo htmlspecialchars($complaint['user_name']); ?></p>
                                                 <p class="text-xs text-gray-500"><?php echo htmlspecialchars($complaint['user_email']); ?></p>
                                                 <p class="text-xs text-purple-600">
                                                     <i class="ph-info"></i>
-                                                    Solo tú puedes ver esto
+                                                    Anónimo. Solo tú puedes ver esto
                                                 </p>
                                             </div>
                                         <?php else: ?>
-                                            <p class="text-base font-bold text-gray-800">Reporte Anónimo</p>
+                                            <p class="text-base font-bold text-gray-800">Usuario Anónimo</p>
                                         <?php endif; ?>
                                     <?php else: ?>
                                         <p class="text-base font-bold text-gray-800"><?php echo htmlspecialchars($complaint['user_name']); ?></p>
@@ -1322,15 +1476,28 @@ include 'components/header.php';
                             </h2>
                             
                             <?php if (isStaff()): ?>
-                                <!-- Responder Button (Moved to Header) -->
-                                <button 
-                                    type="button"
-                                    @click="showForm = !showForm"
-                                    x-show="!showForm"
-                                    class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-md">
-                                    <i class="ph-chat-circle-dots text-lg"></i>
-                                    Responder
-                                </button>
+                                <div class="flex items-center gap-2">
+                                    <!-- Cerrar Reporte Button - Solo para admins y managers asignados -->
+                                    <?php if (canCloseReport()): ?>
+                                    <button 
+                                        type="button"
+                                        @click="isAdminPanelOpen = true; adminModalMode = 'close';"
+                                        class="inline-flex items-center gap-2 px-4 py-2 text-gray-700 font-semibold hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+                                        <i class="ph-check-circle text-lg"></i>
+                                        Cerrar Reporte
+                                    </button>
+                                    <?php endif; ?>
+                                    
+                                    <!-- Responder Button (Moved to Header) -->
+                                    <button 
+                                        type="button"
+                                        @click="showForm = !showForm"
+                                        x-show="!showForm"
+                                        class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-md">
+                                        <i class="ph-chat-circle-dots text-lg"></i>
+                                        Responder
+                                    </button>
+                                </div>
                             <?php endif; ?>
                         </div>
                         
@@ -1493,31 +1660,61 @@ include 'components/header.php';
                                     <div class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
                                         <!-- Comment Header -->
                                         <div class="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
-                                            <div class="flex items-start justify-between">
-                                                <div class="flex items-center gap-3">
-                                                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold">
-                                                        <?php echo strtoupper(substr($comment['user_name'], 0, 1)); ?>
+                                            <div class="flex items-start justify-between gap-4">
+                                                <div class="flex items-start gap-3 flex-1 min-w-0">
+                                                    <?php 
+                                                    // Check if this comment is from the original anonymous author
+                                                    $is_anonymous_author = ($comment['user_id'] == $complaint['user_id'] && $comment['is_anonymous']);
+                                                    $avatar_char = $is_anonymous_author ? '?' : strtoupper(substr($comment['user_name'] ?? '?', 0, 1));
+                                                    ?>
+                                                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold flex-shrink-0">
+                                                        <?php echo $avatar_char; ?>
                                                     </div>
-                                                    <div>
-                                                        <p class="font-semibold text-gray-900">
-                                                            <?php echo htmlspecialchars($comment['user_name']); ?>
-                                                            <?php if ($comment['user_role'] === 'admin'): ?>
-                                                                <span class="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700">
-                                                                    <i class="ph-shield-check"></i>
-                                                                    Admin
-                                                                </span>
-                                                            <?php elseif ($comment['user_role'] === 'manager'): ?>
-                                                                <span class="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
-                                                                    <i class="ph-user-gear"></i>
-                                                                    Encargado
+                                                    <div class="flex-1 min-w-0">
+                                                        <div class="flex items-center gap-2 flex-wrap mb-1">
+                                                            <p class="font-semibold text-gray-900">
+                                                                <?php echo $is_anonymous_author ? 'Usuario Anónimo' : htmlspecialchars($comment['user_name']); ?>
+                                                            </p>
+                                                            <?php if ($comment['user_id'] == $complaint['user_id']): ?>
+                                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                                                    <i class="ph-check-circle text-xs"></i>
+                                                                    Autor
                                                                 </span>
                                                             <?php endif; ?>
-                                                        </p>
-                                                        <p class="text-sm text-gray-500">
-                                                            <i class="ph-clock text-xs"></i>
-                                                            <?php echo date('d/m/Y \a \l\a\s H:i', strtotime($comment['created_at'])); ?>
-                                                        </p>
+                                                        </div>
+                                                        <?php if ($is_anonymous_author): ?>
+                                                            <p class="text-xs text-gray-500 font-medium">Estudiante</p>
+                                                        <?php elseif ($comment['user_role'] === 'admin'): ?>
+                                                            <p class="text-xs text-purple-600 font-medium">Administrador</p>
+                                                        <?php elseif ($comment['user_role'] === 'manager'): ?>
+                                                            <p class="text-xs text-blue-600 font-medium">
+                                                                <?php 
+                                                                // Get department name for this manager
+                                                                $stmt_dept = $conn->prepare("SELECT name FROM departments WHERE email = (SELECT email FROM users WHERE id = ?)");
+                                                                $stmt_dept->bind_param("i", $comment['user_id']);
+                                                                $stmt_dept->execute();
+                                                                $dept_result = $stmt_dept->get_result();
+                                                                if ($dept_row = $dept_result->fetch_assoc()) {
+                                                                    echo htmlspecialchars($dept_row['name']);
+                                                                } else {
+                                                                    echo 'Encargado';
+                                                                }
+                                                                ?>
+                                                            </p>
+                                                        <?php elseif ($comment['user_role'] === 'student'): ?>
+                                                            <p class="text-xs text-gray-500 font-medium">Estudiante</p>
+                                                        <?php endif; ?>
                                                     </div>
+                                                </div>
+                                                <!-- Fecha y Hora (Esquina Superior Derecha) -->
+                                                <div class="text-right flex-shrink-0">
+                                                    <p class="text-xs text-gray-500 whitespace-nowrap">
+                                                        <i class="ph-clock text-xs mr-1"></i>
+                                                        <?php echo date('d/m/Y', strtotime($comment['created_at'])); ?>
+                                                    </p>
+                                                    <p class="text-xs text-gray-500 whitespace-nowrap">
+                                                        <?php echo date('H:i', strtotime($comment['created_at'])); ?>
+                                                    </p>
                                                 </div>
                                             </div>
                                         </div>

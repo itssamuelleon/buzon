@@ -115,9 +115,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     unset($_SESSION['pending_verification_email']);
                     $step = 'register';
                 } else {
+                    // Determine user role based on department email
+                    $role = 'student';
+                    $dept_stmt = $conn->prepare("SELECT id FROM departments WHERE email = ?");
+                    $dept_stmt->bind_param("s", $email);
+                    $dept_stmt->execute();
+                    $dept_result = $dept_stmt->get_result();
+                    
+                    if ($dept_result->num_rows > 0) {
+                        $role = 'manager';
+                    }
+                    
                     // Create user account
-                    $stmt = $conn->prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, 'student')");
-                    $stmt->bind_param("sss", $row['name'], $email, $row['password_hash']);
+                    $stmt = $conn->prepare("INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)");
+                    $stmt->bind_param("ssss", $row['name'], $email, $row['password_hash'], $role);
                     
                     if ($stmt->execute()) {
                         // Mark as verified and delete verification record
