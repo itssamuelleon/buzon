@@ -154,375 +154,241 @@ include 'components/header.php';
                 </div>
             <?php endif; ?>
 
-            <!-- Header -->
-            <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6">
-                <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white">
-                    <div class="flex items-center gap-4">
-                        <div class="w-16 h-16 bg-white/20 rounded-xl flex items-center justify-center">
-                            <i class="ph-gear text-4xl"></i>
-                        </div>
-                        <div>
-                            <h1 class="text-3xl font-bold">Configuración de Administrador</h1>
-                            <p class="text-blue-100 mt-1">Gestiona las configuraciones del sistema</p>
-                        </div>
-                    </div>
-                </div>
+            <!-- Header Simplificado -->
+            <div class="mb-8">
+                <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                    <i class="ph-gear text-blue-600"></i>
+                    Configuración de Administrador
+                </h1>
+                <p class="text-gray-500 mt-1">Gestiona las configuraciones globales del sistema</p>
             </div>
 
-            <!-- Formulario de Configuración -->
-            <div class="bg-white rounded-2xl shadow-xl overflow-hidden" x-data="{ showPasswordModal: false,
-            testMode: <?php echo $test_mode_enabled ? 'true' : 'false'; ?>,
-            notifyBuzon: <?php echo $notify_buzon_enabled ? 'true' : 'false'; ?>,
-            disableEmailCheck: <?php echo $disable_email_check ? 'true' : 'false'; ?>
-        }">
-                <div class="p-8">
-                    <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                        <i class="ph-envelope text-blue-600"></i>
-                        Configuración de Correos Electrónicos
-                    </h2>
+            <!-- Formulario de Configuración Mejorado -->
+            <div x-data="{ 
+                showPasswordModal: false,
+                testMode: <?php echo $test_mode_enabled ? 'true' : 'false'; ?>,
+                notifyBuzon: <?php echo $notify_buzon_enabled ? 'true' : 'false'; ?>,
+                disableEmailCheck: <?php echo $disable_email_check ? 'true' : 'false'; ?>
+            }" class="max-w-5xl mx-auto">
+                
+                <form method="POST" action="admin_settings.php" id="settingsForm" class="space-y-8">
+                    <input type="hidden" name="apply_settings" value="1">
+                    <input type="hidden" name="test_mode" :value="testMode ? '1' : '0'">
+                    <input type="hidden" name="notify_buzon_on_new_report" :value="notifyBuzon ? '1' : '0'">
+                    <input type="hidden" name="disable_institutional_email_check" :value="disableEmailCheck ? '1' : '0'">
 
-                    <form method="POST" action="admin_settings.php" id="settingsForm">
-                        <input type="hidden" name="apply_settings" value="1">
-                        <input type="hidden" name="test_mode" :value="testMode ? '1' : '0'">
-                        <input type="hidden" name="notify_buzon_on_new_report" :value="notifyBuzon ? '1' : '0'">
-                        <input type="hidden" name="disable_institutional_email_check" :value="disableEmailCheck ? '1' : '0'">
-                        <!-- Modo de Prueba -->
-                        <div class="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-6">
-                            <div class="flex items-start justify-between">
-                                <div class="flex-1">
-                                    <div class="flex items-center gap-3 mb-2">
-                                        <i class="ph-flask text-2xl text-purple-600"></i>
-                                        <h3 class="text-lg font-semibold text-gray-800">Modo de Prueba</h3>
-                                    </div>
-                                    <p class="text-gray-600 mb-4">
-                                        Cuando está activado, todos los correos se enviarán a <strong><?php echo !empty($test_email) ? htmlspecialchars($test_email) : SMTP_USERNAME; ?></strong> en lugar de a los departamentos correspondientes.
-                                    </p>
-                                    
-                                    <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
-                                        <p class="text-sm text-blue-800">
-                                            <i class="ph-info mr-2"></i>
-                                            <strong>Uso recomendado:</strong> Activa este modo para probar el sistema de correos sin enviar notificaciones reales a los departamentos.
-                                        </p>
-                                    </div>
-                                </div>
-                                
-                                <div class="ml-6">
-                                    <label class="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" 
-                                               name="test_mode" 
-                                               value="1"
-                                               class="sr-only peer"
-                                               x-model="testMode"
-                                               :checked="testMode">
-                                        <div class="w-14 h-7 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-blue-600"></div>
-                                    </label>
-                                </div>
+                    <!-- Tarjeta: Configuración General -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="px-6 py-4 border-b border-gray-100 bg-blue-50/50 flex items-center gap-3">
+                            <div class="p-2 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
+                                <i class="ph-sliders text-xl leading-none"></i>
                             </div>
-                            
-                            <!-- Estado actual -->
-                            <div class="mt-4 pt-4 border-t border-gray-200">
-                                <div class="flex items-center gap-2">
-                                    <span class="text-sm font-medium text-gray-700">Estado actual:</span>
-                                    <span x-show="testMode" class="px-3 py-1 bg-purple-100 text-purple-700 text-sm font-semibold rounded-full">
-                                        <i class="ph-flask mr-1"></i>Modo Prueba Activado
-                                    </span>
-                                    <span x-show="!testMode" class="px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-full">
-                                        <i class="ph-check-circle mr-1"></i>Modo Normal
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Correo de Pruebas -->
-                        <div class="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-6">
-                            <div class="flex items-center gap-3 mb-4">
-                                <i class="ph-envelope-simple text-2xl text-cyan-600"></i>
-                                <h3 class="text-lg font-semibold text-gray-800">Correo Electrónico de Pruebas</h3>
-                            </div>
-                            
-                            <p class="text-gray-600 mb-4">
-                                Configura el correo electrónico al que se enviarán todas las notificaciones cuando el <strong>Modo de Prueba</strong> esté activado.
-                            </p>
-                            
-                            <div class="mb-4">
-                                <label for="test_email" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Correo de Pruebas
-                                </label>
-                                <input type="email" 
-                                       id="test_email" 
-                                       name="test_email" 
-                                       value="<?php echo htmlspecialchars($test_email); ?>"
-                                       placeholder="ejemplo@correo.com"
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            </div>
-                            
-                            <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded">
-                                <p class="text-sm text-amber-800">
-                                    <i class="ph-warning mr-2"></i>
-                                    <strong>Nota:</strong> Este correo solo se usará cuando el Modo de Prueba esté activado. Asegúrate de que sea una dirección válida.
-                                </p>
-                            </div>
-                        </div>
-
-                        <!-- Restricciones de Registro -->
-                        <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6 border-2 border-orange-100">
-                            <div class="bg-gradient-to-r from-orange-500 to-red-500 p-6 text-white">
-                                <div class="flex items-center gap-3">
-                                    <i class="ph-shield-warning text-3xl"></i>
-                                    <div>
-                                        <h3 class="text-xl font-bold">Restricciones de Registro</h3>
-                                        <p class="text-orange-100 text-sm mt-1">Configura las reglas de registro de usuarios</p>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="p-6 bg-gray-50">
-                                <div class="bg-white border border-gray-200 rounded-xl p-6">
-                                    <div class="flex items-start justify-between">
-                                        <div class="flex-1">
-                                            <div class="flex items-center gap-3 mb-2">
-                                                <i class="ph-at text-2xl text-orange-600"></i>
-                                                <h4 class="text-lg font-semibold text-gray-800">Desactivar Verificación de Correo Institucional</h4>
-                                            </div>
-                                            <p class="text-gray-600 mb-4">
-                                                Cuando está activado, <strong>cualquier dirección de correo electrónico</strong> podrá registrarse en el sistema.
-                                                <br>
-                                                <span class="text-sm text-gray-500">Útil para pruebas o registros externos temporales.</span>
-                                            </p>
-                                            
-                                            <div class="bg-orange-50 border-l-4 border-orange-400 p-4 rounded">
-                                                <p class="text-sm text-orange-800">
-                                                    <i class="ph-warning mr-2"></i>
-                                                    <strong>Advertencia:</strong> Desactivar esta opción permitirá que usuarios sin correo institucional (@cdconstitucion.tecnm.mx) creen cuentas.
-                                                </p>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="ml-6">
-                                            <label class="relative inline-flex items-center cursor-pointer">
-                                                <input type="checkbox" 
-                                                       name="disable_institutional_email_check" 
-                                                       value="1"
-                                                       class="sr-only peer"
-                                                       x-model="disableEmailCheck"
-                                                       :checked="disableEmailCheck">
-                                                <div class="w-14 h-7 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-orange-600"></div>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <!-- Estado actual -->
-                                    <div class="mt-4 pt-4 border-t border-gray-200">
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-sm font-medium text-gray-700">Estado actual:</span>
-                                            <span x-show="disableEmailCheck" class="px-3 py-1 bg-orange-100 text-orange-700 text-sm font-semibold rounded-full">
-                                                <i class="ph-lock-open mr-1"></i>Cualquier correo permitido
-                                            </span>
-                                            <span x-show="!disableEmailCheck" class="px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-full">
-                                                <i class="ph-lock-key mr-1"></i>Solo institucional
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Sección de Notificaciones -->
-                        <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6 border-2 border-indigo-100">
-                            <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 text-white">
-                                <div class="flex items-center gap-3">
-                                    <i class="ph-bell-ringing text-3xl"></i>
-                                    <div>
-                                        <h3 class="text-xl font-bold">Notificaciones del Sistema</h3>
-                                        <p class="text-indigo-100 text-sm mt-1">Configura las notificaciones automáticas</p>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="p-6 bg-gray-50">
-                                <!-- Notificar al Buzón -->
-                                <div class="bg-white border border-gray-200 rounded-xl p-6">
-                                    <div class="flex items-start justify-between">
-                                        <div class="flex-1">
-                                            <div class="flex items-center gap-3 mb-2">
-                                                <i class="ph-envelope-open text-2xl text-indigo-600"></i>
-                                                <h4 class="text-lg font-semibold text-gray-800">Notificar al Departamento de Buzón</h4>
-                                            </div>
-                                            <p class="text-gray-600 mb-4">
-                                                Cuando está activado, se enviará un correo de notificación al departamento <strong>"Buzón de Quejas, Sugerencias y Felicitaciones"</strong> cada vez que se cree un nuevo reporte en el sistema.
-                                            </p>
-                                            
-                                            <div class="bg-indigo-50 border-l-4 border-indigo-400 p-4 rounded">
-                                                <p class="text-sm text-indigo-800">
-                                                    <i class="ph-info mr-2"></i>
-                                                    <strong>Nota:</strong> Si el Modo de Prueba está activado, la notificación se enviará al correo de pruebas configurado en lugar del correo del departamento.
-                                                </p>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="ml-6">
-                                            <label class="relative inline-flex items-center cursor-pointer">
-                                                <input type="checkbox" 
-                                                       name="notify_buzon_on_new_report" 
-                                                       value="1"
-                                                       class="sr-only peer"
-                                                       x-model="notifyBuzon"
-                                                       :checked="notifyBuzon">
-                                                <div class="w-14 h-7 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600"></div>
-                                            </label>
-                                        </div>
-                                    </div>
-
-                                    <!-- Estado actual -->
-                                    <div class="mt-4 pt-4 border-t border-gray-200">
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-sm font-medium text-gray-700">Estado actual:</span>
-                                            <span x-show="notifyBuzon" class="px-3 py-1 bg-indigo-100 text-indigo-700 text-sm font-semibold rounded-full">
-                                                <i class="ph-bell-ringing mr-1"></i>Notificaciones Activadas
-                                            </span>
-                                            <span x-show="!notifyBuzon" class="px-3 py-1 bg-gray-100 text-gray-700 text-sm font-semibold rounded-full">
-                                                <i class="ph-bell-slash mr-1"></i>Notificaciones Desactivadas
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Sección de Encargados de Departamentos -->
-                        <div class="bg-white rounded-2xl shadow-xl overflow-hidden mb-6 border-2 border-emerald-100">
-                            <div class="bg-gradient-to-r from-emerald-500 to-teal-600 p-6 text-white">
-                                <div class="flex items-center gap-3">
-                                    <i class="ph-users-three text-3xl"></i>
-                                    <div>
-                                        <h3 class="text-xl font-bold">Encargados de Departamentos</h3>
-                                        <p class="text-emerald-100 text-sm mt-1">Gestiona los responsables de cada área</p>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="p-6 bg-gray-50">
-                                <p class="text-gray-600 mb-6">
-                                    Actualiza los nombres de los encargados de cada departamento. Estos nombres aparecerán en los correos electrónicos y reportes.
-                                </p>
-                                
-                                <div class="grid gap-6 md:grid-cols-2">
-                                    <?php foreach ($departments as $dept): ?>
-                                    <div class="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow">
-                                        <div class="flex items-start gap-3 mb-3">
-                                            <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                                <i class="ph-buildings text-xl text-emerald-600"></i>
-                                            </div>
-                                            <div>
-                                                <h4 class="font-semibold text-gray-800"><?php echo htmlspecialchars($dept['name']); ?></h4>
-                                                <p class="text-xs text-gray-500"><?php echo htmlspecialchars($dept['email']); ?></p>
-                                            </div>
-                                        </div>
-                                        
-                                        <div>
-                                            <label for="manager_<?php echo $dept['id']; ?>" class="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">
-                                                Encargado Actual
-                                            </label>
-                                            <div class="relative">
-                                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                    <i class="ph-user text-gray-400"></i>
-                                                </div>
-                                                <input type="text" 
-                                                       id="manager_<?php echo $dept['id']; ?>" 
-                                                       name="managers[<?php echo $dept['id']; ?>]" 
-                                                       value="<?php echo htmlspecialchars($dept['manager']); ?>"
-                                                       class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 sm:text-sm transition-colors"
-                                                       placeholder="Nombre del encargado">
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            </div>
-                        </div>
-
-
-                        <!-- Información adicional -->
-                        <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-6 mb-6">
-                            <div class="flex items-start gap-3">
-                                <i class="ph-warning text-2xl text-yellow-600 flex-shrink-0"></i>
-                                <div>
-                                    <h4 class="font-semibold text-yellow-900 mb-2">Importante</h4>
-                                    <p class="text-sm text-yellow-800">
-                                        Para aplicar los cambios, deberás ingresar tu contraseña de administrador por seguridad. 
-                                        Los cambios se aplicarán inmediatamente después de la verificación.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Botón de aplicar -->
-                        <div class="flex justify-end">
-                            <button type="button" @click="showPasswordModal = true" class="inline-flex items-center px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-lg hover:shadow-xl transform hover:scale-105">
-                                <i class="ph-check text-xl mr-2"></i>
-                                Aplicar Cambios
-                            </button>
-                        </div>
-                <!-- Modal de Confirmación de Contraseña -->
-                <div x-show="showPasswordModal" 
-                     x-transition:enter="ease-out duration-300"
-                     x-transition:enter-start="opacity-0"
-                     x-transition:enter-end="opacity-100"
-                     x-transition:leave="ease-in duration-200"
-                     x-transition:leave-start="opacity-100"
-                     x-transition:leave-end="opacity-0"
-                     class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-                     style="display: none;"
-                     @keydown.escape.window="showPasswordModal = false">
-                    
-                    <div @click.away="showPasswordModal = false"
-                         x-transition:enter="ease-out duration-300"
-                         x-transition:enter-start="opacity-0 scale-95"
-                         x-transition:enter-end="opacity-100 scale-100"
-                         x-transition:leave="ease-in duration-200"
-                         x-transition:leave-start="opacity-100 scale-100"
-                         x-transition:leave-end="opacity-0 scale-95"
-                         class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
-                        
-                        <div class="text-center mb-6">
-                            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <i class="ph-lock-key text-3xl text-blue-600"></i>
-                            </div>
-                            <h3 class="text-2xl font-bold text-gray-800 mb-2">Confirmar Cambios</h3>
-                            <p class="text-gray-600">Ingresa tu contraseña de administrador para aplicar los cambios</p>
-                        </div>
-
-                        <div class="space-y-4">
                             <div>
-                                <label for="admin_password" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Contraseña de Administrador
+                                <h2 class="text-lg font-semibold text-gray-800">Configuración General</h2>
+                                <p class="text-sm text-gray-500">Control de acceso y notificaciones globales</p>
+                            </div>
+                        </div>
+                        
+                        <div class="p-6 space-y-6">
+                            <!-- Toggle: Registro -->
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1 pr-4">
+                                    <h3 class="font-medium text-gray-900 flex items-center gap-2">
+                                        Desactivar Verificación de Correo Institucional
+                                        <span class="text-xs font-normal px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">Seguridad</span>
+                                    </h3>
+                                    <p class="text-sm text-gray-500 mt-1 leading-relaxed">
+                                        Por defecto, el sistema solo permite registros con el dominio <strong>@cdconstitucion.tecnm.mx</strong>. 
+                                        Si activas esta opción, <strong>cualquier persona</strong> podrá registrarse con correos externos (Gmail, Outlook, etc.).
+                                    </p>
+                                    <div x-show="disableEmailCheck" class="mt-3 inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-red-50 text-red-700 border border-red-100">
+                                        <i class="ph-warning mr-1.5"></i> 
+                                        Verificación de Correo Institucional desactivada.
+                                    </div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer mt-1">
+                                    <input type="checkbox" class="sr-only peer" x-model="disableEmailCheck">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                                 </label>
-                                <input type="password" 
-                                       id="admin_password" 
-                                       name="admin_password" 
-                                       required
-                                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                       placeholder="Ingresa tu contraseña">
                             </div>
 
-                            <div class="flex gap-3 mt-6">
-                                <button type="button" 
-                                        @click="showPasswordModal = false"
-                                        class="flex-1 px-4 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-colors">
-                                    Cancelar
-                                </button>
-                                <button type="submit"
-                                        class="flex-1 px-4 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
-                                    Confirmar
-                                </button>
+                            <hr class="border-gray-100">
+
+                            <!-- Toggle: Notificaciones -->
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1 pr-4">
+                                    <h3 class="font-medium text-gray-900 flex items-center gap-2">
+                                        Notificar al Departamento de Buzón
+                                        <span class="text-xs font-normal px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">Monitoreo</span>
+                                    </h3>
+                                    <p class="text-sm text-gray-500 mt-1 leading-relaxed">
+                                        Envía una copia automática de <strong>cada nuevo reporte</strong> generado al correo electrónico asignado al departamento "Buzón de Quejas". 
+                                        Esto permite un monitoreo centralizado de toda la actividad del sistema en tiempo real.
+                                    </p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer mt-1">
+                                    <input type="checkbox" class="sr-only peer" x-model="notifyBuzon">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
                             </div>
                         </div>
                     </div>
-                </div>
-            </form>
-        </div>
 
-        </div>
+                    <!-- Tarjeta: Modo de Pruebas -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="px-6 py-4 border-b border-gray-100 bg-purple-50/50 flex justify-between items-center">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center">
+                                    <i class="ph-flask text-xl leading-none"></i>
+                                </div>
+                                <div>
+                                    <h2 class="text-lg font-semibold text-gray-800">Entorno de Pruebas</h2>
+                                    <p class="text-sm text-gray-500">Herramientas para desarrollo y mantenimiento</p>
+                                </div>
+                            </div>
+                            <div x-show="testMode" class="px-3 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-700 border border-purple-200 flex items-center gap-1 animate-pulse">
+                                <i class="ph-circle bg-purple-500 rounded-full w-2 h-2"></i>
+                                MODO PRUEBA ACTIVO
+                            </div>
+                        </div>
+                        
+                        <div class="p-6 space-y-6">
+                            <div class="flex items-start justify-between">
+                                <div class="flex-1 pr-4">
+                                    <h3 class="font-medium text-gray-900">Activar Modo de Prueba</h3>
+                                    <p class="text-sm text-gray-500 mt-1 leading-relaxed">
+                                        Intercepta <strong>todos</strong> los correos electrónicos salientes del sistema (notificaciones de reportes, recuperaciones de contraseña, etc.) y evita que lleguen a los usuarios reales.
+                                    </p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer mt-1">
+                                    <input type="checkbox" class="sr-only peer" x-model="testMode">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                </label>
+                            </div>
+
+                            <div x-show="testMode" x-transition class="bg-purple-50 rounded-xl p-5 border border-purple-100">
+                                <label for="test_email" class="block text-sm font-semibold text-purple-900 mb-2">Correo de Destino para Pruebas</label>
+                                <div class="flex gap-2">
+                                    <div class="relative flex-grow">
+                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <i class="ph-envelope text-purple-400"></i>
+                                        </div>
+                                        <input type="email" id="test_email" name="test_email" value="<?php echo htmlspecialchars($test_email); ?>" class="block w-full pl-10 rounded-lg border-purple-200 shadow-sm focus:border-purple-500 focus:ring-purple-500 sm:text-sm py-2.5" placeholder="tu.correo@ejemplo.com">
+                                    </div>
+                                </div>
+                                <p class="mt-3 text-xs text-purple-700 flex items-start gap-1.5">
+                                    <i class="ph-info text-base shrink-0"></i>
+                                    <span>Todos los correos interceptados se redirigirán únicamente a esta dirección. Asegúrate de tener acceso a ella.</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tarjeta: Encargados -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="px-6 py-4 border-b border-gray-100 bg-emerald-50/50 flex items-center gap-3">
+                            <div class="p-2 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center">
+                                <i class="ph-users-three text-xl leading-none"></i>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-semibold text-gray-800">Encargados de Departamentos</h2>
+                                <p class="text-sm text-gray-500">Gestión de firmas y responsables</p>
+                            </div>
+                        </div>
+                        <div class="p-6">
+                            <p class="text-sm text-gray-600 mb-6">
+                                Define los nombres de los responsables para cada área. Estos nombres se utilizarán para personalizar las firmas en los correos electrónicos automáticos y en la interfaz de seguimiento de reportes.
+                            </p>
+                            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                <?php foreach ($departments as $dept): ?>
+                                <div class="p-4 rounded-xl border border-gray-200 hover:border-emerald-400 hover:shadow-md transition-all bg-white group">
+                                    <div class="flex items-center gap-3 mb-3">
+                                        <div class="w-10 h-10 rounded-lg bg-gray-50 group-hover:bg-emerald-50 flex items-center justify-center text-gray-400 group-hover:text-emerald-600 transition-colors flex-shrink-0">
+                                            <i class="ph-buildings text-xl leading-none"></i>
+                                        </div>
+                                        <div class="min-w-0">
+                                            <h4 class="text-sm font-bold text-gray-800 truncate" title="<?php echo htmlspecialchars($dept['name']); ?>"><?php echo htmlspecialchars($dept['name']); ?></h4>
+                                            <p class="text-xs text-gray-500 truncate"><?php echo htmlspecialchars($dept['email']); ?></p>
+                                        </div>
+                                    </div>
+                                    <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">Encargado</label>
+                                    <input type="text" name="managers[<?php echo $dept['id']; ?>]" value="<?php echo htmlspecialchars($dept['manager']); ?>" class="block w-full rounded-lg border-gray-200 bg-gray-50 focus:bg-white shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm py-2 px-3 transition-all" placeholder="Nombre del encargado">
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botón Guardar -->
+                    <div class="flex items-center justify-between pt-4">
+                        <p class="text-sm text-gray-500 italic">
+                            <i class="ph-lock-key mr-1"></i>
+                            Se requerirá contraseña para guardar
+                        </p>
+                        <button type="button" @click="showPasswordModal = true" class="inline-flex items-center px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow">
+                            <i class="ph-floppy-disk text-lg mr-2"></i>
+                            Guardar Cambios
+                        </button>
+                    </div>
+
+                    <!-- Modal de Confirmación de Contraseña -->
+                    <div x-show="showPasswordModal" 
+                         x-transition:enter="ease-out duration-300"
+                         x-transition:enter-start="opacity-0"
+                         x-transition:enter-end="opacity-100"
+                         x-transition:leave="ease-in duration-200"
+                         x-transition:leave-start="opacity-100"
+                         x-transition:leave-end="opacity-0"
+                         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+                         style="display: none;"
+                         @keydown.escape.window="showPasswordModal = false">
+                        
+                        <div @click.away="showPasswordModal = false"
+                             x-transition:enter="ease-out duration-300"
+                             x-transition:enter-start="opacity-0 scale-95"
+                             x-transition:enter-end="opacity-100 scale-100"
+                             x-transition:leave="ease-in duration-200"
+                             x-transition:leave-start="opacity-100 scale-100"
+                             x-transition:leave-end="opacity-0 scale-95"
+                             class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+                            
+                            <div class="text-center mb-6">
+                                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                    <i class="ph-lock-key text-3xl text-blue-600"></i>
+                                </div>
+                                <h3 class="text-2xl font-bold text-gray-800 mb-2">Confirmar Cambios</h3>
+                                <p class="text-gray-600">Ingresa tu contraseña de administrador para aplicar los cambios</p>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div>
+                                    <label for="admin_password" class="block text-sm font-medium text-gray-700 mb-2">
+                                        Contraseña de Administrador
+                                    </label>
+                                    <input type="password" 
+                                           id="admin_password" 
+                                           name="admin_password" 
+                                           required
+                                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                           placeholder="Ingresa tu contraseña">
+                                </div>
+
+                                <div class="flex gap-3 mt-6">
+                                    <button type="button" 
+                                            @click="showPasswordModal = false"
+                                            class="flex-1 px-4 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-colors">
+                                        Cancelar
+                                    </button>
+                                    <button type="submit"
+                                            class="flex-1 px-4 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+                                        Confirmar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
     </main>
 </div>
 
