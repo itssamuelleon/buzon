@@ -22,6 +22,9 @@ require_once BASE_PATH . '/PHPMailer/src/Exception.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
+// Establecer zona horaria
+date_default_timezone_set('America/Mazatlan');
+
 // 1. Actualizar estados pendientes para asegurar precisión
 echo "Actualizando estados de reportes...\n";
 updateAllPendingStatuses($conn);
@@ -40,6 +43,20 @@ $test_email = isset($settings['test_email']) ? $settings['test_email'] : '';
 $target_email = ($test_mode && !empty($test_email)) ? $test_email : 'buzon@cdconstitucion.tecnm.mx';
 
 echo "Modo prueba: " . ($test_mode ? "SI ($target_email)" : "NO ($target_email)") . "\n";
+
+// Obtener nombre del encargado del Buzón
+$manager_name = 'Encargado';
+$stmt_manager = $conn->prepare("SELECT manager FROM departments WHERE name LIKE '%Buzón%' OR name LIKE '%Quejas%' LIMIT 1");
+$stmt_manager->execute();
+$result_manager = $stmt_manager->get_result();
+if ($row_manager = $result_manager->fetch_assoc()) {
+    // Extraer primer nombre
+    $full_name = trim($row_manager['manager']);
+    $parts = explode(' ', $full_name);
+    if (!empty($parts[0])) {
+        $manager_name = $parts[0];
+    }
+}
 
 // 3. Obtener Estadísticas
 // Total reportes
@@ -61,19 +78,23 @@ $unassigned_reports = $result_unassigned->fetch_assoc()['total'];
 
 // 4. Obtener detalles para la tabla (Sin atender o Sin asignar)
 // Usamos una subconsulta o LEFT JOIN para determinar si tiene departamentos asignados
+// ORDEN CAMBIADO: DESC (Más nuevo primero)
 $query_details = "
     SELECT c.description, c.status, c.created_at, 
            (SELECT COUNT(*) FROM complaint_departments cd WHERE cd.complaint_id = c.id) as dept_count
     FROM complaints c 
     WHERE c.status IN ('unattended_ontime', 'unattended_late') 
        OR NOT EXISTS (SELECT 1 FROM complaint_departments cd WHERE cd.complaint_id = c.id)
-    ORDER BY c.created_at ASC
+    ORDER BY c.created_at DESC
 ";
 $result_details = $conn->query($query_details);
 $details = [];
 while ($row = $result_details->fetch_assoc()) {
     $details[] = $row;
 }
+
+// Definir URL del Dashboard
+$dashboard_url = $test_mode ? 'http://127.0.0.1/buzon/dashboard.php' : 'http://200.56.132.62:8088/buzon/dashboard.php';
 
 // 5. Construir el correo HTML
 $date_str = date('d/m/Y');
@@ -95,6 +116,7 @@ $css_table = "width: 100%; border-collapse: collapse; font-size: 14px;";
 $css_th = "background-color: #f1f5f9; color: #475569; font-weight: 600; text-align: left; padding: 12px; border-bottom: 2px solid #e2e8f0;";
 $css_td = "padding: 12px; border-bottom: 1px solid #e2e8f0; color: #334155;";
 $css_badge = "display: inline-block; padding: 4px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600;";
+$css_button = "display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-align: center; margin-top: 20px;";
 
 $html_content = "
 <!DOCTYPE html>
@@ -111,7 +133,7 @@ $html_content = "
         </div>
         
         <div style=\"$css_content\">
-            <h2 style=\"margin-top: 0; color: #1e293b;\">¡Buenos días! ☀️</h2>
+            <h2 style=\"margin-top: 0; color: #1e293b;\">¡Buenos días, " . htmlspecialchars($manager_name) . "! ☀️</h2>
             <p style=\"color: #64748b; margin-bottom: 25px;\">Aquí tienes el estado actual del Buzón de Quejas.</p>
 
             <!-- Estadísticas -->
@@ -194,6 +216,10 @@ if (empty($details)) {
 $html_content .= "
                 </tbody>
             </table>
+            
+            <div style=\"text-align: center; margin-top: 30px;\">
+                <a href=\"$dashboard_url\" style=\"$css_button\">Ir al Panel de Control</a>
+            </div>
             
             <div style=\"margin-top: 30px; text-align: center; font-size: 12px; color: #94a3b8;\">
                 <p>Este es un reporte automático generado por el sistema Buzón Digital ITSCC.</p>
