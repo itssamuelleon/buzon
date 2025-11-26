@@ -299,20 +299,20 @@ include 'components/header.php';
                             <p class="text-sm text-gray-600 mb-6">
                                 Define los nombres de los responsables para cada área. Estos nombres se utilizarán para personalizar las firmas en los correos electrónicos automáticos y en la interfaz de seguimiento de reportes.
                             </p>
-                            <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                                 <?php foreach ($departments as $dept): ?>
                                 <div class="p-4 rounded-xl border border-gray-200 hover:border-emerald-400 hover:shadow-md transition-all bg-white group">
                                     <div class="flex items-center gap-3 mb-3">
                                         <div class="w-10 h-10 rounded-lg bg-gray-50 group-hover:bg-emerald-50 flex items-center justify-center text-gray-400 group-hover:text-emerald-600 transition-colors flex-shrink-0">
                                             <i class="ph-buildings text-xl leading-none"></i>
                                         </div>
-                                        <div class="min-w-0">
+                                        <div class="min-w-0 flex-1">
                                             <h4 class="text-sm font-bold text-gray-800 truncate" title="<?php echo htmlspecialchars($dept['name']); ?>"><?php echo htmlspecialchars($dept['name']); ?></h4>
-                                            <p class="text-xs text-gray-500 truncate"><?php echo htmlspecialchars($dept['email']); ?></p>
+                                            <p class="text-xs text-gray-500 truncate" title="<?php echo htmlspecialchars($dept['email']); ?>"><?php echo htmlspecialchars($dept['email']); ?></p>
                                         </div>
                                     </div>
-                                    <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-1.5">Encargado</label>
-                                    <input type="text" name="managers[<?php echo $dept['id']; ?>]" value="<?php echo htmlspecialchars($dept['manager']); ?>" class="block w-full rounded-lg border-gray-200 bg-gray-50 focus:bg-white shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm py-2 px-3 transition-all" placeholder="Nombre del encargado">
+                                    <label class="block text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Encargado</label>
+                                    <input type="text" name="managers[<?php echo $dept['id']; ?>]" value="<?php echo htmlspecialchars($dept['manager']); ?>" class="block w-full rounded-lg border border-gray-300 bg-gray-50 focus:bg-white shadow-sm focus:border-emerald-500 focus:ring-emerald-500 text-sm py-2.5 px-3 transition-all" placeholder="Nombre del encargado">
                                 </div>
                                 <?php endforeach; ?>
                             </div>

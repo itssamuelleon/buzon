@@ -87,6 +87,22 @@ require_once __DIR__ . '/../update_statuses.php';
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+
+        @keyframes slide-in-mobile {
+            from { 
+                opacity: 0; 
+                transform: translateY(-20px) scale(0.95);
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        @keyframes shine {
+            0% { background-position: -200% center; }
+            100% { background-position: 200% center; }
+        }
         
         /* Icon animations */
         @keyframes icon-rotate {
@@ -132,6 +148,63 @@ require_once __DIR__ . '/../update_statuses.php';
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .mobile-menu-glass {
+            background: linear-gradient(135deg, rgba(30, 58, 138, 0.90) 0%, rgba(79, 70, 229, 0.90) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 
+                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .mobile-menu-item-gradient {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .mobile-menu-item-gradient::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .mobile-menu-item-gradient:hover::before {
+            left: 100%;
+        }
+
+        .mobile-menu-item-gradient:hover {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%);
+            transform: translateX(4px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .mobile-profile-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+
+        .mobile-section-divider {
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+        }
+
+        .logout-button-gradient {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.25) 0%, rgba(220, 38, 38, 0.25) 100%);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .logout-button-gradient:hover {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.35) 0%, rgba(220, 38, 38, 0.35) 100%);
+            box-shadow: 0 8px 16px rgba(239, 68, 68, 0.15);
         }
         
         .nav-item {
@@ -202,7 +275,7 @@ if (!function_exists('isAdmin')) {
 ?>
 
     <!-- Modern Navigation Bar -->
-    <nav class="relative z-50" x-data="{ mobileMenuOpen: false, userDropdownOpen: false }">
+    <nav class="sticky top-0 z-50" x-data="{ mobileMenuOpen: false, userDropdownOpen: false }">
         <!-- Main Navigation -->
         <div class="bg-gradient-to-r from-blue-700 to-indigo-800 shadow-2xl">
             <div class="glass-effect">
@@ -227,7 +300,7 @@ if (!function_exists('isAdmin')) {
                             <?php if (isLoggedIn()): ?>
                                 <a href="dashboard.php" class="nav-item flex items-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-5 py-2.5 rounded-xl transition-all duration-300 group">
                                     <i class="ph-chart-line text-xl mr-2 icon-animated icon-wiggle-on-hover"></i>
-                                    <span class="font-medium">Reportes</span>
+                                    <span class="font-medium">Dashboard</span>
                                 </a>
                                 
                                 <a href="submit_complaint.php" class="nav-item flex items-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-5 py-2.5 rounded-xl transition-all duration-300 group">
@@ -323,75 +396,82 @@ if (!function_exists('isAdmin')) {
 
                 <!-- Mobile Menu -->
                 <div x-show="mobileMenuOpen"
-                     x-transition:enter="transition ease-out duration-200"
-                     x-transition:enter-start="opacity-0 scale-95"
-                     x-transition:enter-end="opacity-100 scale-100"
-                     x-transition:leave="transition ease-in duration-150"
-                     x-transition:leave-start="opacity-100 scale-100"
-                     x-transition:leave-end="opacity-0 scale-95"
-                     class="absolute top-20 inset-x-0 p-2 md:hidden">
-                    <div class="rounded-lg shadow-lg ring-1 ring-black/5 bg-gradient-to-br from-blue-700 to-indigo-800 divide-y divide-white/10">
-                        <div class="px-5 pt-5 pb-6">
+                     x-transition:enter="transition ease-out duration-300"
+                     x-transition:enter-start="opacity-0 -translate-y-3 scale-95"
+                     x-transition:enter-end="opacity-100 translate-y-0 scale-100"
+                     x-transition:leave="transition ease-in duration-200"
+                     x-transition:leave-start="opacity-100 translate-y-0 scale-100"
+                     x-transition:leave-end="opacity-0 -translate-y-3 scale-95"
+                     class="absolute top-20 inset-x-0 p-2 md:hidden z-40">
+                    <div class="mobile-menu-glass rounded-2xl">
+                        <div class="px-6 py-6">
                             <?php if (isLoggedIn()): ?>
                                 <!-- User Profile Section -->
-                                <div class="mb-6">
-                                    <div class="flex items-center p-3 bg-white/10 rounded-lg">
-                                        <div class="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-                                            <span class="text-white font-bold">
+                                <div class="mb-8">
+                                    <div class="mobile-profile-card flex items-center p-4 rounded-xl transition-all">
+                                        <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-lg">
+                                            <span class="text-white font-bold text-lg">
                                                 <?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?>
                                             </span>
                                         </div>
-                                        <div class="ml-3">
-                                            <div class="text-white text-sm font-medium"><?php echo htmlspecialchars($_SESSION['name']); ?></div>
-                                            <div class="text-white/60 text-xs"><?php echo htmlspecialchars($_SESSION['email']); ?></div>
+                                        <div class="ml-4 flex-1 min-w-0">
+                                            <div class="text-white text-sm font-semibold"><?php echo htmlspecialchars($_SESSION['name']); ?></div>
+                                            <div class="text-white/70 text-xs truncate"><?php echo htmlspecialchars($_SESSION['email']); ?></div>
                                         </div>
                                     </div>
                                 </div>
 
                                 <!-- Navigation Links -->
-                                <div class="space-y-2">
-                                    <a href="dashboard.php" class="flex items-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-3 rounded-lg transition-all group">
-                                        <i class="ph-chart-line text-xl mr-3 icon-animated icon-wiggle-on-hover"></i>
-                                        Reportes
+                                <div class="space-y-3">
+                                    <a href="dashboard.php" class="mobile-menu-item-gradient flex items-center text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
+                                        <i class="ph-chart-line text-2xl mr-4 icon-animated icon-wiggle-on-hover text-blue-300"></i>
+                                        <span class="font-medium">Dashboard</span>
                                     </a>
                                     
-                                    <a href="submit_complaint.php" class="flex items-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-3 rounded-lg transition-all group">
-                                        <i class="ph-plus-circle text-xl mr-3 icon-animated icon-rotate-on-hover"></i>
-                                        Nuevo Reporte
+                                    <a href="submit_complaint.php" class="mobile-menu-item-gradient flex items-center text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
+                                        <i class="ph-plus-circle text-2xl mr-4 icon-animated icon-rotate-on-hover text-emerald-300"></i>
+                                        <span class="font-medium">Nuevo Reporte</span>
                                     </a>
                                     
-                                    <a href="my_complaints.php" class="flex items-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-3 rounded-lg transition-all group">
-                                        <i class="ph-folder-open text-xl mr-3 icon-animated icon-bounce-on-hover"></i>
-                                        Mis Reportes
+                                    <a href="my_complaints.php" class="mobile-menu-item-gradient flex items-center text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
+                                        <i class="ph-folder-open text-2xl mr-4 icon-animated icon-bounce-on-hover text-orange-300"></i>
+                                        <span class="font-medium">Mis Reportes</span>
                                     </a>
 
-                                    <a href="profile.php" class="flex items-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-3 rounded-lg transition-all group">
-                                        <i class="ph-user-circle text-xl mr-3 icon-animated icon-pulse-soft"></i>
-                                        Mi Perfil
+                                    <a href="profile.php" class="mobile-menu-item-gradient flex items-center text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
+                                        <i class="ph-user-circle text-2xl mr-4 icon-animated icon-pulse-soft text-pink-300"></i>
+                                        <span class="font-medium">Mi Perfil</span>
                                     </a>
+
+                                    <?php if (isAdmin()): ?>
+                                        <a href="admin_settings.php" class="mobile-menu-item-gradient flex items-center text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
+                                            <i class="ph-gear text-2xl mr-4 icon-animated icon-rotate-on-hover text-yellow-300"></i>
+                                            <span class="font-medium">Configuración Admin</span>
+                                        </a>
+                                    <?php endif; ?>
                                 </div>
 
                                 <!-- Logout Button -->
-                                <div class="mt-6 pt-6 border-t border-white/10">
+                                <div class="mt-8 pt-6 mobile-section-divider">
                                     <form action="logout.php" method="POST" class="block w-full">
                                         <button type="submit" 
-                                                class="flex items-center justify-center w-full text-white bg-red-500/20 hover:bg-red-500/30 px-4 py-3 rounded-lg transition-all">
-                                            <i class="ph-sign-out text-xl mr-2"></i>
+                                                class="logout-button-gradient flex items-center justify-center w-full text-red-100 px-5 py-3.5 rounded-xl transition-all duration-300 font-semibold hover:text-red-50">
+                                            <i class="ph-sign-out text-2xl mr-3"></i>
                                             <span>Cerrar Sesión</span>
                                         </button>
                                     </form>
                                 </div>
                                 
                             <?php else: ?>
-                                <div class="space-y-4">
-                                    <a href="login.php" class="flex items-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-4 py-3 rounded-lg transition-all group">
-                                        <i class="ph-sign-in text-xl mr-3 icon-animated icon-bounce-on-hover"></i>
-                                        Iniciar Sesión
+                                <div class="space-y-3">
+                                    <a href="login.php" class="mobile-menu-item-gradient flex items-center text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
+                                        <i class="ph-sign-in text-2xl mr-4 icon-animated icon-bounce-on-hover text-blue-300"></i>
+                                        <span class="font-medium">Iniciar Sesión</span>
                                     </a>
                                     
-                                    <a href="register.php" class="flex items-center text-gray-800 bg-white hover:bg-gray-50 px-4 py-3 rounded-lg transition-all font-medium group">
-                                        <i class="ph-user-plus text-xl mr-3 icon-animated icon-rotate-on-hover"></i>
-                                        Registrarse
+                                    <a href="register.php" class="flex items-center text-gray-900 bg-gradient-to-r from-blue-200 to-purple-200 hover:from-blue-300 hover:to-purple-300 px-5 py-3.5 rounded-xl transition-all duration-300 font-semibold shadow-lg hover:shadow-xl">
+                                        <i class="ph-user-plus text-2xl mr-4 icon-animated icon-rotate-on-hover"></i>
+                                        <span>Registrarse</span>
                                     </a>
                                 </div>
                             <?php endif; ?>

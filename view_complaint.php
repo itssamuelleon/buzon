@@ -1016,13 +1016,13 @@ include 'components/header.php';
                  }"
                  <?php endif; ?>
             >
-                <div class="p-8 md:p-12">
-                    <div class="border-b border-gray-200 pb-8 mb-8">
-                        <div class="flex flex-col md:flex-row justify-between items-start gap-4">
-                            <div>
+                <div class="p-4 md:p-12">
+                    <div class="border-b border-gray-200 pb-4 md:pb-8 mb-4 md:mb-8">
+                        <div class="flex flex-col md:flex-row justify-between items-start gap-2 md:gap-4">
+                            <div class="w-full md:w-auto">
                                 <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Detalles del Reporte</h1>
-                                <div class="flex items-center gap-3 mt-1">
-                                    <p class="text-gray-500 text-lg">
+                                <div class="flex items-center gap-2 md:gap-3 mt-1">
+                                    <p class="text-gray-500 text-sm md:text-lg">
                                         Folio #<?php echo $complaint['folio'] ?? str_pad($complaint['id'], 6, '0', STR_PAD_LEFT); ?>
                                     </p>
                                     
@@ -1031,20 +1031,20 @@ include 'components/header.php';
                                         <button type="button"
                                                 @click="analyze()"
                                                 :disabled="isLoading"
-                                                class="inline-flex items-center gap-2 text-purple-600 hover:text-purple-800 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                                class="inline-flex items-center gap-1 md:gap-2 text-purple-600 hover:text-purple-800 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                                             <template x-if="!isLoading">
-                                                <div class="flex items-center gap-2">
-                                                    <i class="ph-sparkle text-lg"></i>
-                                                    <span class="text-sm">Analizar con Gemini</span>
+                                                <div class="flex items-center gap-1 md:gap-2">
+                                                    <i class="ph-sparkle text-base md:text-lg"></i>
+                                                    <span class="text-xs md:text-sm">Analizar con Gemini</span>
                                                 </div>
                                             </template>
                                             <template x-if="isLoading">
-                                                <div class="flex items-center gap-2">
-                                                    <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                <div class="flex items-center gap-1 md:gap-2">
+                                                    <svg class="animate-spin h-3 w-3 md:h-4 md:w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                                     </svg>
-                                                    <span class="text-sm">Analizando...</span>
+                                                    <span class="text-xs md:text-sm">Analizando...</span>
                                                 </div>
                                             </template>
                                         </button>
@@ -1052,13 +1052,13 @@ include 'components/header.php';
                                 </div>
                             </div>
                             <?php $statusInfo = getStatusInfo($complaint['status']); ?>
-                            <div class="inline-flex items-center gap-x-2 py-2 px-4 rounded-full text-base font-medium <?php echo $statusInfo['class']; ?> ring-1 ring-inset">
-                                <i class="<?php echo $statusInfo['icon']; ?> text-lg"></i>
+                            <div class="inline-flex items-center gap-x-1.5 md:gap-x-2 py-1.5 md:py-2 px-3 md:px-4 rounded-full text-xs md:text-base font-medium <?php echo $statusInfo['class']; ?> ring-1 ring-inset">
+                                <i class="<?php echo $statusInfo['icon']; ?> text-sm md:text-lg"></i>
                                 <?php echo $statusInfo['text']; ?>
                                 <?php if (isAdmin()): ?>
                                     <button @click="isAdminPanelOpen = true; adminModalMode = 'status';"
                                             class="ml-1 transition-all hover:scale-110" title="Editar estado">
-                                        <i class="ph-pencil-simple text-lg"></i>
+                                        <i class="ph-pencil-simple text-sm md:text-lg"></i>
                                     </button>
                                 <?php endif; ?>
                             </div>
@@ -1172,67 +1172,67 @@ include 'components/header.php';
                         </div>
                     <?php endif; ?>
 
-                    <div class="mb-8">
+                    <div class="mb-4 md:mb-8">
                         <!-- First Row: Enviado Por, Fecha, Categoría -->
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6 mb-3 md:mb-6">
                             <!-- Enviado Por -->
-                            <div class="flex items-start gap-4">
-                                <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <i class="ph-user-circle text-2xl text-gray-500"></i>
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 md:w-12 md:h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <i class="ph-user-circle text-xl md:text-2xl text-gray-500"></i>
                                 </div>
-                                <div>
-                                    <h3 class="font-semibold text-gray-500 text-sm">Enviado Por</h3>
+                                <div class="min-w-0 flex-1">
+                                    <h3 class="font-semibold text-gray-500 text-xs md:text-sm">Enviado Por</h3>
                                     <?php if ($complaint['is_anonymous']): ?>
                                         <?php if ($complaint['user_id'] == $_SESSION['user_id']): ?>
-                                            <div class="space-y-1">
-                                                <p class="text-base font-bold text-gray-800"><?php echo htmlspecialchars($complaint['user_name']); ?></p>
-                                                <p class="text-xs text-gray-500"><?php echo htmlspecialchars($complaint['user_email']); ?></p>
-                                                <p class="text-xs text-purple-600">
+                                            <div class="space-y-0.5">
+                                                <p class="text-sm md:text-base font-bold text-gray-800 truncate"><?php echo htmlspecialchars($complaint['user_name']); ?></p>
+                                                <p class="text-[10px] md:text-xs text-gray-500 truncate"><?php echo htmlspecialchars($complaint['user_email']); ?></p>
+                                                <p class="text-[10px] md:text-xs text-purple-600">
                                                     <i class="ph-info"></i>
                                                     Anónimo. Solo tú puedes ver esto
                                                 </p>
                                             </div>
                                         <?php else: ?>
-                                            <p class="text-base font-bold text-gray-800">Usuario Anónimo</p>
+                                            <p class="text-sm md:text-base font-bold text-gray-800">Usuario Anónimo</p>
                                         <?php endif; ?>
                                     <?php else: ?>
-                                        <p class="text-base font-bold text-gray-800"><?php echo htmlspecialchars($complaint['user_name']); ?></p>
-                                        <p class="text-xs text-gray-500"><?php echo htmlspecialchars($complaint['user_email']); ?></p>
+                                        <p class="text-sm md:text-base font-bold text-gray-800 truncate"><?php echo htmlspecialchars($complaint['user_name']); ?></p>
+                                        <p class="text-[10px] md:text-xs text-gray-500 truncate"><?php echo htmlspecialchars($complaint['user_email']); ?></p>
                                     <?php endif; ?>
                                 </div>
                             </div>
 
                             <!-- Fecha de Envío -->
-                            <div class="flex items-start gap-4">
-                                <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <i class="ph-calendar text-2xl text-gray-500"></i>
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 md:w-12 md:h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <i class="ph-calendar text-xl md:text-2xl text-gray-500"></i>
                                 </div>
-                                <div>
-                                    <h3 class="font-semibold text-gray-500 text-sm">Fecha de Envío</h3>
-                                    <p class="text-base font-bold text-gray-800">
+                                <div class="min-w-0 flex-1">
+                                    <h3 class="font-semibold text-gray-500 text-xs md:text-sm">Fecha de Envío</h3>
+                                    <p class="text-sm md:text-base font-bold text-gray-800">
                                         <?php echo date('d/m/Y \a \l\a\s H:i', strtotime($complaint['created_at'])); ?>
                                     </p>
                                 </div>
                             </div>
 
                             <!-- Categoría -->
-                            <div class="flex items-start gap-4">
-                                <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <i class="ph-tag text-2xl text-gray-500"></i>
+                            <div class="flex items-start gap-3">
+                                <div class="w-10 h-10 md:w-12 md:h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                    <i class="ph-tag text-xl md:text-2xl text-gray-500"></i>
                                 </div>
-                                <div class="flex-1">
-                                    <div class="flex items-center justify-between gap-3">
-                                        <h3 class="font-semibold text-gray-500 text-sm">Categoría</h3>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <h3 class="font-semibold text-gray-500 text-xs md:text-sm">Categoría</h3>
                                         <?php if (isAdmin()): ?>
                                             <button type="button"
                                                     @click="isAdminPanelOpen = true; adminModalMode = 'category'; activeTab = 'category';"
-                                                    class="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-800">
-                                                <i class="ph-pencil-simple text-base"></i>
-                                                Editar
+                                                    class="inline-flex items-center gap-1 text-xs md:text-sm font-semibold text-blue-600 hover:text-blue-800">
+                                                <i class="ph-pencil-simple text-sm md:text-base"></i>
+                                                <span class="hidden md:inline">Editar</span>
                                             </button>
                                         <?php endif; ?>
                                     </div>
-                                    <p class="text-base font-bold text-gray-800">
+                                    <p class="text-sm md:text-base font-bold text-gray-800 truncate">
                                         <?php echo $complaint['category_name'] ? htmlspecialchars($complaint['category_name']) : 'Sin categoría'; ?>
                                     </p>
                                 </div>
@@ -1257,34 +1257,34 @@ include 'components/header.php';
                             $assigned_departments->data_seek(0);
                         }
                         ?>
-                        <div class="flex items-start gap-4">
-                            <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <i class="ph-buildings text-2xl text-gray-500"></i>
+                        <div class="flex items-start gap-3">
+                            <div class="w-10 h-10 md:w-12 md:h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i class="ph-buildings text-xl md:text-2xl text-gray-500"></i>
                             </div>
-                            <div class="flex-1">
-                                <div class="flex items-center justify-between gap-3">
-                                    <h3 class="font-semibold text-gray-500 text-sm">Departamentos Asignados</h3>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center justify-between gap-2">
+                                    <h3 class="font-semibold text-gray-500 text-xs md:text-sm">Departamentos Asignados</h3>
                                     <?php if (isAdmin()): ?>
                                         <button type="button"
                                                 @click="isAdminPanelOpen = true; adminModalMode = 'departments'; activeTab = 'departments';"
-                                                class="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-800">
-                                            <i class="ph-buildings text-base"></i>
-                                            Asignar
+                                                class="inline-flex items-center gap-1 text-xs md:text-sm font-semibold text-blue-600 hover:text-blue-800">
+                                            <i class="ph-buildings text-sm md:text-base"></i>
+                                            <span class="hidden md:inline">Asignar</span>
                                         </button>
                                     <?php endif; ?>
                                 </div>
                                 <?php if ($assigned_departments->num_rows == 0): ?>
-                                    <div class="mt-2 bg-yellow-50 rounded-lg p-3 border border-yellow-200">
-                                        <div class="flex items-center gap-3">
-                                            <i class="ph-warning-circle text-yellow-600 text-lg"></i>
+                                    <div class="mt-2 bg-yellow-50 rounded-lg p-2 md:p-3 border border-yellow-200">
+                                        <div class="flex items-center gap-2">
+                                            <i class="ph-warning-circle text-yellow-600 text-base md:text-lg"></i>
                                             <div>
-                                                <p class="font-medium text-yellow-800 text-sm">Reporte sin asignar</p>
+                                                <p class="font-medium text-yellow-800 text-xs md:text-sm">Reporte sin asignar</p>
                                                 <?php if (isAdmin()): ?>
-                                                    <p class="text-yellow-700 text-xs mt-0.5">
+                                                    <p class="text-yellow-700 text-[10px] md:text-xs mt-0.5">
                                                         Usa el botón "Asignar Departamentos" para asignar departamentos responsables.
                                                     </p>
                                                 <?php else: ?>
-                                                    <p class="text-yellow-700 text-xs mt-0.5">
+                                                    <p class="text-yellow-700 text-[10px] md:text-xs mt-0.5">
                                                         El reporte aún no ha sido asignado a ningún departamento.
                                                     </p>
                                                 <?php endif; ?>
@@ -1294,18 +1294,18 @@ include 'components/header.php';
                                 <?php else: ?>
                                     <div class="mt-2 space-y-2">
                                         <?php while ($dept = $assigned_departments->fetch_assoc()): ?>
-                                            <div class="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                                                <div class="flex justify-between items-start gap-4">
+                                            <div class="bg-gray-50 rounded-lg p-2 md:p-3 border border-gray-200">
+                                                <div class="flex justify-between items-start gap-2 md:gap-4">
                                                     <div class="flex-1 min-w-0">
-                                                        <p class="font-bold text-gray-900 text-base"><?php echo htmlspecialchars($dept['name']); ?></p>
-                                                        <p class="text-gray-600 text-sm mt-1">
+                                                        <p class="font-bold text-gray-900 text-sm md:text-base truncate"><?php echo htmlspecialchars($dept['name']); ?></p>
+                                                        <p class="text-gray-600 text-xs md:text-sm mt-0.5 truncate">
                                                             <span class="font-medium"><?php echo htmlspecialchars($dept['manager']); ?></span> · 
                                                             <a href="mailto:<?php echo htmlspecialchars($dept['email']); ?>" class="text-blue-600 hover:text-blue-800">
                                                                 <?php echo htmlspecialchars($dept['email']); ?>
                                                             </a>
                                                         </p>
                                                     </div>
-                                                    <div class="text-xs text-gray-500 whitespace-nowrap">
+                                                    <div class="text-[10px] md:text-xs text-gray-500 whitespace-nowrap">
                                                         <?php echo date('d/m/Y H:i', strtotime($dept['assigned_at'])); ?>
                                                     </div>
                                                 </div>
@@ -1317,37 +1317,37 @@ include 'components/header.php';
                         </div>
                     </div>
                     
-                    <div class="mb-8">
-                        <h2 class="text-xl font-bold text-gray-800 mb-4">Descripción del Reporte</h2>
-                        <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
-                            <p class="text-gray-700 whitespace-pre-wrap leading-relaxed"><?php echo htmlspecialchars($complaint['description']); ?></p>
+                    <div class="mb-4 md:mb-8">
+                        <h2 class="text-lg md:text-xl font-bold text-gray-800 mb-3 md:mb-4">Descripción del Reporte</h2>
+                        <div class="bg-gray-50 rounded-lg p-4 md:p-6 border border-gray-200">
+                            <p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm md:text-base"><?php echo htmlspecialchars($complaint['description']); ?></p>
                         </div>
                     </div>
 
-                    <div class="mb-8">
-                        <h2 class="text-xl font-bold text-gray-800 mb-4">Evidencia Adjunta</h2>
+                    <div class="mb-4 md:mb-8">
+                        <h2 class="text-lg md:text-xl font-bold text-gray-800 mb-3 md:mb-4">Evidencia Adjunta</h2>
                         <?php if (empty($attachments)): ?>
                             <div class="bg-gray-50 rounded-lg p-6 text-center border-2 border-dashed border-gray-200">
                                 <p class="text-gray-500">No se adjuntó ninguna evidencia para este reporte.</p>
                             </div>
                         <?php else: ?>
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
                                 <?php foreach ($attachments as $attachment): ?>
                                     <div class="border border-gray-200 rounded-lg overflow-hidden group transition-shadow hover:shadow-md">
                                         <?php if (str_contains($attachment['file_type'], 'image/')): ?>
-                                            <button @click="isModalOpen = true; modalImageUrl = '<?php echo htmlspecialchars($attachment['file_path']); ?>'" class="w-full h-40 block">
+                                            <button @click="isModalOpen = true; modalImageUrl = '<?php echo htmlspecialchars($attachment['file_path']); ?>'" class="w-full h-24 md:h-40 block">
                                                 <img src="<?php echo htmlspecialchars($attachment['file_path']); ?>" alt="<?php echo htmlspecialchars($attachment['file_name']); ?>" class="w-full h-full object-cover">
                                             </button>
                                         <?php else: ?>
-                                            <div class="w-full h-40 bg-gray-100 flex items-center justify-center">
-                                                <i class="<?php echo getFileIcon($attachment['file_type']); ?> text-6xl text-gray-400"></i>
+                                            <div class="w-full h-24 md:h-40 bg-gray-100 flex items-center justify-center">
+                                                <i class="<?php echo getFileIcon($attachment['file_type']); ?> text-3xl md:text-6xl text-gray-400"></i>
                                             </div>
                                         <?php endif; ?>
-                                        <div class="p-4 bg-white">
-                                            <p class="text-sm font-semibold text-gray-700 truncate"><?php echo htmlspecialchars($attachment['file_name']); ?></p>
+                                        <div class="p-2 md:p-4 bg-white">
+                                            <p class="text-xs md:text-sm font-semibold text-gray-700 truncate"><?php echo htmlspecialchars($attachment['file_name']); ?></p>
                                             <a href="<?php echo htmlspecialchars($attachment['file_path']); ?>" target="_blank" download
-                                               class="inline-flex items-center mt-2 text-sm text-blue-600 hover:text-blue-800 font-semibold group/link">
-                                                Descargar <i class="ph-download-simple text-lg ml-1 group-hover/link:translate-y-0.5 transition-transform"></i>
+                                               class="inline-flex items-center mt-1 md:mt-2 text-xs md:text-sm text-blue-600 hover:text-blue-800 font-semibold group/link">
+                                                Descargar <i class="ph-download-simple text-sm md:text-lg ml-1 group-hover/link:translate-y-0.5 transition-transform"></i>
                                             </a>
                                         </div>
                                     </div>
@@ -1469,22 +1469,22 @@ include 'components/header.php';
                             return 'ph-file';
                         }
                     }">
-                        <div class="flex items-center justify-between mb-4">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
                             <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
                                 <i class="ph-chats-circle text-blue-600"></i>
                                 Respuestas y Seguimiento
                             </h2>
                             
                             <?php if (isStaff()): ?>
-                                <div class="flex items-center gap-2">
+                                <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                                     <!-- Cerrar Reporte Button - Solo para admins y managers asignados -->
                                     <?php if (canCloseReport()): ?>
                                     <button 
                                         type="button"
                                         @click="isAdminPanelOpen = true; adminModalMode = 'close';"
-                                        class="inline-flex items-center gap-2 px-4 py-2 text-gray-700 font-semibold hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors">
+                                        class="flex-1 sm:flex-none inline-flex justify-center items-center gap-2 px-4 py-2 text-gray-700 font-semibold hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors border border-gray-200 sm:border-transparent">
                                         <i class="ph-check-circle text-lg"></i>
-                                        Cerrar Reporte
+                                        <span class="whitespace-nowrap">Cerrar Reporte</span>
                                     </button>
                                     <?php endif; ?>
                                     
@@ -1493,7 +1493,7 @@ include 'components/header.php';
                                         type="button"
                                         @click="showForm = !showForm"
                                         x-show="!showForm"
-                                        class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-md">
+                                        class="flex-1 sm:flex-none inline-flex justify-center items-center gap-2 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-md">
                                         <i class="ph-chat-circle-dots text-lg"></i>
                                         Responder
                                     </button>
@@ -1682,32 +1682,41 @@ include 'components/header.php';
                                                                 </span>
                                                             <?php endif; ?>
                                                         </div>
-                                                        <?php if ($is_anonymous_author): ?>
-                                                            <p class="text-xs text-gray-500 font-medium">Estudiante</p>
-                                                        <?php elseif ($comment['user_role'] === 'admin'): ?>
-                                                            <p class="text-xs text-purple-600 font-medium">Administrador</p>
-                                                        <?php elseif ($comment['user_role'] === 'manager'): ?>
-                                                            <p class="text-xs text-blue-600 font-medium">
-                                                                <?php 
-                                                                // Get department name for this manager
-                                                                $stmt_dept = $conn->prepare("SELECT name FROM departments WHERE email = (SELECT email FROM users WHERE id = ?)");
-                                                                $stmt_dept->bind_param("i", $comment['user_id']);
-                                                                $stmt_dept->execute();
-                                                                $dept_result = $stmt_dept->get_result();
-                                                                if ($dept_row = $dept_result->fetch_assoc()) {
-                                                                    echo htmlspecialchars($dept_row['name']);
-                                                                } else {
-                                                                    echo 'Encargado';
-                                                                }
-                                                                ?>
-                                                            </p>
-                                                        <?php elseif ($comment['user_role'] === 'student'): ?>
-                                                            <p class="text-xs text-gray-500 font-medium">Estudiante</p>
-                                                        <?php endif; ?>
+                                                        
+                                                        <div class="flex items-center gap-2 flex-wrap">
+                                                            <?php if ($is_anonymous_author): ?>
+                                                                <p class="text-xs text-gray-500 font-medium">Estudiante</p>
+                                                            <?php elseif ($comment['user_role'] === 'admin'): ?>
+                                                                <p class="text-xs text-purple-600 font-medium">Administrador</p>
+                                                            <?php elseif ($comment['user_role'] === 'manager'): ?>
+                                                                <p class="text-xs text-blue-600 font-medium">
+                                                                    <?php 
+                                                                    // Get department name for this manager
+                                                                    $stmt_dept = $conn->prepare("SELECT name FROM departments WHERE email = (SELECT email FROM users WHERE id = ?)");
+                                                                    $stmt_dept->bind_param("i", $comment['user_id']);
+                                                                    $stmt_dept->execute();
+                                                                    $dept_result = $stmt_dept->get_result();
+                                                                    if ($dept_row = $dept_result->fetch_assoc()) {
+                                                                        echo htmlspecialchars($dept_row['name']);
+                                                                    } else {
+                                                                        echo 'Encargado';
+                                                                    }
+                                                                    ?>
+                                                                </p>
+                                                            <?php elseif ($comment['user_role'] === 'student'): ?>
+                                                                <p class="text-xs text-gray-500 font-medium">Estudiante</p>
+                                                            <?php endif; ?>
+
+                                                            <!-- Mobile Date -->
+                                                            <span class="text-gray-300 sm:hidden">&bull;</span>
+                                                            <span class="text-xs text-gray-400 sm:hidden">
+                                                                <?php echo date('d/m/y H:i', strtotime($comment['created_at'])); ?>
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
-                                                <!-- Fecha y Hora (Esquina Superior Derecha) -->
-                                                <div class="text-right flex-shrink-0">
+                                                <!-- Fecha y Hora (Esquina Superior Derecha - Desktop Only) -->
+                                                <div class="hidden sm:block text-right flex-shrink-0">
                                                     <p class="text-xs text-gray-500 whitespace-nowrap">
                                                         <i class="ph-clock text-xs mr-1"></i>
                                                         <?php echo date('d/m/Y', strtotime($comment['created_at'])); ?>
