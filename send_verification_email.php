@@ -11,7 +11,7 @@ require_once __DIR__ . '/config/email_config.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-function sendVerificationEmail($email, $name, $code) {
+function sendVerificationEmail($email, $name, $code, $type = 'register') {
     global $conn;
     
     // Check if test mode is enabled
@@ -56,8 +56,21 @@ function sendVerificationEmail($email, $name, $code) {
         $mail->setFrom(SMTP_USERNAME, 'ITSCC Buzón Digital');
         $mail->addAddress($actual_recipient, $name);
         
+        // Configurar contenido según el tipo
+        $subject_prefix = ($type === 'password_reset') ? 'Recuperación de Contraseña' : 'Código de Verificación';
+        $title = ($type === 'password_reset') ? '🔐 Recuperación de Contraseña' : '🔐 Verificación de Correo';
+        
+        $intro_text = "";
+        if ($type === 'password_reset') {
+            $intro_text = "Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en el <strong>Buzón Digital del ITSCC</strong>.";
+            $action_text = "Ingresa el siguiente código para continuar con el proceso de recuperación:";
+        } else {
+            $intro_text = "Gracias por registrarte en el <strong>Buzón Digital del ITSCC</strong>. Para completar tu registro, necesitamos verificar tu correo electrónico.";
+            $action_text = "Ingresa el siguiente código de verificación en la página de registro:";
+        }
+
         // Add test mode notice to subject if in test mode
-        $subject = 'Código de Verificación - ITSCC Buzón Digital';
+        $subject = $subject_prefix . ' - ITSCC Buzón Digital';
         if ($test_mode && $actual_recipient !== $original_email) {
             $subject = '[MODO PRUEBA] ' . $subject;
         }
@@ -108,17 +121,17 @@ function sendVerificationEmail($email, $name, $code) {
         <body>
             <div class='container'>
                 <div class='header'>
-                    <h1>🔐 Verificación de Correo</h1>
+                    <h1>{$title}</h1>
                 </div>
                 <div class='content'>
                     {$test_notice}
                     <h2 style='color: #333; margin-top: 0;'>¡Hola, " . htmlspecialchars($name) . "!</h2>
                     <p style='font-size: 16px; color: #555;'>
-                        Gracias por registrarte en el <strong>Buzón Digital del ITSCC</strong>. Para completar tu registro, necesitamos verificar tu correo electrónico.
+                        {$intro_text}
                     </p>
                     
                     <p style='font-size: 16px; color: #555;'>
-                        Ingresa el siguiente código de verificación en la página de registro:
+                        {$action_text}
                     </p>
                     
                     <div class='code-box'>
@@ -128,7 +141,7 @@ function sendVerificationEmail($email, $name, $code) {
                     <div class='info'>
                         <p style='margin: 0; color: #666;'>
                             <strong>⏱️ Este código expira en 15 minutos.</strong><br>
-                            Si no solicitaste este registro, puedes ignorar este correo de forma segura.
+                            Si no solicitaste esta acción, puedes ignorar este correo de forma segura.
                         </p>
                     </div>
                     
@@ -165,13 +178,15 @@ Este correo estaba destinado a: {$original_email}
         
         $mail->AltBody = "{$test_notice_plain}Hola, " . $name . "!
 
-Gracias por registrarte en el Buzón Digital del ITSCC.
+" . strip_tags($intro_text) . "
 
-Tu código de verificación es: " . $code . "
+" . strip_tags($action_text) . "
+
+Tu código es: " . $code . "
 
 Este código expira en 15 minutos.
 
-Si no solicitaste este registro, puedes ignorar este correo.
+Si no solicitaste esta acción, puedes ignorar este correo.
 
 ---
 Instituto Tecnológico Superior de Ciudad Constitución

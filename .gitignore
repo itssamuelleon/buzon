@@ -66,3 +66,6 @@ sessions/
 # Compiled files
 *.compiled
 
+# Debug and diagnostic files
+check_hidden_column.php
+debug_departments.php

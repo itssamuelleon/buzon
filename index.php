@@ -237,7 +237,7 @@ include 'components/header.php';
 </section>
 
 <!-- Features Section -->
-<section class="py-24 bg-white relative overflow-hidden">
+<section class="pt-24 pb-56 bg-white relative overflow-hidden">
     <div class="absolute inset-0 bg-slate-50 skew-y-3 transform origin-top-left -z-10"></div>
     
     <div class="container mx-auto px-4">

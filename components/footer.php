@@ -7,7 +7,7 @@
 
     <!-- Modern Footer -->
     <!-- UPDATED: Replaced 'bg-gray-900' with the new blue gradient -->
-    <footer class="relative bg-gradient-to-r from-blue-700 to-indigo-800 text-white pt-20 pb-8 mt-24 overflow-hidden">
+    <footer class="relative bg-gradient-to-r from-blue-700 to-indigo-800 text-white pt-20 pb-8 overflow-hidden">
         <!-- Decorative Gradient Blobs -->
         <div class="absolute inset-0 pointer-events-none">
             <div class="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-blue-600 to-purple-900 rounded-full filter blur-3xl opacity-30 animate-float"></div>

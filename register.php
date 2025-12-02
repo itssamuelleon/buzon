@@ -1,4 +1,8 @@
 <?php
+// Redirección temporal a login.php
+header('Location: login.php');
+exit;
+
 // --- PHP LOGIC FIRST ---
 require_once 'config.php';
 require_once 'send_verification_email.php';

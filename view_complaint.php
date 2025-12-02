@@ -19,7 +19,7 @@ if ($complaint_id === 0) {
 
 // Get complaint details FIRST - before processing any logic
 $stmt = $conn->prepare("
-    SELECT c.*, u.name as user_name, u.email as user_email, cat.name as category_name 
+    SELECT c.*, u.name as user_name, u.email as user_email, u.profile_photo as user_profile_photo, cat.name as category_name 
     FROM complaints c 
     LEFT JOIN users u ON c.user_id = u.id 
     LEFT JOIN categories cat ON c.category_id = cat.id 
@@ -406,7 +406,7 @@ $attachments = $stmt_att->get_result()->fetch_all(MYSQLI_ASSOC);
 
 // Get comments with attachments
 $stmt_comments = $conn->prepare("
-    SELECT cc.*, u.name as user_name, u.role as user_role, c.is_anonymous
+    SELECT cc.*, u.name as user_name, u.role as user_role, u.profile_photo as user_profile_photo, c.is_anonymous
     FROM complaint_comments cc 
     LEFT JOIN users u ON cc.user_id = u.id 
     LEFT JOIN complaints c ON cc.complaint_id = c.id
@@ -622,8 +622,8 @@ include 'components/header.php';
                 <!-- Departments Form -->
                 <div class="space-y-4" x-data="{ searchQuery: '' }">
                     <?php
-                    // Get all departments for admin form
-                    $all_departments = $conn->query("SELECT * FROM departments ORDER BY name");
+                    // Get all departments for admin form (excluding hidden ones)
+                    $all_departments = $conn->query("SELECT * FROM departments WHERE is_hidden = 0 ORDER BY name");
                     
                     // Get current assignments for checkbox states
                     $assigned_dept_ids = [];
@@ -1177,9 +1177,46 @@ include 'components/header.php';
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6 mb-3 md:mb-6">
                             <!-- Enviado Por -->
                             <div class="flex items-start gap-3">
-                                <div class="w-10 h-10 md:w-12 md:h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                    <i class="ph-user-circle text-xl md:text-2xl text-gray-500"></i>
-                                </div>
+                                <?php if ($complaint['is_anonymous']): ?>
+                                    <?php if ($complaint['user_id'] == $_SESSION['user_id']): ?>
+                                        <!-- Anonymous but viewing own report - show profile photo or initials -->
+                                        <?php if (!empty($complaint['user_profile_photo'])): ?>
+                                            <div class="w-10 h-10 md:w-12 md:h-12 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 border-2 border-gray-200">
+                                                <img src="data:image/jpeg;base64,<?php echo $complaint['user_profile_photo']; ?>" 
+                                                     alt="Profile" 
+                                                     class="w-full h-full object-cover"
+                                                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center\'><span class=\'text-white font-bold text-lg md:text-xl\'><?php echo strtoupper(substr($complaint['user_name'], 0, 1)); ?></span></div>';">
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                <span class="text-white font-bold text-lg md:text-xl">
+                                                    <?php echo strtoupper(substr($complaint['user_name'], 0, 1)); ?>
+                                                </span>
+                                            </div>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <!-- Anonymous - show 'A' for others -->
+                                        <div class="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-gray-400 to-gray-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                            <span class="text-white font-bold text-lg md:text-xl">A</span>
+                                        </div>
+                                    <?php endif; ?>
+                                <?php else: ?>
+                                    <!-- Not anonymous - show profile photo or initials -->
+                                    <?php if (!empty($complaint['user_profile_photo'])): ?>
+                                        <div class="w-10 h-10 md:w-12 md:h-12 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 border-2 border-gray-200">
+                                            <img src="data:image/jpeg;base64,<?php echo $complaint['user_profile_photo']; ?>" 
+                                                 alt="Profile" 
+                                                 class="w-full h-full object-cover"
+                                                 onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center\'><span class=\'text-white font-bold text-lg md:text-xl\'><?php echo strtoupper(substr($complaint['user_name'], 0, 1)); ?></span></div>';">
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                            <span class="text-white font-bold text-lg md:text-xl">
+                                                <?php echo strtoupper(substr($complaint['user_name'], 0, 1)); ?>
+                                            </span>
+                                        </div>
+                                    <?php endif; ?>
+                                <?php endif; ?>
                                 <div class="min-w-0 flex-1">
                                     <h3 class="font-semibold text-gray-500 text-xs md:text-sm">Enviado Por</h3>
                                     <?php if ($complaint['is_anonymous']): ?>
@@ -1667,9 +1704,18 @@ include 'components/header.php';
                                                     $is_anonymous_author = ($comment['user_id'] == $complaint['user_id'] && $comment['is_anonymous']);
                                                     $avatar_char = $is_anonymous_author ? '?' : strtoupper(substr($comment['user_name'] ?? '?', 0, 1));
                                                     ?>
-                                                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold flex-shrink-0">
-                                                        <?php echo $avatar_char; ?>
-                                                    </div>
+                                                    <?php if (!empty($comment['user_profile_photo'])): ?>
+                                                        <div class="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 border-2 border-gray-200">
+                                                            <img src="data:image/jpeg;base64,<?php echo $comment['user_profile_photo']; ?>" 
+                                                                 alt="Profile" 
+                                                                 class="w-full h-full object-cover"
+                                                                 onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold\'><?php echo $avatar_char; ?></div>';">
+                                                        </div>
+                                                    <?php else: ?>
+                                                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold flex-shrink-0">
+                                                            <?php echo $avatar_char; ?>
+                                                        </div>
+                                                    <?php endif; ?>
                                                     <div class="flex-1 min-w-0">
                                                         <div class="flex items-center gap-2 flex-wrap mb-1">
                                                             <p class="font-semibold text-gray-900">

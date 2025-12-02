@@ -4,6 +4,18 @@ require_once __DIR__ . '/../config.php';
 // Actualizar estados de reportes automáticamente en cada carga de página
 // Solo se actualizan los reportes que están sin atender (eficiente)
 require_once __DIR__ . '/../update_statuses.php';
+
+// Obtener foto de perfil del usuario si está logueado
+$user_profile_photo = null;
+if (isLoggedIn() && isset($_SESSION['user_id'])) {
+    $stmt_photo = $conn->prepare("SELECT profile_photo FROM users WHERE id = ?");
+    $stmt_photo->bind_param("i", $_SESSION['user_id']);
+    $stmt_photo->execute();
+    $result_photo = $stmt_photo->get_result();
+    if ($row_photo = $result_photo->fetch_assoc()) {
+        $user_profile_photo = $row_photo['profile_photo'];
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -325,11 +337,20 @@ if (!function_exists('isAdmin')) {
                                 <div class="relative">
                                     <button @click="userDropdownOpen = !userDropdownOpen" 
                                             class="flex items-center space-x-3 text-white bg-white/10 hover:bg-white/20 px-4 py-2.5 rounded-xl transition-all duration-300">
-                                        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-                                            <span class="text-white font-semibold text-sm">
-                                                <?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?>
-                                            </span>
-                                        </div>
+                                        <?php if ($user_profile_photo): ?>
+                                            <div class="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center border-2 border-white/20">
+                                                <img src="data:image/jpeg;base64,<?php echo $user_profile_photo; ?>" 
+                                                     alt="Profile" 
+                                                     class="w-full h-full object-cover"
+                                                     onerror="this.onerror=null; this.parentElement.innerHTML='<span class=\'text-white font-semibold text-sm\'><?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?></span>';">
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
+                                                <span class="text-white font-semibold text-sm">
+                                                    <?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?>
+                                                </span>
+                                            </div>
+                                        <?php endif; ?>
                                         <span class="font-medium"><?php echo htmlspecialchars($_SESSION['name']); ?></span>
                                         <i class="ph-caret-down text-sm transition-transform icon-animated" :class="{'rotate-180': userDropdownOpen}"></i>
                                     </button>
@@ -377,10 +398,7 @@ if (!function_exists('isAdmin')) {
                                     <span class="font-medium">Iniciar Sesión</span>
                                 </a>
                                 
-                                <a href="register.php" class="flex items-center text-gray-800 bg-white hover:bg-gray-50 px-5 py-2.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 group">
-                                    <i class="ph-user-plus text-xl mr-2 icon-animated icon-rotate-on-hover"></i>
-                                    <span class="font-semibold">Registrarse</span>
-                                </a>
+
                             <?php endif; ?>
                         </div>
                         
@@ -409,11 +427,20 @@ if (!function_exists('isAdmin')) {
                                 <!-- User Profile Section -->
                                 <div class="mb-8">
                                     <div class="mobile-profile-card flex items-center p-4 rounded-xl transition-all">
-                                        <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-lg">
-                                            <span class="text-white font-bold text-lg">
-                                                <?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?>
-                                            </span>
-                                        </div>
+                                        <?php if ($user_profile_photo): ?>
+                                            <div class="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 shadow-lg border-2 border-white/20">
+                                                <img src="data:image/jpeg;base64,<?php echo $user_profile_photo; ?>" 
+                                                     alt="Profile" 
+                                                     class="w-full h-full object-cover"
+                                                     onerror="this.onerror=null; this.parentElement.innerHTML='<span class=\'text-white font-bold text-lg\'><?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?></span>';">
+                                            </div>
+                                        <?php else: ?>
+                                            <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-lg">
+                                                <span class="text-white font-bold text-lg">
+                                                    <?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?>
+                                                </span>
+                                            </div>
+                                        <?php endif; ?>
                                         <div class="ml-4 flex-1 min-w-0">
                                             <div class="text-white text-sm font-semibold"><?php echo htmlspecialchars($_SESSION['name']); ?></div>
                                             <div class="text-white/70 text-xs truncate"><?php echo htmlspecialchars($_SESSION['email']); ?></div>
@@ -469,10 +496,7 @@ if (!function_exists('isAdmin')) {
                                         <span class="font-medium">Iniciar Sesión</span>
                                     </a>
                                     
-                                    <a href="register.php" class="flex items-center text-gray-900 bg-gradient-to-r from-blue-200 to-purple-200 hover:from-blue-300 hover:to-purple-300 px-5 py-3.5 rounded-xl transition-all duration-300 font-semibold shadow-lg hover:shadow-xl">
-                                        <i class="ph-user-plus text-2xl mr-4 icon-animated icon-rotate-on-hover"></i>
-                                        <span>Registrarse</span>
-                                    </a>
+
                                 </div>
                             <?php endif; ?>
                         </div>
