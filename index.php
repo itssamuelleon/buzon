@@ -94,10 +94,12 @@ include 'components/header.php';
                         <i class="ph-bold ph-plus-circle text-xl group-hover:rotate-90 transition-transform duration-300"></i>
                         Crear Nuevo Reporte
                     </a>
-                    <a href="dashboard.php" class="group w-full sm:w-auto px-8 py-4 bg-white text-slate-700 font-bold rounded-2xl shadow-md hover:shadow-lg border border-slate-100 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2">
-                        <i class="ph-bold ph-chart-line-up text-xl group-hover:scale-110 transition-transform duration-300"></i>
-                        Ver Panel
-                    </a>
+                    <?php if (canAccessDashboard()): ?>
+                        <a href="dashboard.php" class="group w-full sm:w-auto px-8 py-4 bg-white text-slate-700 font-bold rounded-2xl shadow-md hover:shadow-lg border border-slate-100 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2">
+                            <i class="ph-bold ph-chart-line-up text-xl group-hover:scale-110 transition-transform duration-300"></i>
+                            Ver Panel
+                        </a>
+                    <?php endif; ?>
                 <?php else: ?>
                     <a href="login.php" class="group w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-2xl shadow-lg hover:shadow-blue-500/30 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2">
                         <i class="ph-bold ph-sign-in text-xl group-hover:translate-x-1 transition-transform duration-300"></i>

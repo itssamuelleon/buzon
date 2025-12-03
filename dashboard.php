@@ -8,6 +8,12 @@ if (!isLoggedIn()) {
     exit;
 }
 
+// Check if user can access dashboard
+if (!canAccessDashboard()) {
+    header('Location: index.php');
+    exit;
+}
+
 $page_title = 'Dashboard - ITSCC Buzón'; 
 include 'components/header.php'; 
 require_once 'status_helper.php'; 

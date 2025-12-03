@@ -22,4 +22,28 @@ function isLoggedIn() {
 function isAdmin() {
     return isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
 }
+
+function canAccessDashboard() {
+    global $conn;
+    
+    // Admins always have access
+    if (isAdmin()) {
+        return true;
+    }
+    
+    // Check if dashboard access is restricted
+    $stmt = $conn->prepare("SELECT setting_value FROM admin_settings WHERE setting_key = 'restrict_dashboard_access'");
+    $stmt->execute();
+    $result = $stmt->get_result();
+    
+    if ($row = $result->fetch_assoc()) {
+        $is_restricted = $row['setting_value'] == '1';
+        // If restricted, only admins can access (already returned true above)
+        // If not restricted, anyone logged in can access
+        return !$is_restricted && isLoggedIn();
+    }
+    
+    // Default: if setting doesn't exist, allow access to logged in users
+    return isLoggedIn();
+}
 ?>

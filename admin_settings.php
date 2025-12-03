@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply_settings'])) {
     $test_email = trim($_POST['test_email'] ?? '');
     $notify_buzon = (isset($_POST['notify_buzon_on_new_report']) && $_POST['notify_buzon_on_new_report'] === '1') ? '1' : '0';
     $disable_email_check = (isset($_POST['disable_institutional_email_check']) && $_POST['disable_institutional_email_check'] === '1') ? '1' : '0';
+    $restrict_dashboard = (isset($_POST['restrict_dashboard_access']) && $_POST['restrict_dashboard_access'] === '1') ? '1' : '0';
     
     // Verificar contraseña del admin actual
     $stmt = $conn->prepare("SELECT password FROM users WHERE id = ? AND role = 'admin'");
@@ -53,6 +54,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply_settings'])) {
             $stmt_check = $conn->prepare("INSERT INTO admin_settings (setting_key, setting_value, updated_by) VALUES ('disable_institutional_email_check', ?, ?) ON DUPLICATE KEY UPDATE setting_value = ?, updated_by = ?");
             $stmt_check->bind_param("sisi", $disable_email_check, $_SESSION['user_id'], $disable_email_check, $_SESSION['user_id']);
             $stmt_check->execute();
+            
+            // Actualizar restricción de acceso al dashboard
+            $stmt_dashboard = $conn->prepare("INSERT INTO admin_settings (setting_key, setting_value, updated_by) VALUES ('restrict_dashboard_access', ?, ?) ON DUPLICATE KEY UPDATE setting_value = ?, updated_by = ?");
+            $stmt_dashboard->bind_param("sisi", $restrict_dashboard, $_SESSION['user_id'], $restrict_dashboard, $_SESSION['user_id']);
+            $stmt_dashboard->execute();
             
             // Actualizar encargados de departamentos
             if (isset($_POST['managers']) && is_array($_POST['managers'])) {
@@ -147,6 +153,15 @@ if ($row_check = $result_check->fetch_assoc()) {
     $disable_email_check = $row_check['setting_value'] == '1';
 }
 
+// Obtener configuración de restricción de acceso al dashboard
+$stmt_dashboard = $conn->prepare("SELECT setting_value FROM admin_settings WHERE setting_key = 'restrict_dashboard_access'");
+$stmt_dashboard->execute();
+$result_dashboard = $stmt_dashboard->get_result();
+$restrict_dashboard_access = false;
+if ($row_dashboard = $result_dashboard->fetch_assoc()) {
+    $restrict_dashboard_access = $row_dashboard['setting_value'] == '1';
+}
+
 // Obtener departamentos y encargados
 try {
     $departments_query = $conn->query("SELECT id, name, manager, email, COALESCE(is_hidden, 0) as is_hidden FROM departments ORDER BY name");
@@ -230,6 +245,7 @@ include 'components/header.php';
                 "testMode": <?php echo $test_mode_enabled ? 'true' : 'false'; ?>,
                 "notifyBuzon": <?php echo $notify_buzon_enabled ? 'true' : 'false'; ?>,
                 "disableEmailCheck": <?php echo $disable_email_check ? 'true' : 'false'; ?>,
+                "restrictDashboard": <?php echo $restrict_dashboard_access ? 'true' : 'false'; ?>,
                 "editDeptModal": false,
                 "currentDept": null,
                 "addDeptModal": false,
@@ -301,6 +317,7 @@ include 'components/header.php';
                     <input type="hidden" name="test_mode" :value="testMode ? '1' : '0'">
                     <input type="hidden" name="notify_buzon_on_new_report" :value="notifyBuzon ? '1' : '0'">
                     <input type="hidden" name="disable_institutional_email_check" :value="disableEmailCheck ? '1' : '0'">
+                    <input type="hidden" name="restrict_dashboard_access" :value="restrictDashboard ? '1' : '0'">
                     <template x-for="deptId in hiddenDepts" :key="deptId">
                         <input type="hidden" name="hidden_departments[]" :value="deptId">
                     </template>
@@ -360,6 +377,28 @@ include 'components/header.php';
                                 <label class="relative inline-flex items-center cursor-pointer mt-1">
                                     <input type="checkbox" class="sr-only peer" x-model="notifyBuzon">
                                     <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+                            
+                            <!-- Toggle: Restringir Acceso al Dashboard -->
+                            <div class="flex items-start justify-between pt-6 border-t border-gray-100">
+                                <div class="flex-1 pr-4">
+                                    <h3 class="font-medium text-gray-900 flex items-center gap-2">
+                                        Restringir Acceso al Dashboard
+                                        <span class="text-xs font-normal px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 border border-gray-200">Acceso</span>
+                                    </h3>
+                                    <p class="text-sm text-gray-500 mt-1 leading-relaxed">
+                                        Cuando está activado, <strong>solo los administradores</strong> podrán acceder al dashboard. 
+                                        Los estudiantes y encargados de departamento no verán la opción en el menú ni podrán acceder directamente.
+                                    </p>
+                                    <div x-show="restrictDashboard" class="mt-3 inline-flex items-center px-3 py-1.5 rounded-md text-xs font-medium bg-orange-50 text-orange-700 border border-orange-100">
+                                        <i class="ph-warning mr-1.5"></i>
+                                        Dashboard restringido solo a administradores
+                                    </div>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer mt-1">
+                                    <input type="checkbox" class="sr-only peer" x-model="restrictDashboard">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-100 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
                                 </label>
                             </div>
                         </div>

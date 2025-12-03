@@ -310,10 +310,12 @@ if (!function_exists('isAdmin')) {
                         <!-- Desktop Navigation -->
                         <div class="hidden md:flex items-center space-x-2">
                             <?php if (isLoggedIn()): ?>
-                                <a href="dashboard.php" class="nav-item flex items-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-5 py-2.5 rounded-xl transition-all duration-300 group">
-                                    <i class="ph-chart-line text-xl mr-2 icon-animated icon-wiggle-on-hover"></i>
-                                    <span class="font-medium">Dashboard</span>
-                                </a>
+                                <?php if (canAccessDashboard()): ?>
+                                    <a href="dashboard.php" class="nav-item flex items-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-5 py-2.5 rounded-xl transition-all duration-300 group">
+                                        <i class="ph-chart-line text-xl mr-2 icon-animated icon-wiggle-on-hover"></i>
+                                        <span class="font-medium">Dashboard</span>
+                                    </a>
+                                <?php endif; ?>
                                 
                                 <a href="submit_complaint.php" class="nav-item flex items-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-5 py-2.5 rounded-xl transition-all duration-300 group">
                                     <i class="ph-plus-circle text-xl mr-2 icon-animated icon-rotate-on-hover"></i>
@@ -454,10 +456,12 @@ if (!function_exists('isAdmin')) {
 
                                 <!-- Navigation Links -->
                                 <div class="space-y-3">
-                                    <a href="dashboard.php" class="mobile-menu-item-gradient flex items-center text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
-                                        <i class="ph-chart-line text-2xl mr-4 icon-animated icon-wiggle-on-hover text-blue-300"></i>
-                                        <span class="font-medium">Dashboard</span>
-                                    </a>
+                                    <?php if (canAccessDashboard()): ?>
+                                        <a href="dashboard.php" class="mobile-menu-item-gradient flex items-center text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
+                                            <i class="ph-chart-line text-2xl mr-4 icon-animated icon-wiggle-on-hover text-blue-300"></i>
+                                            <span class="font-medium">Dashboard</span>
+                                        </a>
+                                    <?php endif; ?>
                                     
                                     <a href="submit_complaint.php" class="mobile-menu-item-gradient flex items-center text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
                                         <i class="ph-plus-circle text-2xl mr-4 icon-animated icon-rotate-on-hover text-emerald-300"></i>

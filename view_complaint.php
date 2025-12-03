@@ -34,6 +34,53 @@ if (!$complaint) {
     exit;
 }
 
+// Check if dashboard is restricted and verify permissions
+$stmt_restrict = $conn->prepare("SELECT setting_value FROM admin_settings WHERE setting_key = 'restrict_dashboard_access'");
+$stmt_restrict->execute();
+$result_restrict = $stmt_restrict->get_result();
+$is_dashboard_restricted = false;
+if ($row_restrict = $result_restrict->fetch_assoc()) {
+    $is_dashboard_restricted = $row_restrict['setting_value'] == '1';
+}
+
+// If dashboard is restricted, verify user has permission to view this complaint
+if ($is_dashboard_restricted && !isAdmin()) {
+    $can_view = false;
+    
+    // Check if user is the complaint owner
+    if ($complaint['user_id'] == $_SESSION['user_id']) {
+        $can_view = true;
+    }
+    
+    // Check if user is a manager assigned to this complaint
+    if (!$can_view && isset($_SESSION['role']) && $_SESSION['role'] === 'manager') {
+        // Get user's email to check if they're assigned to this complaint
+        $user_email = $_SESSION['email'];
+        
+        // Check if user's department is assigned to this complaint
+        $stmt_check = $conn->prepare("
+            SELECT COUNT(*) as count 
+            FROM complaint_departments cd
+            JOIN departments d ON cd.department_id = d.id
+            WHERE cd.complaint_id = ? AND d.email = ?
+        ");
+        $stmt_check->bind_param("is", $complaint_id, $user_email);
+        $stmt_check->execute();
+        $result_check = $stmt_check->get_result();
+        $row_check = $result_check->fetch_assoc();
+        
+        if ($row_check['count'] > 0) {
+            $can_view = true;
+        }
+    }
+    
+    // If user doesn't have permission, redirect
+    if (!$can_view) {
+        header('Location: my_complaints.php');
+        exit;
+    }
+}
+
 // Helper to check if user is staff (admin or manager) or original complaint author
 function isStaff() {
     global $complaint;
