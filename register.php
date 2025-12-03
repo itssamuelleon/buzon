@@ -1,7 +1,7 @@
 <?php
 // Redirección temporal a login.php
-header('Location: login.php');
-exit;
+//header('Location: login.php');
+//exit;
 
 // --- PHP LOGIC FIRST ---
 require_once 'config.php';

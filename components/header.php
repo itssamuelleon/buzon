@@ -398,6 +398,10 @@ if (!function_exists('isAdmin')) {
                                     <span class="font-medium">Iniciar Sesión</span>
                                 </a>
                                 
+                                <a href="register.php" class="flex items-center text-gray-800 bg-white hover:bg-gray-50 px-5 py-2.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 group">
+                                    <i class="ph-user-plus text-xl mr-2 icon-animated icon-rotate-on-hover"></i>
+                                    <span class="font-semibold">Registrarse</span>
+                                </a>
 
                             <?php endif; ?>
                         </div>
@@ -496,6 +500,10 @@ if (!function_exists('isAdmin')) {
                                         <span class="font-medium">Iniciar Sesión</span>
                                     </a>
                                     
+                                    <a href="register.php" class="flex items-center text-gray-900 bg-gradient-to-r from-blue-200 to-purple-200 hover:from-blue-300 hover:to-purple-300 px-5 py-3.5 rounded-xl transition-all duration-300 font-semibold shadow-lg hover:shadow-xl">
+                                        <i class="ph-user-plus text-2xl mr-4 icon-animated icon-rotate-on-hover"></i>
+                                        <span>Registrarse</span>
+                                    </a>
 
                                 </div>
                             <?php endif; ?>
