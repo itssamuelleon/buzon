@@ -18,7 +18,7 @@
         <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent opacity-50"></div>
 
         <div class="container mx-auto px-6 lg:px-8 relative z-10">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
                 
                 <!-- Column 1: About & Logo -->
                 <div class="col-span-1 md:col-span-2 lg:col-span-1">
@@ -32,18 +32,9 @@
                     <p class="text-white/60 text-sm leading-relaxed">
                         Comprometidos con la excelencia educativa y la mejora continua. Tu voz es importante para nosotros.
                     </p>
-                    <div class="flex space-x-4 mt-6">
-                        <a href="#" class="text-white/60 hover:text-white transition-colors duration-300 transform hover:-translate-y-1">
-                            <i class="ph-facebook-logo text-2xl"></i>
-                        </a>
-                        <a href="#" class="text-white/60 hover:text-white transition-colors duration-300 transform hover:-translate-y-1">
-                            <i class="ph-twitter-logo text-2xl"></i>
-                        </a>
-                        <a href="#" class="text-white/60 hover:text-white transition-colors duration-300 transform hover:-translate-y-1">
-                            <i class="ph-instagram-logo text-2xl"></i>
-                        </a>
-                        <a href="#" class="text-white/60 hover:text-white transition-colors duration-300 transform hover:-translate-y-1">
-                            <i class="ph-youtube-logo text-2xl"></i>
+                    <div class="flex justify-start mt-6">
+                        <a href="#" class="text-white/60 hover:text-white transition-colors duration-300 transform hover:-translate-y-1 hover:scale-110">
+                            <i class="ph-facebook-logo text-3xl"></i>
                         </a>
                     </div>
                 </div>
@@ -62,19 +53,11 @@
                         <?php if (isAdmin()): ?>
                              <li><a href="dashboard.php" class="flex items-center text-white/60 hover:text-white transition-colors duration-300 group"><i class="ph-caret-right text-sm mr-2 group-hover:text-blue-400"></i>Dashboard</a></li>
                         <?php endif; ?>
+                        <li><a href="about.php" class="flex items-center text-white/60 hover:text-white transition-colors duration-300 group"><i class="ph-caret-right text-sm mr-2 group-hover:text-blue-400"></i>Acerca de</a></li>
                     </ul>
                 </div>
                 
-                <!-- Column 3: Resources -->
-                <div>
-                    <h3 class="text-lg font-semibold text-white tracking-wider mb-4">Recursos</h3>
-                    <ul class="space-y-3">
-                        <li><a href="https://www.itscc.edu.mx" target="_blank" rel="noopener noreferrer" class="flex items-center text-white/60 hover:text-white transition-colors duration-300 group"><i class="ph-caret-right text-sm mr-2 group-hover:text-blue-400"></i>Sitio Oficial</a></li>
-                        <li><a href="privacy.php" class="flex items-center text-white/60 hover:text-white transition-colors duration-300 group"><i class="ph-caret-right text-sm mr-2 group-hover:text-blue-400"></i>Política de Privacidad</a></li>
-                        <li><a href="terms.php" class="flex items-center text-white/60 hover:text-white transition-colors duration-300 group"><i class="ph-caret-right text-sm mr-2 group-hover:text-blue-400"></i>Términos de Uso</a></li>
-                        <li><a href="faq.php" class="flex items-center text-white/60 hover:text-white transition-colors duration-300 group"><i class="ph-caret-right text-sm mr-2 group-hover:text-blue-400"></i>Preguntas Frecuentes</a></li>
-                    </ul>
-                </div>
+
                 
                 <!-- Column 4: Contact -->
                 <div>
@@ -93,7 +76,7 @@
                         </li>
                         <li class="flex items-start">
                             <i class="ph-envelope text-xl text-blue-400 mr-3 mt-1"></i>
-                            <a href="mailto:contacto@itscc.edu.mx" class="hover:text-white transition-colors">contacto@itscc.edu.mx</a>
+                            <a href="mailto:buzon@cdconstitucion.tecnm.mx" class="hover:text-white transition-colors">buzon@cdconstitucion.tecnm.mx</a>
                         </li>
                     </ul>
                 </div>
