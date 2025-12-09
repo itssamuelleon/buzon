@@ -108,7 +108,7 @@ function sendVerificationEmail($email, $name, $code, $type = 'register') {
                 .header h1 { color: #ffffff; margin: 0; font-size: 28px; font-weight: 700; }
                 .content { padding: 40px 30px; }
                 .code-box { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0; }
-                .code { font-size: 48px; font-weight: 900; color: #ffffff; letter-spacing: 8px; font-family: 'Courier New', monospace; }
+                .code { font-size: 48px; font-weight: 900; color: #ffffff !important; letter-spacing: 8px; font-family: 'Courier New', monospace; text-decoration: none; }
                 .info { background-color: #f8f9fa; border-left: 4px solid #667eea; padding: 15px; margin: 20px 0; border-radius: 4px; }
                 .footer { background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #6c757d; }
                 .button { display: inline-block; padding: 12px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 600; margin: 20px 0; }
@@ -134,8 +134,10 @@ function sendVerificationEmail($email, $name, $code, $type = 'register') {
                         {$action_text}
                     </p>
                     
-                    <div class='code-box'>
-                        <div class='code'>" . $code . "</div>
+                    <div class='code-box' style='background-color: #667eea; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0; border: none;'>
+                        <div class='code' style='font-size: 48px; font-weight: 900; color: #ffffff !important; letter-spacing: 8px; font-family: "Courier New", monospace; text-decoration: none; line-height: 1.5; mso-line-height-rule: exactly;'>
+                            <span style='color: #ffffff !important; text-decoration: none; font-weight: 900;'>" . $code . "</span>
+                        </div>
                     </div>
                     
                     <div class='info'>

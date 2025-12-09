@@ -272,6 +272,24 @@ include 'components/header.php';
                             class="block w-full pl-12 pr-4 py-3.5 text-slate-900 bg-white border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 placeholder:text-slate-400 text-center text-2xl tracking-widest font-mono">
                     </div>
                     <p class="mt-2 text-xs text-slate-500">Ingresa el código de 6 dígitos que recibiste en tu correo</p>
+                    
+                    <!-- Spam folder reminder -->
+                    <div class="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <svg class="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm text-blue-800 font-medium">¿No encuentras el correo?</p>
+                                <p class="text-xs text-blue-700 mt-1">
+                                    Revisa tu <strong>bandeja de correo no deseado (spam)</strong> o la carpeta de promociones. 
+                                    El correo puede tardar unos minutos en llegar.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <button type="submit" name="verify_code"
