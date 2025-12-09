@@ -31,6 +31,11 @@ function canAccessDashboard() {
         return true;
     }
     
+    // Managers always have access (they'll see filtered results)
+    if (isset($_SESSION['role']) && $_SESSION['role'] === 'manager') {
+        return true;
+    }
+    
     // Check if dashboard access is restricted
     $stmt = $conn->prepare("SELECT setting_value FROM admin_settings WHERE setting_key = 'restrict_dashboard_access'");
     $stmt->execute();

@@ -42,6 +42,34 @@ require_once 'status_helper.php';
               LEFT JOIN departments d ON cd.department_id = d.id 
               WHERE 1=1";
     
+    // If user is a manager (not admin), only show complaints assigned to their departments
+    if (!isAdmin() && isset($_SESSION['role']) && $_SESSION['role'] === 'manager') {
+        // Get manager's email to find their departments
+        $manager_email = $_SESSION['email'];
+        
+        // Get department IDs where this manager is assigned
+        $stmt_dept = $conn->prepare("SELECT id FROM departments WHERE email = ?");
+        $stmt_dept->bind_param("s", $manager_email);
+        $stmt_dept->execute();
+        $result_dept = $stmt_dept->get_result();
+        $manager_dept_ids = [];
+        while ($row_dept = $result_dept->fetch_assoc()) {
+            $manager_dept_ids[] = $row_dept['id'];
+        }
+        
+        // If manager has departments, filter by them
+        if (!empty($manager_dept_ids)) {
+            $dept_ids_str = implode(',', array_map('intval', $manager_dept_ids));
+            $query .= " AND EXISTS (
+                SELECT 1 FROM complaint_departments cd_mgr 
+                WHERE cd_mgr.complaint_id = c.id 
+                AND cd_mgr.department_id IN ($dept_ids_str))";
+        } else {
+            // Manager has no departments assigned, show nothing
+            $query .= " AND 1=0";
+        }
+    }
+    
     if (isset($_GET['category']) && $_GET['category'] !== '') {
         $query .= " AND c.category_id = " . intval($_GET['category']);
     }
@@ -95,6 +123,29 @@ require_once 'status_helper.php';
                    LEFT JOIN complaint_departments cd ON c.id = cd.complaint_id
                    LEFT JOIN departments d ON cd.department_id = d.id 
                    WHERE 1=1";
+    
+    // Apply same manager filter to count query
+    if (!isAdmin() && isset($_SESSION['role']) && $_SESSION['role'] === 'manager') {
+        $manager_email = $_SESSION['email'];
+        $stmt_dept2 = $conn->prepare("SELECT id FROM departments WHERE email = ?");
+        $stmt_dept2->bind_param("s", $manager_email);
+        $stmt_dept2->execute();
+        $result_dept2 = $stmt_dept2->get_result();
+        $manager_dept_ids2 = [];
+        while ($row_dept2 = $result_dept2->fetch_assoc()) {
+            $manager_dept_ids2[] = $row_dept2['id'];
+        }
+        
+        if (!empty($manager_dept_ids2)) {
+            $dept_ids_str2 = implode(',', array_map('intval', $manager_dept_ids2));
+            $countQuery .= " AND EXISTS (
+                SELECT 1 FROM complaint_departments cd_mgr2 
+                WHERE cd_mgr2.complaint_id = c.id 
+                AND cd_mgr2.department_id IN ($dept_ids_str2))";
+        } else {
+            $countQuery .= " AND 1=0";
+        }
+    }
     if (isset($_GET['category']) && $_GET['category'] !== '') {
         $countQuery .= " AND c.category_id = " . intval($_GET['category']);
     }
