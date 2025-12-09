@@ -122,14 +122,8 @@ function sendDepartmentNotification($department, $complaint) {
 function generateEmailBody($department, $complaint, $inlineImagesHtml) {
     $folio = $complaint['folio'] ?? str_pad($complaint['id'], 6, '0', STR_PAD_LEFT);
     
-    // Generar URL según el modo de prueba
-    if (isTestMode()) {
-        // Modo de prueba: usar localhost
-        $view_url = 'http://127.0.0.1/buzon/view_complaint.php?id=' . $complaint['id'];
-    } else {
-        // Modo producción: usar IP pública
-        $view_url = 'http://200.56.132.62:8088/buzon/view_complaint.php?id=' . $complaint['id'];
-    }
+    // Generar URL con IP fija
+    $view_url = 'http://172.16.124.245/view_complaint.php?id=' . $complaint['id'];
     
     $mode_notice = '';
     if (isTestMode()) {
@@ -183,8 +177,8 @@ function generateEmailBody($department, $complaint, $inlineImagesHtml) {
             
             <!-- Botón de Acción -->
             <div style="text-align: center; margin: 30px 0;">
-                <a href="' . $view_url . '" style="display: inline-block; background: linear-gradient(135deg, #2563EB 0%, #1d4ed8 100%); color: white; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3);">
-                    🔍 Ver Reporte Completo y Dar Seguimiento
+                <a href="' . $view_url . '" style="display: inline-block; background-color: #2563EB; background: linear-gradient(135deg, #2563EB 0%, #1d4ed8 100%); color: #ffffff !important; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3); border: none; mso-line-height-rule: exactly; line-height: 1.5;">
+                    <span style="color: #ffffff !important; text-decoration: none; font-weight: bold;">🔍 Ver Reporte Completo y Dar Seguimiento</span>
                 </a>
             </div>
             
@@ -214,14 +208,8 @@ function generateEmailBody($department, $complaint, $inlineImagesHtml) {
 function generateEmailTextBody($department, $complaint) {
     $folio = $complaint['folio'] ?? str_pad($complaint['id'], 6, '0', STR_PAD_LEFT);
     
-    // Generar URL según el modo de prueba
-    if (isTestMode()) {
-        // Modo de prueba: usar localhost
-        $view_url = 'http://127.0.0.1/buzon/view_complaint.php?id=' . $complaint['id'];
-    } else {
-        // Modo producción: usar IP pública
-        $view_url = 'http://200.56.132.62:8088/buzon/view_complaint.php?id=' . $complaint['id'];
-    }
+    // Generar URL con IP fija
+    $view_url = 'http://172.16.124.245/view_complaint.php?id=' . $complaint['id'];
     
     $mode_notice = '';
     if (isTestMode()) {

@@ -95,8 +95,8 @@ while ($row = $result_details->fetch_assoc()) {
     $details[] = $row;
 }
 
-// Definir URL del Dashboard y Base
-$base_url = $test_mode ? 'http://127.0.0.1/buzon' : 'http://200.56.132.62:8088/buzon';
+// Definir URL del Dashboard y Base con IP fija
+$base_url = 'http://172.16.124.245';
 $dashboard_url = $base_url . '/dashboard.php';
 
 // 5. Construir el correo HTML
@@ -119,7 +119,7 @@ $css_table = "width: 100%; border-collapse: collapse; font-size: 14px;";
 $css_th = "background-color: #f1f5f9; color: #475569; font-weight: 600; text-align: left; padding: 12px; border-bottom: 2px solid #e2e8f0;";
 $css_td = "padding: 12px; border-bottom: 1px solid #e2e8f0; color: #334155;";
 $css_badge = "display: inline-block; padding: 4px 8px; border-radius: 9999px; font-size: 11px; font-weight: 600;";
-$css_button = "display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-align: center; margin-top: 20px;";
+$css_button = "display: inline-block; background-color: #2563eb; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: #ffffff !important; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-align: center; margin-top: 20px; border: none; mso-line-height-rule: exactly; line-height: 1.5;";
 
 $html_content = "
 <!DOCTYPE html>
@@ -217,8 +217,8 @@ if (empty($details)) {
                         <td style=\"$css_td\"><span style=\"$css_badge $status_style\">$status_label</span></td>
                         <td style=\"$css_td\">$time_text</td>
                         <td style=\"$css_td text-align: center;\">
-                            <a href=\"$view_url\" style=\"display: inline-block; background-color: #3b82f6; color: #ffffff; padding: 8px 12px; border-radius: 6px; text-decoration: none; line-height: 1;\" title=\"Ver Reporte\">
-                                <img src=\"https://img.icons8.com/ios-glyphs/30/ffffff/visible.png\" alt=\"Ver\" width=\"20\" height=\"20\" style=\"vertical-align: middle; display: block;\">
+                            <a href=\"$view_url\" style=\"display: inline-block; background-color: #3b82f6; color: #ffffff !important; padding: 8px 12px; border-radius: 6px; text-decoration: none; line-height: 1; border: none;\" title=\"Ver Reporte\">
+                                <span style=\"color: #ffffff !important; font-weight: bold; text-decoration: none;\">Ver</span>
                             </a>
                         </td>
                     </tr>";
@@ -230,7 +230,7 @@ $html_content .= "
             </table>
             
             <div style=\"text-align: center; margin-top: 30px;\">
-                <a href=\"$dashboard_url\" style=\"$css_button\">Ir al Panel de Control</a>
+                <a href=\"$dashboard_url\" style=\"$css_button\"><span style=\"color: #ffffff !important; text-decoration: none; font-weight: 600;\">Ir al Panel de Control</span></a>
             </div>
             
             <div style=\"margin-top: 30px; text-align: center; font-size: 12px; color: #94a3b8;\">
