@@ -1,5 +1,6 @@
 <?php
 require_once 'config/email_config.php';
+require_once 'config/email_antispam.php';
 
 // Intentar cargar PHPMailer
 $phpmailer_loaded = false;
@@ -53,6 +54,11 @@ function sendDepartmentNotification($department, $complaint) {
         
         // Remitente
         $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
+        
+        // ========================================
+        // CONFIGURACIONES ANTI-SPAM
+        // ========================================
+        applyAntiSpamConfig($mail, SMTP_FROM_EMAIL, SMTP_FROM_NAME);
         
         // Destinatario (según modo de prueba)
         $recipient_email = getEmailRecipient($department['email']);

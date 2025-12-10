@@ -23,9 +23,13 @@ require_once 'status_helper.php';
     // Allow all logged-in users to view the reports
     // Only admins can modify them (handled in view_complaint.php)
     
-    // Get filter parameters
-    $department = isset($_GET['department']) ? $_GET['department'] : '';
-    $status = isset($_GET['status']) ? $_GET['status'] : '';
+    // Get filter parameters (support arrays for multi-select)
+    $departments = isset($_GET['department']) ? (is_array($_GET['department']) ? $_GET['department'] : [$_GET['department']]) : [];
+    $departments = array_filter($departments, fn($v) => $v !== '');
+    $statuses = isset($_GET['status']) ? (is_array($_GET['status']) ? $_GET['status'] : [$_GET['status']]) : [];
+    $statuses = array_filter($statuses, fn($v) => $v !== '');
+    $categories = isset($_GET['category']) ? (is_array($_GET['category']) ? $_GET['category'] : [$_GET['category']]) : [];
+    $categories = array_filter($categories, fn($v) => $v !== '');
     $search = isset($_GET['q']) ? trim($_GET['q']) : '';
     $date_range = isset($_GET['date_range']) ? $_GET['date_range'] : 'this_year';
     
@@ -42,8 +46,18 @@ require_once 'status_helper.php';
               LEFT JOIN departments d ON cd.department_id = d.id 
               WHERE 1=1";
     
-    // If user is a manager (not admin), only show complaints assigned to their departments
-    if (!isAdmin() && isset($_SESSION['role']) && $_SESSION['role'] === 'manager') {
+    // Check if dashboard restriction is enabled (used for manager filtering)
+    $stmt_restrict_early = $conn->prepare("SELECT setting_value FROM admin_settings WHERE setting_key = 'restrict_dashboard_access'");
+    $stmt_restrict_early->execute();
+    $result_restrict_early = $stmt_restrict_early->get_result();
+    $is_dashboard_restricted_for_managers = false;
+    if ($row_restrict_early = $result_restrict_early->fetch_assoc()) {
+        $is_dashboard_restricted_for_managers = $row_restrict_early['setting_value'] == '1';
+    }
+    
+    // If user is a manager (not admin) AND dashboard restriction is enabled, only show complaints assigned to their departments
+    // If restriction is disabled, managers can see all reports
+    if (!isAdmin() && isset($_SESSION['role']) && $_SESSION['role'] === 'manager' && $is_dashboard_restricted_for_managers) {
         // Get manager's email to find their departments
         $manager_email = $_SESSION['email'];
         
@@ -70,24 +84,28 @@ require_once 'status_helper.php';
         }
     }
     
-    if (isset($_GET['category']) && $_GET['category'] !== '') {
-        $query .= " AND c.category_id = " . intval($_GET['category']);
+    // Multi-select filters
+    if (!empty($categories)) {
+        $cat_ids = implode(',', array_map('intval', $categories));
+        $query .= " AND c.category_id IN ($cat_ids)";
     }
-    if ($department) {
+    if (!empty($departments)) {
+        $dept_ids = implode(',', array_map('intval', $departments));
         $query .= " AND EXISTS (
             SELECT 1 FROM complaint_departments cd2 
             WHERE cd2.complaint_id = c.id 
-            AND cd2.department_id = " . intval($department) . ")";
+            AND cd2.department_id IN ($dept_ids))";
     }
-    if ($status) {
-        $query .= " AND c.status = '" . $conn->real_escape_string($status) . "'";
+    if (!empty($statuses)) {
+        $escaped_statuses = array_map(fn($s) => "'" . $conn->real_escape_string($s) . "'", $statuses);
+        $query .= " AND c.status IN (" . implode(',', $escaped_statuses) . ")";
     }
     if ($search !== '') {
         $escaped = $conn->real_escape_string($search);
         $like = "'%" . $escaped . "%'";
         $query .= " AND (c.folio LIKE $like OR c.description LIKE $like)";
     }
-    if ($date_range) {
+    if ($date_range && $date_range !== 'all') {
         if ($date_range === 'this_year') {
             $startOfYear = (new DateTime('first day of january ' . date('Y')))->format('Y-m-d 00:00:00');
             $query .= " AND c.created_at >= '" . $conn->real_escape_string($startOfYear) . "'";
@@ -96,14 +114,43 @@ require_once 'status_helper.php';
         }
     }
     
-    // Get quick statistics (Admins only)
-    $stats = ['total' => 0, 'unattended' => 0, 'unassigned' => 0];
-    if (function_exists('isAdmin') && isAdmin()) {
+    // Get quick statistics (Admins and Managers)
+    $stats = ['total' => 0, 'unattended' => 0, 'attended' => 0, 'unassigned' => 0];
+    if (function_exists('isAdmin') && (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager'))) {
+        // If user is a manager AND dashboard is restricted, filter stats by their departments
+        $is_manager = !isAdmin() && isset($_SESSION['role']) && $_SESSION['role'] === 'manager';
+        $stats_dept_filter = "";
+        
+        if ($is_manager && $is_dashboard_restricted_for_managers) {
+            // Get manager's department IDs
+            $manager_email = $_SESSION['email'];
+            $stmt_mgr_dept = $conn->prepare("SELECT id FROM departments WHERE email = ?");
+            $stmt_mgr_dept->bind_param("s", $manager_email);
+            $stmt_mgr_dept->execute();
+            $result_mgr_dept = $stmt_mgr_dept->get_result();
+            $mgr_dept_ids = [];
+            while ($row_mgr_dept = $result_mgr_dept->fetch_assoc()) {
+                $mgr_dept_ids[] = $row_mgr_dept['id'];
+            }
+            
+            if (!empty($mgr_dept_ids)) {
+                $mgr_dept_ids_str = implode(',', array_map('intval', $mgr_dept_ids));
+                $stats_dept_filter = " WHERE EXISTS (
+                    SELECT 1 FROM complaint_departments cd_stats 
+                    WHERE cd_stats.complaint_id = c.id 
+                    AND cd_stats.department_id IN ($mgr_dept_ids_str))";
+            } else {
+                // Manager has no departments, show zero stats
+                $stats_dept_filter = " WHERE 1=0";
+            }
+        }
+        
         $stats_query = "SELECT 
             COUNT(*) as total,
             SUM(CASE WHEN status IN ('unattended_ontime', 'unattended_late') THEN 1 ELSE 0 END) as unattended,
+            SUM(CASE WHEN status IN ('attended_ontime', 'attended_late') THEN 1 ELSE 0 END) as attended,
             SUM(CASE WHEN NOT EXISTS (SELECT 1 FROM complaint_departments cd WHERE cd.complaint_id = c.id) THEN 1 ELSE 0 END) as unassigned
-        FROM complaints c";
+        FROM complaints c" . $stats_dept_filter;
         $stats_result = $conn->query($stats_query);
         if ($stats_result) {
             $stats = $stats_result->fetch_assoc();
@@ -124,8 +171,8 @@ require_once 'status_helper.php';
                    LEFT JOIN departments d ON cd.department_id = d.id 
                    WHERE 1=1";
     
-    // Apply same manager filter to count query
-    if (!isAdmin() && isset($_SESSION['role']) && $_SESSION['role'] === 'manager') {
+    // Apply same manager filter to count query (only if restriction is enabled)
+    if (!isAdmin() && isset($_SESSION['role']) && $_SESSION['role'] === 'manager' && $is_dashboard_restricted_for_managers) {
         $manager_email = $_SESSION['email'];
         $stmt_dept2 = $conn->prepare("SELECT id FROM departments WHERE email = ?");
         $stmt_dept2->bind_param("s", $manager_email);
@@ -146,24 +193,28 @@ require_once 'status_helper.php';
             $countQuery .= " AND 1=0";
         }
     }
-    if (isset($_GET['category']) && $_GET['category'] !== '') {
-        $countQuery .= " AND c.category_id = " . intval($_GET['category']);
+    // Multi-select filters for count
+    if (!empty($categories)) {
+        $cat_ids = implode(',', array_map('intval', $categories));
+        $countQuery .= " AND c.category_id IN ($cat_ids)";
     }
-    if ($department) {
+    if (!empty($departments)) {
+        $dept_ids = implode(',', array_map('intval', $departments));
         $countQuery .= " AND EXISTS (
             SELECT 1 FROM complaint_departments cd2 
             WHERE cd2.complaint_id = c.id 
-            AND cd2.department_id = " . intval($department) . ")";
+            AND cd2.department_id IN ($dept_ids))";
     }
-    if ($status) {
-        $countQuery .= " AND c.status = '" . $conn->real_escape_string($status) . "'";
+    if (!empty($statuses)) {
+        $escaped_statuses = array_map(fn($s) => "'" . $conn->real_escape_string($s) . "'", $statuses);
+        $countQuery .= " AND c.status IN (" . implode(',', $escaped_statuses) . ")";
     }
     if ($search !== '') {
         $escaped = $conn->real_escape_string($search);
         $like = "'%" . $escaped . "%'";
         $countQuery .= " AND (c.folio LIKE $like OR c.description LIKE $like)";
     }
-    if ($date_range) {
+    if ($date_range && $date_range !== 'all') {
         if ($date_range === 'this_year') {
             $startOfYear = (new DateTime('first day of january ' . date('Y')))->format('Y-m-d 00:00:00');
             $countQuery .= " AND c.created_at >= '" . $conn->real_escape_string($startOfYear) . "'";
@@ -194,8 +245,8 @@ require_once 'status_helper.php';
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <h1 class="text-2xl font-bold text-gray-800">Dashboard</h1>
             
-            <!-- Quick Stats (Admins only) -->
-            <?php if (function_exists('isAdmin') && isAdmin()): ?>
+            <!-- Quick Stats (Admins and Managers) -->
+            <?php if (function_exists('isAdmin') && (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager'))): ?>
             <div class="flex items-center gap-2 bg-white rounded-lg shadow-sm border border-gray-200 p-1.5">
                 <div class="flex items-center gap-3 px-3 border-r border-gray-200">
                     <div class="flex flex-col">
@@ -205,16 +256,28 @@ require_once 'status_helper.php';
                 </div>
                 <div class="flex items-center gap-3 px-3 border-r border-gray-200">
                     <div class="flex flex-col">
+                        <span class="text-[10px] uppercase tracking-wider text-green-600 font-semibold">Atendidos</span>
+                        <span class="text-lg font-bold text-green-600 leading-none"><?php echo $stats['attended']; ?></span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 px-3 border-r border-gray-200">
+                    <div class="flex flex-col">
                         <span class="text-[10px] uppercase tracking-wider text-orange-600 font-semibold">Sin Atender</span>
                         <span class="text-lg font-bold text-orange-600 leading-none"><?php echo $stats['unattended']; ?></span>
                     </div>
                 </div>
+                <?php 
+                // Only show "Sin Asignar" if user is admin OR if dashboard is not restricted for managers
+                $show_unassigned_stat = isAdmin() || !$is_dashboard_restricted_for_managers;
+                if ($show_unassigned_stat): 
+                ?>
                 <div class="flex items-center gap-3 px-3 border-r border-gray-200">
                     <div class="flex flex-col">
                         <span class="text-[10px] uppercase tracking-wider text-red-600 font-semibold">Sin Asignar</span>
                         <span class="text-lg font-bold text-red-600 leading-none"><?php echo $stats['unassigned']; ?></span>
                     </div>
                 </div>
+                <?php endif; ?>
                 <a href="statistics.php" class="px-3 py-1.5 text-xs font-medium text-indigo-600 hover:bg-indigo-50 rounded-md transition-colors flex items-center gap-1">
                     <i class="ph-chart-line text-base"></i>
                     Ver más
@@ -268,15 +331,14 @@ require_once 'status_helper.php';
                 <div class="flex-wrap items-end gap-3 md:flex" 
                      :class="showFilters ? 'flex' : 'hidden'">
                     
-                    <div class="w-full sm:w-40">
-                        <label for="category" class="block text-xs font-medium text-gray-500 mb-1">Categoría</label>
-                        <select id="category" name="category" class="block w-full py-1.5 text-sm rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">Todas</option>
+                    <div class="w-full sm:w-48">
+                        <label for="category" class="block text-xs font-medium text-gray-500 mb-1">Categorías</label>
+                        <select id="category" name="category[]" multiple class="tom-select-multi block w-full text-sm" placeholder="Todas">
                             <?php 
                             $cat_result->data_seek(0);
                             while ($cat = $cat_result->fetch_assoc()): 
                             ?>
-                                <option value="<?php echo $cat['id']; ?>" <?php echo isset($_GET['category']) && $_GET['category'] == $cat['id'] ? 'selected' : ''; ?>>
+                                <option value="<?php echo $cat['id']; ?>" <?php echo in_array($cat['id'], $categories) ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($cat['name']); ?>
                                 </option>
                             <?php endwhile; ?>
@@ -284,15 +346,14 @@ require_once 'status_helper.php';
                     </div>
 
                     <?php if (function_exists('isAdmin') ? isAdmin() : false): ?>
-                    <div class="w-full sm:w-40">
-                        <label for="department" class="block text-xs font-medium text-gray-500 mb-1">Departamento</label>
-                        <select id="department" name="department" class="block w-full py-1.5 text-sm rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">Todos</option>
+                    <div class="w-full sm:w-48">
+                        <label for="department" class="block text-xs font-medium text-gray-500 mb-1">Departamentos</label>
+                        <select id="department" name="department[]" multiple class="tom-select-multi block w-full text-sm" placeholder="Todos">
                             <?php 
                             $dept_result->data_seek(0);
                             while ($dept = $dept_result->fetch_assoc()): 
                             ?>
-                                <option value="<?php echo $dept['id']; ?>" <?php echo $department == $dept['id'] ? 'selected' : ''; ?>>
+                                <option value="<?php echo $dept['id']; ?>" <?php echo in_array($dept['id'], $departments) ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($dept['name']); ?>
                                 </option>
                             <?php endwhile; ?>
@@ -300,36 +361,35 @@ require_once 'status_helper.php';
                     </div>
                     <?php endif; ?>
 
-                    <?php if (function_exists('isAdmin') && isAdmin()): ?>
-                    <div class="w-full sm:w-40">
-                        <label for="status" class="block text-xs font-medium text-gray-500 mb-1">Estado</label>
-                        <select id="status" name="status" class="block w-full py-1.5 text-sm rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                            <option value="">Todos</option>
-                            <option value="unattended_ontime" <?php echo $status == 'unattended_ontime' ? 'selected' : ''; ?>>Sin atender (a tiempo)</option>
-                            <option value="unattended_late" <?php echo $status == 'unattended_late' ? 'selected' : ''; ?>>Sin atender (tarde)</option>
-                            <option value="attended_ontime" <?php echo $status == 'attended_ontime' ? 'selected' : ''; ?>>Atendido</option>
-                            <option value="attended_late" <?php echo $status == 'attended_late' ? 'selected' : ''; ?>>Atendido a destiempo</option>
-                            <option value="invalid" <?php echo $status == 'invalid' ? 'selected' : ''; ?>>Inválido</option>
-                            <option value="duplicate" <?php echo $status == 'duplicate' ? 'selected' : ''; ?>>Duplicado</option>
+                    <?php if (function_exists('isAdmin') && (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager'))): ?>
+                    <div class="w-full sm:w-48">
+                        <label for="status" class="block text-xs font-medium text-gray-500 mb-1">Estados</label>
+                        <select id="status" name="status[]" multiple class="tom-select-multi block w-full text-sm" placeholder="Todos">
+                            <option value="unattended_ontime" <?php echo in_array('unattended_ontime', $statuses) ? 'selected' : ''; ?>>Sin atender (a tiempo)</option>
+                            <option value="unattended_late" <?php echo in_array('unattended_late', $statuses) ? 'selected' : ''; ?>>Sin atender (tarde)</option>
+                            <option value="attended_ontime" <?php echo in_array('attended_ontime', $statuses) ? 'selected' : ''; ?>>Atendido</option>
+                            <option value="attended_late" <?php echo in_array('attended_late', $statuses) ? 'selected' : ''; ?>>Atendido a destiempo</option>
+                            <option value="invalid" <?php echo in_array('invalid', $statuses) ? 'selected' : ''; ?>>Inválido</option>
+                            <option value="duplicate" <?php echo in_array('duplicate', $statuses) ? 'selected' : ''; ?>>Duplicado</option>
                         </select>
                     </div>
                     <?php endif; ?>
 
-                    <div class="w-full sm:w-36">
+                    <div class="w-full sm:w-40">
                         <label for="date_range" class="block text-xs font-medium text-gray-500 mb-1">Fecha</label>
-                        <select id="date_range" name="date_range" class="block w-full py-1.5 text-sm rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                            <option value="this_year" <?php echo $date_range == 'this_year' ? 'selected' : ''; ?>>Este año</option>
+                        <select id="date_range" name="date_range" class="tom-select-single block w-full text-sm">
+                            <option value="this_year" <?php echo $date_range == 'this_year' || $date_range == '' ? 'selected' : ''; ?>>Este año</option>
                             <option value="7" <?php echo $date_range == '7' ? 'selected' : ''; ?>>Últimos 7 días</option>
                             <option value="30" <?php echo $date_range == '30' ? 'selected' : ''; ?>>Últimos 30 días</option>
                             <option value="90" <?php echo $date_range == '90' ? 'selected' : ''; ?>>Últimos 90 días</option>
-                            <option value="" <?php echo $date_range == '' ? 'selected' : ''; ?>>Todo</option>
+                            <option value="all" <?php echo $date_range == 'all' ? 'selected' : ''; ?>>Todo el tiempo</option>
                         </select>
                     </div>
 
                     <div class="flex items-center gap-2 w-full md:w-auto">
                         <?php 
-                        $hasActiveFilters = !empty($_GET['department']) || !empty($_GET['category']) || 
-                                          !empty($_GET['status']) || !empty($_GET['q']) ||
+                        $hasActiveFilters = !empty($departments) || !empty($categories) || 
+                                          !empty($statuses) || !empty($_GET['q']) ||
                                           (isset($_GET['date_range']) && $_GET['date_range'] !== 'this_year' && $_GET['date_range'] !== '');
                         if ($hasActiveFilters):
                         ?>
@@ -404,7 +464,7 @@ require_once 'status_helper.php';
                         <div class="flex items-center justify-between mb-1.5">
                             <div class="flex items-center gap-2">
                                 <span class="text-xs font-bold text-gray-500">#<?php echo $row['folio'] ?? str_pad($row['id'], 6, '0', STR_PAD_LEFT); ?></span>
-                                <?php if (function_exists('isAdmin') && isAdmin()): ?>
+                                <?php if (function_exists('isAdmin') && (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager'))): ?>
                                     <span class="px-1.5 py-0.5 text-[10px] font-medium rounded-full <?php echo $statusInfo['class']; ?> ring-1 ring-inset whitespace-nowrap">
                                         <?php echo $statusInfo['text']; ?>
                                     </span>
@@ -427,7 +487,7 @@ require_once 'status_helper.php';
                                 <i class="ph-clock text-gray-400"></i>
                                 <span><?php echo $timeAgoText; ?></span>
                             </div>
-                            <?php if (function_exists('isAdmin') && isAdmin()): ?>
+                            <?php if (function_exists('isAdmin') && (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager'))): ?>
                                 <div class="w-full flex items-start gap-1.5 pt-1 border-t border-gray-50 mt-0.5">
                                     <i class="ph-buildings-light text-gray-400 mt-0.5"></i>
                                     <div class="flex-1 truncate">
@@ -464,7 +524,7 @@ require_once 'status_helper.php';
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Categoría
                             </th>
-                            <?php if (function_exists('isAdmin') && isAdmin()): ?>
+                            <?php if (function_exists('isAdmin') && (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager'))): ?>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
                                 Departamentos
                             </th>
@@ -473,7 +533,7 @@ require_once 'status_helper.php';
                                 Usuario
                             </th>
                             <?php endif; ?>
-                            <?php if (function_exists('isAdmin') && isAdmin()): ?>
+                            <?php if (function_exists('isAdmin') && (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager'))): ?>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-44">
                                 Estado
                             </th>
@@ -530,7 +590,7 @@ require_once 'status_helper.php';
                                         <span><?php echo $row['category_name'] ? htmlspecialchars($row['category_name']) : 'Sin categoría'; ?></span>
                                     </div>
                                 </td>
-                                <?php if (function_exists('isAdmin') && isAdmin()): ?>
+                                <?php if (function_exists('isAdmin') && (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager'))): ?>
                                 <td class="px-6 py-4 text-sm text-gray-900">
                                     <?php if (empty($row['department_names'])): ?>
                                         <div class="flex items-center gap-2 text-gray-500 italic">
@@ -561,7 +621,7 @@ require_once 'status_helper.php';
                                     <?php endif; ?>
                                 </td>
                                 <?php endif; ?>
-                                <?php if (function_exists('isAdmin') && isAdmin()): ?>
+                                <?php if (function_exists('isAdmin') && (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager'))): ?>
                                 <td class="px-6 py-4">
                                     <?php
                                         $statusInfo = getStatusDisplayInfo($row['status']);
@@ -589,7 +649,7 @@ require_once 'status_helper.php';
                                             <i class="<?php echo $statusInfo['icon']; ?> text-<?php echo $statusInfo['color']; ?>-600"></i>
                                             <?php echo $statusInfo['text']; ?>
                                         </span>
-                                        <?php if ($timeText && (function_exists('isAdmin') && isAdmin())): ?>
+                                        <?php if ($timeText && (function_exists('isAdmin') && (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager')))): ?>
                                             <span class="text-xs text-gray-600"><?php echo $timeText; ?></span>
                                         <?php endif; ?>
                                     </div>
@@ -706,5 +766,89 @@ require_once 'status_helper.php';
     </main>
 
     <?php include 'components/footer.php'; ?>
+
+<script>
+// Initialize Tom Select for multi-select filters
+document.addEventListener('DOMContentLoaded', function() {
+    // Multi-select
+    document.querySelectorAll('.tom-select-multi').forEach(function(el) {
+        new TomSelect(el, {
+            plugins: ['remove_button'],
+            maxItems: null,
+            placeholder: el.getAttribute('placeholder') || 'Seleccionar...',
+            render: {
+                no_results: function(data, escape) {
+                    return '<div class="no-results p-2 text-gray-500 text-sm">Sin resultados</div>';
+                }
+            }
+        });
+    });
+    
+    // Single-select (for date range)
+    document.querySelectorAll('.tom-select-single').forEach(function(el) {
+        new TomSelect(el, {
+            maxItems: 1,
+            allowEmptyOption: false,
+            render: {
+                no_results: function(data, escape) {
+                    return '<div class="no-results p-2 text-gray-500 text-sm">Sin resultados</div>';
+                }
+            }
+        });
+    });
+});
+</script>
+
+<style>
+/* Tom Select custom styles */
+.ts-wrapper {
+    font-size: 0.875rem;
+}
+.ts-wrapper .ts-control {
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    padding: 0.25rem 0.5rem;
+    min-height: 34px;
+}
+.ts-wrapper.focus .ts-control {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+.ts-wrapper .ts-control .item {
+    background: #3b82f6;
+    color: white;
+    border-radius: 0.25rem;
+    padding: 0.125rem 0.375rem;
+    margin: 0.125rem;
+    font-size: 0.75rem;
+}
+.ts-wrapper .ts-control .item .remove {
+    color: white;
+    border-left: 1px solid rgba(255,255,255,0.3);
+    margin-left: 0.25rem;
+    padding-left: 0.25rem;
+}
+.ts-dropdown {
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+.ts-dropdown .option {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+}
+.ts-dropdown .option.active {
+    background: #3b82f6;
+    color: white;
+}
+.ts-dropdown .option:hover {
+    background: #eff6ff;
+    color: #1e40af;
+}
+.ts-dropdown .option.active:hover {
+    background: #2563eb;
+    color: white;
+}
+</style>
 </body>
 </html>

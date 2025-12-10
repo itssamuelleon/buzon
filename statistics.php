@@ -15,6 +15,10 @@ echo '
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@1.2.0/dist/chartjs-chart-matrix.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<!-- Export libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.1/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 ';
 
 // Obtener años disponibles
@@ -189,6 +193,56 @@ while ($row = $monthly_trend_result->fetch_assoc()) {
     $monthly_response_times[] = $row['avg_response_time'] ? round($row['avg_response_time'], 1) : 0;
 }
 
+// Preparar datos para exportación - Categorías
+$categories_data = [];
+$categories_result_clone = $conn->query($categories_query);
+while ($category = $categories_result_clone->fetch_assoc()) {
+    $unattended = $category['unattended_ontime'] + $category['unattended_late'];
+    $categories_data[] = [
+        'name' => $category['category_name'] ?? 'Sin categoría',
+        'total' => intval($category['total']),
+        'attended_ontime' => intval($category['attended_ontime']),
+        'attended_late' => intval($category['attended_late']),
+        'unattended' => $unattended,
+        'avg_response_time' => $category['avg_response_time'] ? round($category['avg_response_time'], 1) : null
+    ];
+}
+
+// Preparar datos para exportación - Departamentos
+$departments_data = [];
+$departments_result_clone = $conn->query($departments_query);
+while ($department = $departments_result_clone->fetch_assoc()) {
+    $departments_data[] = [
+        'name' => $department['department_name'],
+        'total_assigned' => intval($department['total_assigned']),
+        'attended_ontime' => intval($department['attended_ontime']),
+        'attended_late' => intval($department['attended_late']),
+        'avg_response_time' => $department['avg_response_time'] ? round($department['avg_response_time'], 1) : null
+    ];
+}
+
+// Datos generales para exportación
+$export_data = [
+    'period' => $selected_year > 0 ? "Año $selected_year" : "Todos los años",
+    'generated_at' => date('d/m/Y H:i'),
+    'summary' => [
+        'total' => intval($stats_result['total_complaints']),
+        'attended_ontime' => intval($stats_result['attended_ontime']),
+        'attended_late' => intval($stats_result['attended_late']),
+        'unattended_ontime' => intval($stats_result['unattended_ontime']),
+        'unattended_late' => intval($stats_result['unattended_late']),
+        'avg_response_time' => $stats_result['avg_response_time'] ? round($stats_result['avg_response_time'], 1) : null
+    ],
+    'categories' => $categories_data,
+    'departments' => $departments_data,
+    'monthly' => [
+        'labels' => $monthly_labels,
+        'totals' => $monthly_totals,
+        'attended' => $monthly_attended,
+        'response_times' => $monthly_response_times
+    ]
+];
+
 ?>
 
 <div class="min-h-screen bg-gray-50">
@@ -209,21 +263,38 @@ while ($row = $monthly_trend_result->fetch_assoc()) {
             </div>
         </div>
 
-        <!-- Filtro de año -->
+        <!-- Filtro de año y botones de exportación -->
         <div class="bg-white rounded-lg shadow-sm p-4 mb-8">
-            <form method="GET" class="flex items-center gap-4">
-                <label for="year" class="font-medium text-gray-700">Periodo:</label>
-                <select id="year" name="year" 
-                        class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
-                        onchange="this.form.submit()">
-                    <option value="0" <?php echo $selected_year == 0 ? 'selected' : ''; ?>>Todos los años</option>
-                    <?php foreach ($available_years as $year): ?>
-                        <option value="<?php echo $year; ?>" <?php echo $selected_year == $year ? 'selected' : ''; ?>>
-                            <?php echo $year; ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </form>
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <form method="GET" class="flex items-center gap-4">
+                    <label for="year" class="font-medium text-gray-700">Periodo:</label>
+                    <select id="year" name="year" 
+                            class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                            onchange="this.form.submit()">
+                        <option value="0" <?php echo $selected_year == 0 ? 'selected' : ''; ?>>Todos los años</option>
+                        <?php foreach ($available_years as $year): ?>
+                            <option value="<?php echo $year; ?>" <?php echo $selected_year == $year ? 'selected' : ''; ?>>
+                                <?php echo $year; ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </form>
+                
+                <!-- Botones de exportación -->
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-gray-500 hidden sm:inline">Exportar:</span>
+                    <button onclick="exportToPDF()" 
+                            class="group inline-flex items-center px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-red-500 to-red-600 rounded-lg shadow-md hover:shadow-lg hover:from-red-600 hover:to-red-700 transition-all duration-300 transform hover:scale-105">
+                        <i class="ph-file-pdf text-lg mr-2 group-hover:animate-bounce"></i>
+                        PDF
+                    </button>
+                    <button onclick="exportToExcel()" 
+                            class="group inline-flex items-center px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-green-500 to-green-600 rounded-lg shadow-md hover:shadow-lg hover:from-green-600 hover:to-green-700 transition-all duration-300 transform hover:scale-105">
+                        <i class="ph-file-xls text-lg mr-2 group-hover:animate-bounce"></i>
+                        Excel
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- Resumen General -->
@@ -733,6 +804,277 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// Export data from PHP to JavaScript
+const exportData = <?php echo json_encode($export_data, JSON_UNESCAPED_UNICODE); ?>;
+
+// Export to PDF function
+function exportToPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    let yPos = 20;
+    
+    // Title
+    doc.setFontSize(20);
+    doc.setTextColor(30, 58, 138); // Blue
+    doc.text('Estadísticas de Reportes - ITSCC Buzón', margin, yPos);
+    yPos += 10;
+    
+    // Period and date
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Periodo: ${exportData.period}`, margin, yPos);
+    yPos += 6;
+    doc.text(`Generado: ${exportData.generated_at}`, margin, yPos);
+    yPos += 15;
+    
+    // Summary section
+    doc.setFontSize(14);
+    doc.setTextColor(30, 58, 138);
+    doc.text('Resumen General', margin, yPos);
+    yPos += 8;
+    
+    const summaryData = [
+        ['Total de Reportes', exportData.summary.total.toString()],
+        ['Atendidos a Tiempo', `${exportData.summary.attended_ontime} (${exportData.summary.total > 0 ? Math.round((exportData.summary.attended_ontime / exportData.summary.total) * 100) : 0}%)`],
+        ['Atendidos Tarde', `${exportData.summary.attended_late} (${exportData.summary.total > 0 ? Math.round((exportData.summary.attended_late / exportData.summary.total) * 100) : 0}%)`],
+        ['Sin Atender (A Tiempo)', exportData.summary.unattended_ontime.toString()],
+        ['Sin Atender (Tarde)', exportData.summary.unattended_late.toString()],
+        ['Tiempo Promedio de Respuesta', exportData.summary.avg_response_time ? `${exportData.summary.avg_response_time} días` : 'N/A']
+    ];
+    
+    doc.autoTable({
+        startY: yPos,
+        head: [['Métrica', 'Valor']],
+        body: summaryData,
+        theme: 'striped',
+        headStyles: { fillColor: [30, 58, 138], textColor: 255 },
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 10 }
+    });
+    
+    yPos = doc.lastAutoTable.finalY + 15;
+    
+    // Categories section
+    doc.setFontSize(14);
+    doc.setTextColor(30, 58, 138);
+    doc.text('Estadísticas por Categoría', margin, yPos);
+    yPos += 8;
+    
+    const categoriesTableData = exportData.categories.map(cat => [
+        cat.name,
+        cat.total.toString(),
+        `${cat.attended_ontime} (${cat.total > 0 ? Math.round((cat.attended_ontime / cat.total) * 100) : 0}%)`,
+        `${cat.attended_late} (${cat.total > 0 ? Math.round((cat.attended_late / cat.total) * 100) : 0}%)`,
+        cat.unattended.toString(),
+        cat.avg_response_time ? `${cat.avg_response_time} días` : 'N/A'
+    ]);
+    
+    doc.autoTable({
+        startY: yPos,
+        head: [['Categoría', 'Total', 'A Tiempo', 'Tarde', 'Sin Atender', 'Tiempo Prom.']],
+        body: categoriesTableData,
+        theme: 'striped',
+        headStyles: { fillColor: [30, 58, 138], textColor: 255 },
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 9 },
+        columnStyles: {
+            0: { cellWidth: 40 }
+        }
+    });
+    
+    // Check if we need a new page for departments
+    yPos = doc.lastAutoTable.finalY + 15;
+    if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+    }
+    
+    // Departments section
+    doc.setFontSize(14);
+    doc.setTextColor(30, 58, 138);
+    doc.text('Estadísticas por Departamento', margin, yPos);
+    yPos += 8;
+    
+    const departmentsTableData = exportData.departments.map(dept => [
+        dept.name,
+        dept.total_assigned.toString(),
+        `${dept.attended_ontime} (${dept.total_assigned > 0 ? Math.round((dept.attended_ontime / dept.total_assigned) * 100) : 0}%)`,
+        `${dept.attended_late} (${dept.total_assigned > 0 ? Math.round((dept.attended_late / dept.total_assigned) * 100) : 0}%)`,
+        dept.avg_response_time ? `${dept.avg_response_time} días` : 'N/A'
+    ]);
+    
+    doc.autoTable({
+        startY: yPos,
+        head: [['Departamento', 'Asignados', 'A Tiempo', 'Tarde', 'Tiempo Prom.']],
+        body: departmentsTableData,
+        theme: 'striped',
+        headStyles: { fillColor: [30, 58, 138], textColor: 255 },
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 9 },
+        columnStyles: {
+            0: { cellWidth: 50 }
+        }
+    });
+    
+    // Check if we need a new page for monthly data
+    yPos = doc.lastAutoTable.finalY + 15;
+    if (yPos > 220) {
+        doc.addPage();
+        yPos = 20;
+    }
+    
+    // Monthly trend section
+    if (exportData.monthly.labels.length > 0) {
+        doc.setFontSize(14);
+        doc.setTextColor(30, 58, 138);
+        doc.text('Tendencia Mensual', margin, yPos);
+        yPos += 8;
+        
+        const monthlyTableData = exportData.monthly.labels.map((label, i) => [
+            label,
+            exportData.monthly.totals[i].toString(),
+            exportData.monthly.attended[i].toString(),
+            exportData.monthly.response_times[i] ? `${exportData.monthly.response_times[i]} días` : 'N/A'
+        ]);
+        
+        doc.autoTable({
+            startY: yPos,
+            head: [['Mes', 'Total', 'Atendidos', 'Tiempo Prom.']],
+            body: monthlyTableData,
+            theme: 'striped',
+            headStyles: { fillColor: [30, 58, 138], textColor: 255 },
+            margin: { left: margin, right: margin },
+            styles: { fontSize: 9 }
+        });
+    }
+    
+    // Footer on each page
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.text(`Página ${i} de ${pageCount}`, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+        doc.text('ITSCC Buzón de Quejas', margin, doc.internal.pageSize.getHeight() - 10);
+    }
+    
+    // Save the PDF
+    const filename = `estadisticas_${exportData.period.replace(/ /g, '_').toLowerCase()}_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(filename);
+    
+    // Show success notification
+    showExportNotification('PDF descargado exitosamente');
+}
+
+// Export to Excel function
+function exportToExcel() {
+    const wb = XLSX.utils.book_new();
+    
+    // Sheet 1: Summary
+    const summaryWS = XLSX.utils.aoa_to_sheet([
+        ['Estadísticas de Reportes - ITSCC Buzón'],
+        [''],
+        ['Periodo:', exportData.period],
+        ['Generado:', exportData.generated_at],
+        [''],
+        ['RESUMEN GENERAL'],
+        ['Métrica', 'Valor', 'Porcentaje'],
+        ['Total de Reportes', exportData.summary.total, '100%'],
+        ['Atendidos a Tiempo', exportData.summary.attended_ontime, exportData.summary.total > 0 ? `${Math.round((exportData.summary.attended_ontime / exportData.summary.total) * 100)}%` : '0%'],
+        ['Atendidos Tarde', exportData.summary.attended_late, exportData.summary.total > 0 ? `${Math.round((exportData.summary.attended_late / exportData.summary.total) * 100)}%` : '0%'],
+        ['Sin Atender (A Tiempo)', exportData.summary.unattended_ontime, exportData.summary.total > 0 ? `${Math.round((exportData.summary.unattended_ontime / exportData.summary.total) * 100)}%` : '0%'],
+        ['Sin Atender (Tarde)', exportData.summary.unattended_late, exportData.summary.total > 0 ? `${Math.round((exportData.summary.unattended_late / exportData.summary.total) * 100)}%` : '0%'],
+        ['Tiempo Promedio de Respuesta', exportData.summary.avg_response_time ? `${exportData.summary.avg_response_time} días` : 'N/A', '']
+    ]);
+    summaryWS['!cols'] = [{ wch: 30 }, { wch: 20 }, { wch: 15 }];
+    XLSX.utils.book_append_sheet(wb, summaryWS, 'Resumen');
+    
+    // Sheet 2: Categories
+    const categoriesHeaders = ['Categoría', 'Total', 'Atendidos a Tiempo', '% A Tiempo', 'Atendidos Tarde', '% Tarde', 'Sin Atender', '% Sin Atender', 'Tiempo Promedio (días)'];
+    const categoriesRows = exportData.categories.map(cat => [
+        cat.name,
+        cat.total,
+        cat.attended_ontime,
+        cat.total > 0 ? `${Math.round((cat.attended_ontime / cat.total) * 100)}%` : '0%',
+        cat.attended_late,
+        cat.total > 0 ? `${Math.round((cat.attended_late / cat.total) * 100)}%` : '0%',
+        cat.unattended,
+        cat.total > 0 ? `${Math.round((cat.unattended / cat.total) * 100)}%` : '0%',
+        cat.avg_response_time || 'N/A'
+    ]);
+    const categoriesWS = XLSX.utils.aoa_to_sheet([categoriesHeaders, ...categoriesRows]);
+    categoriesWS['!cols'] = [{ wch: 25 }, { wch: 10 }, { wch: 18 }, { wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, categoriesWS, 'Categorías');
+    
+    // Sheet 3: Departments
+    const deptHeaders = ['Departamento', 'Total Asignados', 'Atendidos a Tiempo', '% A Tiempo', 'Atendidos Tarde', '% Tarde', 'Tiempo Promedio (días)'];
+    const deptRows = exportData.departments.map(dept => [
+        dept.name,
+        dept.total_assigned,
+        dept.attended_ontime,
+        dept.total_assigned > 0 ? `${Math.round((dept.attended_ontime / dept.total_assigned) * 100)}%` : '0%',
+        dept.attended_late,
+        dept.total_assigned > 0 ? `${Math.round((dept.attended_late / dept.total_assigned) * 100)}%` : '0%',
+        dept.avg_response_time || 'N/A'
+    ]);
+    const deptWS = XLSX.utils.aoa_to_sheet([deptHeaders, ...deptRows]);
+    deptWS['!cols'] = [{ wch: 30 }, { wch: 15 }, { wch: 18 }, { wch: 12 }, { wch: 16 }, { wch: 12 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, deptWS, 'Departamentos');
+    
+    // Sheet 4: Monthly Trend
+    if (exportData.monthly.labels.length > 0) {
+        const monthlyHeaders = ['Mes', 'Total Reportes', 'Reportes Atendidos', '% Atendidos', 'Tiempo Promedio (días)'];
+        const monthlyRows = exportData.monthly.labels.map((label, i) => [
+            label,
+            exportData.monthly.totals[i],
+            exportData.monthly.attended[i],
+            exportData.monthly.totals[i] > 0 ? `${Math.round((exportData.monthly.attended[i] / exportData.monthly.totals[i]) * 100)}%` : '0%',
+            exportData.monthly.response_times[i] || 'N/A'
+        ]);
+        const monthlyWS = XLSX.utils.aoa_to_sheet([monthlyHeaders, ...monthlyRows]);
+        monthlyWS['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 18 }, { wch: 12 }, { wch: 20 }];
+        XLSX.utils.book_append_sheet(wb, monthlyWS, 'Tendencia Mensual');
+    }
+    
+    // Save the file
+    const filename = `estadisticas_${exportData.period.replace(/ /g, '_').toLowerCase()}_${new Date().toISOString().split('T')[0]}.xlsx`;
+    XLSX.writeFile(wb, filename);
+    
+    // Show success notification
+    showExportNotification('Excel descargado exitosamente');
+}
+
+// Notification function
+function showExportNotification(message) {
+    const notification = document.createElement('div');
+    notification.className = 'fixed bottom-4 right-4 bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-3 z-50 animate-slide-up';
+    notification.innerHTML = `
+        <i class="ph-check-circle text-2xl"></i>
+        <span class="font-medium">${message}</span>
+    `;
+    notification.style.animation = 'slideUp 0.3s ease-out';
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideDown 0.3s ease-out';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
+}
 </script>
+
+<style>
+@keyframes slideUp {
+    from { transform: translateY(100px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+@keyframes slideDown {
+    from { transform: translateY(0); opacity: 1; }
+    to { transform: translateY(100px); opacity: 0; }
+}
+</style>
 
 <?php include 'components/footer.php'; ?>

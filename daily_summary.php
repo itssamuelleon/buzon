@@ -16,6 +16,7 @@ define('BASE_PATH', __DIR__);
 // Cargar configuración y dependencias
 require_once BASE_PATH . '/config.php';
 require_once BASE_PATH . '/config/email_config.php';
+require_once BASE_PATH . '/config/email_antispam.php';
 require_once BASE_PATH . '/status_helper.php';
 require_once BASE_PATH . '/PHPMailer/src/PHPMailer.php';
 require_once BASE_PATH . '/PHPMailer/src/SMTP.php';
@@ -259,11 +260,30 @@ try {
     $mail->setFrom(SMTP_USERNAME, 'Reporte Diario - Buzón ITSCC');
     $mail->addAddress($target_email);
     
+    // ========================================
+    // CONFIGURACIONES ANTI-SPAM
+    // ========================================
+    applyAntiSpamConfig($mail, SMTP_USERNAME, 'Reporte Diario - Buzón ITSCC');
+    
     // Contenido
     $mail->isHTML(true);
     $mail->Subject = $subject;
     $mail->Body = $html_content;
-    $mail->AltBody = "Resumen Diario: Total: $total_reports, Sin Atender: $unattended_reports, Sin Asignar: $unassigned_reports.";
+    
+    // Texto alternativo mejorado para mejor ratio texto/HTML (anti-spam)
+    $alt_body = "RESUMEN DIARIO DE REPORTES - ITSCC BUZON DIGITAL\n";
+    $alt_body .= "Fecha: $date_str\n\n";
+    $alt_body .= "Buenos dias, " . $manager_name . "!\n\n";
+    $alt_body .= "ESTADISTICAS:\n";
+    $alt_body .= "- Total de reportes: $total_reports\n";
+    $alt_body .= "- Sin atender: $unattended_reports\n";
+    $alt_body .= "- Sin asignar: $unassigned_reports\n\n";
+    $alt_body .= "Para ver los detalles completos, accede al panel de control:\n";
+    $alt_body .= "$dashboard_url\n\n";
+    $alt_body .= "---\n";
+    $alt_body .= "Este es un correo automatico del Sistema Buzon Digital ITSCC.\n";
+    $alt_body .= "Instituto Tecnologico Superior de Ciudad Constitucion\n";
+    $mail->AltBody = $alt_body;
     
     $mail->send();
     echo "Correo enviado exitosamente a $target_email\n";

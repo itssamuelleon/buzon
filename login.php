@@ -188,7 +188,7 @@ include 'components/header.php';
                             </svg>
                         </button>
 
-                        <!-- Divider -->
+                        <!-- Divider - COMENTADO: Opción de Microsoft deshabilitada temporalmente
                         <div class="relative my-6">
                             <div class="absolute inset-0 flex items-center">
                                 <div class="w-full border-t border-gray-200"></div>
@@ -197,8 +197,9 @@ include 'components/header.php';
                                 <span class="px-2 bg-white text-gray-500">O continúa con</span>
                             </div>
                         </div>
+                        -->
 
-                        <!-- Microsoft Login Button -->
+                        <!-- Microsoft Login Button - COMENTADO: Opción de Microsoft deshabilitada temporalmente
                         <a href="login_microsoft.php" 
                            class="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]">
                             <svg class="h-5 w-5 mr-2" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
@@ -209,6 +210,7 @@ include 'components/header.php';
                             </svg>
                             <span>Correo Institucional (Microsoft)</span>
                         </a>
+                        -->
                     </form>
 
                     <!-- Register Link -->

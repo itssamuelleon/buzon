@@ -7,6 +7,7 @@ require_once __DIR__ . '/PHPMailer/src/PHPMailer.php';
 require_once __DIR__ . '/PHPMailer/src/SMTP.php';
 require_once __DIR__ . '/PHPMailer/src/Exception.php';
 require_once __DIR__ . '/config/email_config.php';
+require_once __DIR__ . '/config/email_antispam.php';
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
@@ -55,6 +56,11 @@ function sendVerificationEmail($email, $name, $code, $type = 'register') {
         // Remitente y destinatario
         $mail->setFrom(SMTP_USERNAME, 'ITSCC Buzón Digital');
         $mail->addAddress($actual_recipient, $name);
+        
+        // ========================================
+        // CONFIGURACIONES ANTI-SPAM
+        // ========================================
+        applyAntiSpamConfig($mail, SMTP_USERNAME, 'ITSCC Buzón Digital');
         
         // Configurar contenido según el tipo
         $subject_prefix = ($type === 'password_reset') ? 'Recuperación de Contraseña' : 'Código de Verificación';
@@ -135,7 +141,7 @@ function sendVerificationEmail($email, $name, $code, $type = 'register') {
                     </p>
                     
                     <div class='code-box' style='background-color: #667eea; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 30px; text-align: center; margin: 30px 0; border: none;'>
-                        <div class='code' style='font-size: 48px; font-weight: 900; color: #ffffff !important; letter-spacing: 8px; font-family: "Courier New", monospace; text-decoration: none; line-height: 1.5; mso-line-height-rule: exactly;'>
+                        <div class='code' style='font-size: 48px; font-weight: 900; color: #ffffff !important; letter-spacing: 8px; font-family: Courier New, monospace; text-decoration: none; line-height: 1.5; mso-line-height-rule: exactly;'>
                             <span style='color: #ffffff !important; text-decoration: none; font-weight: 900;'>" . $code . "</span>
                         </div>
                     </div>
