@@ -37,13 +37,24 @@ register_shutdown_function(function() {
 require_once 'config.php';
 require_once 'services/gemini_service.php';
 
+// Fallback for servers without mbstring extension
+if (!function_exists('mb_substr')) {
+    function mb_substr($str, $start, $length = null) {
+        return $length === null ? substr($str, $start) : substr($str, $start, $length);
+    }
+}
+if (!function_exists('mb_strlen')) {
+    function mb_strlen($str) {
+        return strlen($str);
+    }
+}
+
 ob_end_clean();
 
 // Start new output buffer for safety
 ob_start();
 
 header('Content-Type: application/json');
-
 
 // Verificar autenticación y permisos (solo admins)
 if (!isLoggedIn() || !isAdmin()) {
