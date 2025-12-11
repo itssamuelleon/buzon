@@ -243,7 +243,18 @@ require_once 'status_helper.php';
 
     <main class="container mx-auto px-4 py-6">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-            <h1 class="text-2xl font-bold text-gray-800">Dashboard</h1>
+            <div class="flex items-center gap-3">
+                <h1 class="text-2xl font-bold text-gray-800">Dashboard</h1>
+                <?php if (isAdmin() && intval($stats['unassigned']) > 0): ?>
+                <button type="button" 
+                        onclick="openBulkAnalyzeModal()"
+                        class="text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors flex items-center gap-1"
+                        title="Analizar todos los reportes sin asignar con IA">
+                    <i class="ph-sparkle text-base"></i>
+                    Analizar con IA
+                </button>
+                <?php endif; ?>
+            </div>
             
             <!-- Quick Stats (Admins and Managers) -->
             <?php if (function_exists('isAdmin') && (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager'))): ?>
@@ -850,5 +861,476 @@ document.addEventListener('DOMContentLoaded', function() {
     color: white;
 }
 </style>
+
+<?php if (isAdmin()): ?>
+<!-- Modal de Análisis General con Gemini -->
+<div id="bulkAnalyzeModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 flex items-center justify-center p-4">
+        <!-- Overlay -->
+        <div class="fixed inset-0 bg-gray-900 bg-opacity-50 transition-opacity" onclick="closeBulkAnalyzeModal()"></div>
+
+        <!-- Modal Panel -->
+        <div class="relative bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all w-full max-w-6xl max-h-[90vh] flex flex-col">
+            <!-- Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex items-center justify-between flex-shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-white/20 rounded-lg">
+                        <i class="ph-sparkle text-2xl text-white"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white" id="modal-title">Análisis General con Gemini</h3>
+                        <p class="text-blue-100 text-sm">Reportes sin asignar del periodo seleccionado</p>
+                    </div>
+                </div>
+                <button onclick="closeBulkAnalyzeModal()" class="text-white hover:text-blue-200 transition-colors">
+                    <i class="ph-x text-2xl"></i>
+                </button>
+            </div>
+
+            <!-- Content -->
+            <div class="flex-1 overflow-y-auto p-6" id="bulkAnalyzeContent">
+                <!-- Loading State -->
+                <div id="bulkAnalyzeLoading" class="text-center py-12">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+                        <i class="ph-spinner text-3xl text-blue-600 animate-spin"></i>
+                    </div>
+                    <p class="text-gray-600 font-medium">Analizando reportes con IA...</p>
+                    <p class="text-gray-500 text-sm mt-1">Esto puede tardar unos segundos</p>
+                </div>
+
+                <!-- Results Container -->
+                <div id="bulkAnalyzeResults" class="hidden">
+                    <!-- Summary -->
+                    <div id="bulkAnalyzeSummary" class="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 mb-6 border border-blue-200">
+                        <div class="flex items-center justify-between flex-wrap gap-4">
+                            <div class="flex items-center gap-6">
+                                <div class="text-center">
+                                    <span class="block text-2xl font-bold text-blue-700" id="totalAnalyzed">0</span>
+                                    <span class="text-xs text-blue-600">Analizados</span>
+                                </div>
+                                <div class="text-center">
+                                    <span class="block text-2xl font-bold text-green-600" id="successAnalyzed">0</span>
+                                    <span class="text-xs text-green-600">Exitosos</span>
+                                </div>
+                                <div class="text-center">
+                                    <span class="block text-2xl font-bold text-red-600" id="errorAnalyzed">0</span>
+                                    <span class="text-xs text-red-600">Errores</span>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button onclick="selectAllSuggestions()" class="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-100 hover:bg-blue-200 rounded-md transition-colors">
+                                    <i class="ph-checks mr-1"></i> Seleccionar Todos
+                                </button>
+                                <button onclick="deselectAllSuggestions()" class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors">
+                                    <i class="ph-x mr-1"></i> Deseleccionar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reports List -->
+                    <div id="bulkAnalyzeReportsList" class="space-y-4">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Error State -->
+                <div id="bulkAnalyzeError" class="hidden text-center py-12">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+                        <i class="ph-warning text-3xl text-red-600"></i>
+                    </div>
+                    <p class="text-red-600 font-medium" id="bulkAnalyzeErrorMessage">Error al analizar</p>
+                </div>
+
+                <!-- Empty State -->
+                <div id="bulkAnalyzeEmpty" class="hidden text-center py-12">
+                    <div class="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                        <i class="ph-check-circle text-3xl text-green-600"></i>
+                    </div>
+                    <p class="text-green-600 font-medium">¡No hay reportes sin asignar!</p>
+                    <p class="text-gray-500 text-sm mt-1">Todos los reportes ya tienen departamentos asignados.</p>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="bg-gray-50 px-6 py-4 flex items-center justify-between border-t flex-shrink-0" id="bulkAnalyzeFooter">
+                <button onclick="closeBulkAnalyzeModal()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
+                    Cerrar
+                </button>
+                <div class="flex items-center gap-3">
+                    <span class="text-sm text-gray-500" id="selectedCount">0 seleccionados</span>
+                    <button onclick="applySelectedSuggestions()" id="applySelectedBtn" disabled class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="ph-check mr-1"></i> Aplicar Seleccionados
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Bulk Analyze State
+let bulkAnalyzeData = [];
+let selectedReports = new Set();
+
+function openBulkAnalyzeModal() {
+    const modal = document.getElementById('bulkAnalyzeModal');
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    
+    // Reset states
+    document.getElementById('bulkAnalyzeLoading').classList.remove('hidden');
+    document.getElementById('bulkAnalyzeResults').classList.add('hidden');
+    document.getElementById('bulkAnalyzeError').classList.add('hidden');
+    document.getElementById('bulkAnalyzeEmpty').classList.add('hidden');
+    
+    // Get current date_range from URL or default
+    const urlParams = new URLSearchParams(window.location.search);
+    const dateRange = urlParams.get('date_range') || 'this_year';
+    
+    // Call API
+    fetch('ajax_gemini_bulk_analyze.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date_range: dateRange })
+    })
+    .then(response => response.json())
+    .then(result => {
+        document.getElementById('bulkAnalyzeLoading').classList.add('hidden');
+        
+        if (!result.success) {
+            document.getElementById('bulkAnalyzeError').classList.remove('hidden');
+            document.getElementById('bulkAnalyzeErrorMessage').textContent = result.error || 'Error desconocido';
+            return;
+        }
+        
+        if (result.data.length === 0) {
+            document.getElementById('bulkAnalyzeEmpty').classList.remove('hidden');
+            return;
+        }
+        
+        bulkAnalyzeData = result.data;
+        selectedReports.clear();
+        renderBulkAnalyzeResults();
+    })
+    .catch(error => {
+        document.getElementById('bulkAnalyzeLoading').classList.add('hidden');
+        document.getElementById('bulkAnalyzeError').classList.remove('hidden');
+        document.getElementById('bulkAnalyzeErrorMessage').textContent = 'Error de conexión: ' + error.message;
+    });
+}
+
+function closeBulkAnalyzeModal() {
+    document.getElementById('bulkAnalyzeModal').classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
+function renderBulkAnalyzeResults() {
+    const container = document.getElementById('bulkAnalyzeReportsList');
+    const successCount = bulkAnalyzeData.filter(r => r.success).length;
+    const errorCount = bulkAnalyzeData.filter(r => !r.success).length;
+    
+    document.getElementById('totalAnalyzed').textContent = bulkAnalyzeData.length;
+    document.getElementById('successAnalyzed').textContent = successCount;
+    document.getElementById('errorAnalyzed').textContent = errorCount;
+    
+    container.innerHTML = bulkAnalyzeData.map((report, index) => {
+        if (!report.success) {
+            return `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div class="flex items-center gap-3">
+                        <i class="ph-warning-circle text-red-500 text-xl"></i>
+                        <div>
+                            <span class="font-medium text-red-700">#${report.folio}</span>
+                            <span class="text-red-600 text-sm ml-2">${report.error}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        const data = report.data;
+        const depts = data.lista_departamentos || [];
+        const accion = data.accion || 'procesar';
+        
+        // Determinar colores y badges según acción
+        let accionBadge = '';
+        let accionClass = '';
+        let btnText = '<i class="ph-check mr-1"></i> Aplicar';
+        let btnClass = 'text-blue-600 bg-blue-100 hover:bg-blue-200';
+        
+        if (accion === 'invalido') {
+            accionBadge = '<span class="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700 ring-1 ring-gray-300"><i class="ph-prohibit mr-1"></i>Inválido</span>';
+            accionClass = 'border-gray-300 bg-gray-50';
+            btnText = '<i class="ph-prohibit mr-1"></i> Marcar Inválido';
+            btnClass = 'text-gray-600 bg-gray-100 hover:bg-gray-200';
+        } else if (accion === 'duplicado') {
+            accionBadge = '<span class="px-2 py-0.5 text-xs font-medium rounded-full bg-orange-100 text-orange-700 ring-1 ring-orange-300"><i class="ph-copy mr-1"></i>Duplicado</span>';
+            accionClass = 'border-orange-300 bg-orange-50';
+            btnText = '<i class="ph-copy mr-1"></i> Marcar Duplicado';
+            btnClass = 'text-orange-600 bg-orange-100 hover:bg-orange-200';
+        }
+        
+        return `
+            <div class="bg-white border rounded-lg shadow-sm overflow-hidden ${accionClass}" data-report-index="${index}">
+                <div class="p-4">
+                    <div class="flex items-start gap-4">
+                        <!-- Checkbox -->
+                        <div class="flex-shrink-0 pt-1">
+                            <input type="checkbox" 
+                                   id="report_${report.complaint_id}" 
+                                   class="report-checkbox w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                   onchange="toggleReportSelection(${index})"
+                                   ${selectedReports.has(index) ? 'checked' : ''}>
+                        </div>
+                        
+                        <!-- Content -->
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center flex-wrap gap-2 mb-2">
+                                <span class="font-bold text-gray-900">#${report.folio}</span>
+                                ${accionBadge}
+                                ${accion === 'procesar' ? `<span class="px-2 py-0.5 text-xs font-medium rounded-full ${
+                                    data.tipo === 'queja' ? 'bg-red-100 text-red-700' :
+                                    data.tipo === 'sugerencia' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-green-100 text-green-700'
+                                }">${data.tipo}</span>` : ''}
+                                <span class="text-sm text-gray-500">${report.antiguedad}</span>
+                                <span class="text-sm text-gray-500">• ${report.user_name}</span>
+                            </div>
+                            
+                            <p class="text-sm text-gray-600 mb-3">${report.description_short}</p>
+                            
+                            <!-- AI Suggestions -->
+                            ${accion === 'procesar' ? `
+                            <div class="bg-blue-50 rounded-lg p-3 space-y-3">
+                                <div class="flex items-center gap-2 text-blue-700 text-sm font-medium">
+                                    <i class="ph-sparkle"></i>
+                                    Sugerencias de IA
+                                </div>
+                                
+                                <div class="grid md:grid-cols-2 gap-3 text-sm">
+                                    <div>
+                                        <span class="text-gray-500">Categoría sugerida:</span>
+                                        <span class="ml-1 font-medium text-gray-900">${data.categoria_nombre || 'Sin categoría'}</span>
+                                    </div>
+                                    <div>
+                                        <span class="text-gray-500">Departamentos:</span>
+                                        <div class="mt-1 flex flex-wrap gap-1">
+                                            ${depts.map(d => `
+                                                <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-700" title="${d.motivo || ''}">
+                                                    ${d.nombre}
+                                                </span>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="pt-2 border-t border-blue-100">
+                                    <span class="text-gray-500 text-sm">Resumen:</span>
+                                    <p class="text-sm text-gray-700 mt-1">${data.resumen || 'Sin resumen'}</p>
+                                </div>
+                            </div>
+                            ` : `
+                            <div class="${accion === 'invalido' ? 'bg-gray-100' : 'bg-orange-50'} rounded-lg p-3">
+                                <div class="flex items-center gap-2 ${accion === 'invalido' ? 'text-gray-700' : 'text-orange-700'} text-sm font-medium mb-2">
+                                    <i class="ph-${accion === 'invalido' ? 'prohibit' : 'copy'}"></i>
+                                    ${accion === 'invalido' ? 'Reporte detectado como inválido' : 'Reporte detectado como duplicado'}
+                                </div>
+                                <p class="text-sm ${accion === 'invalido' ? 'text-gray-600' : 'text-orange-600'}">
+                                    ${data.motivo_cierre || (accion === 'invalido' ? 'El contenido no es una queja, sugerencia o felicitación válida.' : 'Este reporte parece ser duplicado de otro existente.')}
+                                </p>
+                                ${data.duplicado_de ? `<p class="text-xs text-orange-500 mt-1">Posible duplicado del reporte ID: ${data.duplicado_de}</p>` : ''}
+                            </div>
+                            `}
+                        </div>
+                        
+                        <!-- Individual Apply Button -->
+                        <div class="flex-shrink-0">
+                            <button onclick="applySingleSuggestion(${index})" 
+                                    class="px-3 py-1.5 text-xs font-medium ${btnClass} rounded-md transition-colors"
+                                    id="applyBtn_${index}">
+                                ${btnText}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    document.getElementById('bulkAnalyzeResults').classList.remove('hidden');
+    updateSelectedCount();
+}
+
+function toggleReportSelection(index) {
+    if (selectedReports.has(index)) {
+        selectedReports.delete(index);
+    } else {
+        selectedReports.add(index);
+    }
+    updateSelectedCount();
+}
+
+function selectAllSuggestions() {
+    bulkAnalyzeData.forEach((report, index) => {
+        if (report.success) {
+            selectedReports.add(index);
+            const checkbox = document.getElementById(`report_${report.complaint_id}`);
+            if (checkbox) checkbox.checked = true;
+        }
+    });
+    updateSelectedCount();
+}
+
+function deselectAllSuggestions() {
+    selectedReports.clear();
+    document.querySelectorAll('.report-checkbox').forEach(cb => cb.checked = false);
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const count = selectedReports.size;
+    document.getElementById('selectedCount').textContent = `${count} seleccionado${count !== 1 ? 's' : ''}`;
+    document.getElementById('applySelectedBtn').disabled = count === 0;
+}
+
+async function applySingleSuggestion(index) {
+    const report = bulkAnalyzeData[index];
+    if (!report || !report.success) return;
+    
+    const btn = document.getElementById(`applyBtn_${index}`);
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="ph-spinner animate-spin mr-1"></i> Aplicando...';
+    btn.disabled = true;
+    
+    const accion = report.data.accion || 'procesar';
+    
+    try {
+        const response = await fetch('ajax_apply_bulk_suggestions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                suggestions: [{
+                    complaint_id: report.complaint_id,
+                    accion: accion,
+                    categoria_id: report.data.categoria_id,
+                    departamentos: report.data.lista_departamentos,
+                    motivo_cierre: report.data.motivo_cierre,
+                    duplicado_de: report.data.duplicado_de
+                }]
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success && result.summary.success > 0) {
+            btn.innerHTML = '<i class="ph-check-circle mr-1"></i> Aplicado';
+            btn.classList.remove('text-blue-600', 'bg-blue-100', 'hover:bg-blue-200');
+            btn.classList.add('text-green-600', 'bg-green-100');
+            
+            // Remove from selection
+            selectedReports.delete(index);
+            const checkbox = document.getElementById(`report_${report.complaint_id}`);
+            if (checkbox) {
+                checkbox.checked = false;
+                checkbox.disabled = true;
+            }
+            updateSelectedCount();
+        } else {
+            btn.innerHTML = '<i class="ph-warning mr-1"></i> Error';
+            btn.classList.remove('text-blue-600', 'bg-blue-100');
+            btn.classList.add('text-red-600', 'bg-red-100');
+        }
+    } catch (error) {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        alert('Error al aplicar sugerencia: ' + error.message);
+    }
+}
+
+async function applySelectedSuggestions() {
+    if (selectedReports.size === 0) return;
+    
+    const btn = document.getElementById('applySelectedBtn');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="ph-spinner animate-spin mr-1"></i> Aplicando...';
+    btn.disabled = true;
+    
+    const suggestions = [];
+    selectedReports.forEach(index => {
+        const report = bulkAnalyzeData[index];
+        if (report && report.success) {
+            suggestions.push({
+                complaint_id: report.complaint_id,
+                accion: report.data.accion || 'procesar',
+                categoria_id: report.data.categoria_id,
+                departamentos: report.data.lista_departamentos,
+                motivo_cierre: report.data.motivo_cierre,
+                duplicado_de: report.data.duplicado_de
+            });
+        }
+    });
+    
+    try {
+        const response = await fetch('ajax_apply_bulk_suggestions.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ suggestions })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Update UI for each successful application
+            result.results.forEach(res => {
+                const index = bulkAnalyzeData.findIndex(r => r.complaint_id === res.complaint_id);
+                if (index !== -1 && res.success) {
+                    const applyBtn = document.getElementById(`applyBtn_${index}`);
+                    if (applyBtn) {
+                        applyBtn.innerHTML = '<i class="ph-check-circle mr-1"></i> Aplicado';
+                        applyBtn.classList.remove('text-blue-600', 'bg-blue-100', 'hover:bg-blue-200');
+                        applyBtn.classList.add('text-green-600', 'bg-green-100');
+                        applyBtn.disabled = true;
+                    }
+                    
+                    const checkbox = document.getElementById(`report_${bulkAnalyzeData[index].complaint_id}`);
+                    if (checkbox) {
+                        checkbox.checked = false;
+                        checkbox.disabled = true;
+                    }
+                    
+                    selectedReports.delete(index);
+                }
+            });
+            
+            updateSelectedCount();
+            
+            // Show summary
+            alert(`✅ Aplicación completada\n\nExitosos: ${result.summary.success}\nErrores: ${result.summary.errors}`);
+            
+            if (result.summary.success > 0) {
+                // Suggest page refresh
+                if (confirm('¿Deseas recargar la página para ver los cambios?')) {
+                    window.location.reload();
+                }
+            }
+        }
+    } catch (error) {
+        alert('Error al aplicar sugerencias: ' + error.message);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = selectedReports.size === 0;
+    }
+}
+
+// Close modal on Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeBulkAnalyzeModal();
+    }
+});
+</script>
+<?php endif; ?>
+
 </body>
 </html>

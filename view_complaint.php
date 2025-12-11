@@ -347,97 +347,161 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isAdmin() || canCloseReport())) {
             header("Location: view_complaint.php?id=" . $complaint_id);
             exit;
         }
+        
+        $accion = isset($_POST['gemini_accion']) ? $_POST['gemini_accion'] : 'procesar';
         $categoria_id = isset($_POST['gemini_categoria_id']) ? intval($_POST['gemini_categoria_id']) : null;
         $departamentos_json = isset($_POST['gemini_departamentos']) ? $_POST['gemini_departamentos'] : '[]';
+        $motivo_cierre = isset($_POST['gemini_motivo_cierre']) ? $_POST['gemini_motivo_cierre'] : null;
+        $duplicado_de = isset($_POST['gemini_duplicado_de']) ? intval($_POST['gemini_duplicado_de']) : null;
         
         $conn->begin_transaction();
         try {
-            // 1. Update category if provided
-            if ($categoria_id && $categoria_id > 0) {
-                $stmt = $conn->prepare("UPDATE complaints SET category_id = ? WHERE id = ?");
-                $stmt->bind_param("ii", $categoria_id, $complaint_id);
+            if ($accion === 'invalido') {
+                // Marcar como inválido
+                $stmt = $conn->prepare("UPDATE complaints SET status = 'invalid', attended_at = NOW() WHERE id = ?");
+                $stmt->bind_param("i", $complaint_id);
                 $stmt->execute();
-            }
-            
-            // 2. Update departments (remove all and add new ones)
-            $departamentos_data = json_decode($departamentos_json, true);
-            $department_ids = [];
-            
-            if (is_array($departamentos_data) && !empty($departamentos_data)) {
-                // Extract department IDs from the data
-                foreach ($departamentos_data as $dept) {
-                    if (isset($dept['id']) && is_numeric($dept['id'])) {
-                        $department_ids[] = intval($dept['id']);
+                
+                // Agregar comentario del sistema
+                $admin_id = $_SESSION['user_id'];
+                $comentario = "⚠️ Reporte marcado como INVÁLIDO por análisis de IA.";
+                if ($motivo_cierre) {
+                    $comentario .= "\n\nMotivo: " . $motivo_cierre;
+                }
+                $stmt_comment = $conn->prepare("INSERT INTO complaint_comments (complaint_id, user_id, comment, created_at) VALUES (?, ?, ?, NOW())");
+                $stmt_comment->bind_param("iis", $complaint_id, $admin_id, $comentario);
+                $stmt_comment->execute();
+                
+                $conn->commit();
+                $_SESSION['success_message'] = "Reporte marcado como inválido correctamente.";
+                header("Location: view_complaint.php?id=" . $complaint_id);
+                exit;
+                
+            } elseif ($accion === 'duplicado') {
+                // Marcar como duplicado
+                $stmt = $conn->prepare("UPDATE complaints SET status = 'duplicate', attended_at = NOW() WHERE id = ?");
+                $stmt->bind_param("i", $complaint_id);
+                $stmt->execute();
+                
+                // Buscar folio del reporte original
+                $folio_duplicado = '';
+                if ($duplicado_de > 0) {
+                    $stmt_folio = $conn->prepare("SELECT folio FROM complaints WHERE id = ?");
+                    $stmt_folio->bind_param("i", $duplicado_de);
+                    $stmt_folio->execute();
+                    $folio_result = $stmt_folio->get_result()->fetch_assoc();
+                    $folio_duplicado = $folio_result ? ('#' . ($folio_result['folio'] ?? str_pad($duplicado_de, 6, '0', STR_PAD_LEFT))) : "ID:{$duplicado_de}";
+                    $stmt_folio->close();
+                }
+                
+                // Agregar comentario del sistema
+                $admin_id = $_SESSION['user_id'];
+                $comentario = "🔄 Reporte marcado como DUPLICADO por análisis de IA.";
+                if ($folio_duplicado) {
+                    $comentario .= "\n\nDuplicado del reporte: " . $folio_duplicado;
+                }
+                if ($motivo_cierre) {
+                    $comentario .= "\n\nMotivo: " . $motivo_cierre;
+                }
+                $stmt_comment = $conn->prepare("INSERT INTO complaint_comments (complaint_id, user_id, comment, created_at) VALUES (?, ?, ?, NOW())");
+                $stmt_comment->bind_param("iis", $complaint_id, $admin_id, $comentario);
+                $stmt_comment->execute();
+                
+                $conn->commit();
+                $_SESSION['success_message'] = "Reporte marcado como duplicado correctamente.";
+                header("Location: view_complaint.php?id=" . $complaint_id);
+                exit;
+                
+            } else {
+                // Acción normal: procesar (asignar categoría y departamentos)
+                
+                // 1. Update category if provided
+                if ($categoria_id && $categoria_id > 0) {
+                    $stmt = $conn->prepare("UPDATE complaints SET category_id = ? WHERE id = ?");
+                    $stmt->bind_param("ii", $categoria_id, $complaint_id);
+                    $stmt->execute();
+                }
+                
+                // 2. Update departments (remove all and add new ones)
+                $departamentos_data = json_decode($departamentos_json, true);
+                $department_ids = [];
+                
+                if (is_array($departamentos_data) && !empty($departamentos_data)) {
+                    // Extract department IDs from the data
+                    foreach ($departamentos_data as $dept) {
+                        if (isset($dept['id']) && is_numeric($dept['id'])) {
+                            $department_ids[] = intval($dept['id']);
+                        }
                     }
                 }
-            }
-            
-            // Remove all current department assignments
-            $stmt = $conn->prepare("DELETE FROM complaint_departments WHERE complaint_id = ?");
-            $stmt->bind_param("i", $complaint_id);
-            $stmt->execute();
-            
-            // Add new department assignments and queue emails for background processing
-            $queued_count = 0;
-            
-            if (!empty($department_ids)) {
-                $stmt = $conn->prepare("INSERT INTO complaint_departments (complaint_id, department_id) VALUES (?, ?)");
-                $stmt_queue = $conn->prepare("INSERT INTO email_queue (complaint_id, department_id, status) VALUES (?, ?, 'pending')");
                 
-                foreach ($department_ids as $dept_id) {
-                    $stmt->bind_param("ii", $complaint_id, $dept_id);
-                    $stmt->execute();
+                // Remove all current department assignments
+                $stmt = $conn->prepare("DELETE FROM complaint_departments WHERE complaint_id = ?");
+                $stmt->bind_param("i", $complaint_id);
+                $stmt->execute();
+                
+                // Add new department assignments and queue emails for background processing
+                $queued_count = 0;
+                
+                if (!empty($department_ids)) {
+                    $stmt = $conn->prepare("INSERT INTO complaint_departments (complaint_id, department_id) VALUES (?, ?)");
+                    $stmt_queue = $conn->prepare("INSERT INTO email_queue (complaint_id, department_id, status) VALUES (?, ?, 'pending')");
                     
-                    // Queue email for background processing
-                    $stmt_queue->bind_param("ii", $complaint_id, $dept_id);
-                    $stmt_queue->execute();
-                    $queued_count++;
+                    foreach ($department_ids as $dept_id) {
+                        $stmt->bind_param("ii", $complaint_id, $dept_id);
+                        $stmt->execute();
+                        
+                        // Queue email for background processing
+                        $stmt_queue->bind_param("ii", $complaint_id, $dept_id);
+                        $stmt_queue->execute();
+                        $queued_count++;
+                    }
                 }
-            }
-            
-            $conn->commit();
-            
-            // Prepare success message
-            $success_msg = "Sugerencias de Gemini aplicadas correctamente. ";
-            if ($categoria_id && $categoria_id > 0) {
-                $success_msg .= "Categoría actualizada. ";
-            }
-            if (!empty($department_ids)) {
-                $success_msg .= "Departamentos asignados.";
-                $is_test_mode = function_exists('isTestMode') && isTestMode();
-                if ($is_test_mode) {
-                    $success_msg .= " Modo de prueba activado: los correos se enviarán a " . SMTP_USERNAME . " en lugar de los departamentos.";
-                } else {
-                    $success_msg .= " Los correos de notificación se enviarán en segundo plano.";
-                }
-            }
-            
-            // Trigger background email processing
-            if ($queued_count > 0) {
-                // Try to trigger async processing (non-blocking)
-                $this_file = $_SERVER['PHP_SELF'];
-                $process_url = str_replace(basename($this_file), 'process_email_queue.php', $this_file);
                 
-                // Attempt async call using file_get_contents with timeout
-                if (function_exists('curl_init')) {
-                    $ch = curl_init();
-                    curl_setopt_array($ch, [
-                        CURLOPT_URL => 'http://localhost' . $process_url,
-                        CURLOPT_RETURNTRANSFER => true,
-                        CURLOPT_TIMEOUT_MS => 100,
-                        CURLOPT_CONNECTTIMEOUT_MS => 100,
-                    ]);
-                    curl_exec($ch);
-                    curl_close($ch);
+                $conn->commit();
+                
+                // Prepare success message
+                $success_msg = "Sugerencias de IA aplicadas correctamente. ";
+                if ($categoria_id && $categoria_id > 0) {
+                    $success_msg .= "Categoría actualizada. ";
                 }
+                if (!empty($department_ids)) {
+                    $success_msg .= "Departamentos asignados.";
+                    $is_test_mode = function_exists('isTestMode') && isTestMode();
+                    if ($is_test_mode) {
+                        $success_msg .= " Modo de prueba activado: los correos se enviarán a " . SMTP_USERNAME . " en lugar de los departamentos.";
+                    } else {
+                        $success_msg .= " Los correos de notificación se enviarán en segundo plano.";
+                    }
+                }
+                
+                // Trigger background email processing
+                if ($queued_count > 0) {
+                    // Try to trigger async processing (non-blocking)
+                    $this_file = $_SERVER['PHP_SELF'];
+                    $process_url = str_replace(basename($this_file), 'process_email_queue.php', $this_file);
+                    
+                    // Attempt async call using file_get_contents with timeout
+                    if (function_exists('curl_init')) {
+                        $ch = curl_init();
+                        curl_setopt_array($ch, [
+                            CURLOPT_URL => 'http://localhost' . $process_url,
+                            CURLOPT_RETURNTRANSFER => true,
+                            CURLOPT_TIMEOUT_MS => 100,
+                            CURLOPT_CONNECTTIMEOUT_MS => 100,
+                        ]);
+                        curl_exec($ch);
+                        curl_close($ch);
+                    }
+                }
+                
+                $_SESSION['success_message'] = $success_msg;
+                header("Location: view_complaint.php?id=" . $complaint_id);
+                exit;
             }
-            
-            $_SESSION['success_message'] = $success_msg;
-            header("Location: view_complaint.php?id=" . $complaint_id);
-            exit;
         } catch (Exception $e) {
             $conn->rollback();
-            $_SESSION['error_message'] = "Error al aplicar sugerencias de Gemini: " . $e->getMessage();
+            $_SESSION['error_message'] = "Error al aplicar sugerencias de IA: " . $e->getMessage();
             header("Location: view_complaint.php?id=" . $complaint_id);
             exit;
         }
@@ -1122,96 +1186,171 @@ include 'components/header.php';
                             </div>
 
                             <!-- Results Container -->
-                            <div x-show="result" style="display: none;" class="bg-purple-50 border border-purple-200 rounded-xl p-4 transition-all duration-500 ease-in-out">
+                            <div x-show="result" style="display: none;" 
+                                 :class="{
+                                    'bg-gray-50 border-gray-200': result?.accion === 'invalido',
+                                    'bg-orange-50 border-orange-200': result?.accion === 'duplicado',
+                                    'bg-purple-50 border-purple-200': result?.accion === 'procesar' || !result?.accion
+                                 }"
+                                 class="border rounded-xl p-4 transition-all duration-500 ease-in-out">
                                 <div class="flex items-start gap-3 mb-3">
-                                    <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 flex-shrink-0">
-                                        <i class="ph-sparkle text-xl"></i>
+                                    <div :class="{
+                                        'bg-gray-100 text-gray-600': result?.accion === 'invalido',
+                                        'bg-orange-100 text-orange-600': result?.accion === 'duplicado',
+                                        'bg-purple-100 text-purple-600': result?.accion === 'procesar' || !result?.accion
+                                    }" class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <i :class="{
+                                            'ph-prohibit': result?.accion === 'invalido',
+                                            'ph-copy': result?.accion === 'duplicado',
+                                            'ph-sparkle': result?.accion === 'procesar' || !result?.accion
+                                        }" class="text-xl"></i>
                                     </div>
                                     <div class="flex-1">
-                                        <h2 class="text-base font-semibold text-purple-900">Sugerencias automáticas de Gemini</h2>
-                                        <p class="text-xs text-purple-700">Revisa la categorización propuesta, departamentos sugeridos y resumen.</p>
+                                        <h2 :class="{
+                                            'text-gray-900': result?.accion === 'invalido',
+                                            'text-orange-900': result?.accion === 'duplicado',
+                                            'text-purple-900': result?.accion === 'procesar' || !result?.accion
+                                        }" class="text-base font-semibold">
+                                            <span x-show="result?.accion === 'invalido'">⚠️ Reporte detectado como Inválido</span>
+                                            <span x-show="result?.accion === 'duplicado'">🔄 Reporte detectado como Duplicado</span>
+                                            <span x-show="result?.accion === 'procesar' || !result?.accion">Sugerencias automáticas de IA</span>
+                                        </h2>
+                                        <p :class="{
+                                            'text-gray-700': result?.accion === 'invalido',
+                                            'text-orange-700': result?.accion === 'duplicado',
+                                            'text-purple-700': result?.accion === 'procesar' || !result?.accion
+                                        }" class="text-xs">
+                                            <span x-show="result?.accion === 'invalido'">Este reporte no cumple con los requisitos para ser procesado.</span>
+                                            <span x-show="result?.accion === 'duplicado'">Este reporte parece ser duplicado de otro existente.</span>
+                                            <span x-show="result?.accion === 'procesar' || !result?.accion">Revisa la categorización propuesta, departamentos sugeridos y resumen.</span>
+                                        </p>
                                     </div>
                                 </div>
 
-                                <div class="space-y-3">
-                                    <!-- Tipo/Categoría (Left) y Departamentos (Right) -->
-                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                        <!-- Left: Tipo y Categoría apilados -->
-                                        <div class="space-y-3">
-                                            <!-- Tipo -->
-                                            <div>
-                                                <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Tipo</h3>
-                                                <p class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold"
-                                                   :class="{
-                                                        'bg-red-100 text-red-700': result?.tipo === 'queja',
-                                                        'bg-blue-100 text-blue-700': result?.tipo === 'sugerencia',
-                                                        'bg-green-100 text-green-700': result?.tipo === 'felicitacion',
-                                                        'bg-gray-100 text-gray-700': !['queja', 'sugerencia', 'felicitacion'].includes(result?.tipo)
-                                                   }">
-                                                    <i class="ph-seal-check"></i>
-                                                    <span x-text="result?.tipo ? result.tipo.charAt(0).toUpperCase() + result.tipo.slice(1) : 'Sin definir'"></span>
+                                <!-- Motivo de cierre (para inválido/duplicado) -->
+                                <template x-if="result?.accion === 'invalido' || result?.accion === 'duplicado'">
+                                    <div class="mb-4">
+                                        <div :class="{
+                                            'bg-gray-100 border-gray-300': result?.accion === 'invalido',
+                                            'bg-orange-100 border-orange-300': result?.accion === 'duplicado'
+                                        }" class="rounded-lg p-3 border">
+                                            <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Motivo</h3>
+                                            <p class="text-sm text-gray-700" x-text="result?.motivo_cierre || 'No se especificó un motivo'"></p>
+                                            <template x-if="result?.duplicado_de">
+                                                <p class="text-xs text-gray-500 mt-1">
+                                                    Posible duplicado del reporte ID: <span x-text="result.duplicado_de" class="font-bold"></span>
                                                 </p>
-                                            </div>
-
-                                            <!-- Categoría Sugerida -->
-                                            <div>
-                                                <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Categoría Sugerida</h3>
-                                                <p class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold bg-purple-100 text-purple-700">
-                                                    <i class="ph-tag"></i>
-                                                    <span x-text="result?.categoria_nombre || 'ID: ' + (result?.categoria_id || 'N/A')"></span>
-                                                </p>
-                                            </div>
+                                            </template>
                                         </div>
+                                    </div>
+                                </template>
 
-                                        <!-- Right: Departamentos Sugeridos -->
-                                        <div>
-                                            <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Departamentos sugeridos</h3>
-                                            <template x-if="result?.lista_departamentos && result.lista_departamentos.length > 0">
-                                                <div class="space-y-2">
-                                                    <template x-for="dept in result.lista_departamentos" :key="dept.id">
-                                                        <div class="rounded-lg border border-purple-200 bg-white p-3">
-                                                            <p class="font-semibold text-gray-900 flex items-center gap-2 text-sm">
-                                                                <i class="ph-buildings text-purple-500"></i>
-                                                                <span x-text="dept.nombre"></span>
-                                                            </p>
-                                                            <p class="mt-1 text-xs text-gray-600" x-text="dept.motivo"></p>
-                                                        </div>
-                                                    </template>
+                                <!-- Contenido normal (solo para procesar) -->
+                                <template x-if="result?.accion === 'procesar' || !result?.accion">
+                                    <div class="space-y-3">
+                                        <!-- Tipo/Categoría (Left) y Departamentos (Right) -->
+                                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                            <!-- Left: Tipo y Categoría apilados -->
+                                            <div class="space-y-3">
+                                                <!-- Tipo -->
+                                                <div>
+                                                    <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Tipo</h3>
+                                                    <p class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold"
+                                                       :class="{
+                                                            'bg-red-100 text-red-700': result?.tipo === 'queja',
+                                                            'bg-blue-100 text-blue-700': result?.tipo === 'sugerencia',
+                                                            'bg-green-100 text-green-700': result?.tipo === 'felicitacion',
+                                                            'bg-gray-100 text-gray-700': !['queja', 'sugerencia', 'felicitacion'].includes(result?.tipo)
+                                                       }">
+                                                        <i class="ph-seal-check"></i>
+                                                        <span x-text="result?.tipo ? result.tipo.charAt(0).toUpperCase() + result.tipo.slice(1) : 'Sin definir'"></span>
+                                                    </p>
                                                 </div>
-                                            </template>
-                                            <template x-if="!result?.lista_departamentos || result.lista_departamentos.length === 0">
-                                                <p class="text-xs text-gray-500 italic">No hay departamentos sugeridos para este reporte.</p>
-                                            </template>
+
+                                                <!-- Categoría Sugerida -->
+                                                <div>
+                                                    <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Categoría Sugerida</h3>
+                                                    <p class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold bg-purple-100 text-purple-700">
+                                                        <i class="ph-tag"></i>
+                                                        <span x-text="result?.categoria_nombre || 'ID: ' + (result?.categoria_id || 'N/A')"></span>
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <!-- Right: Departamentos Sugeridos -->
+                                            <div>
+                                                <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Departamentos sugeridos</h3>
+                                                <template x-if="result?.lista_departamentos && result.lista_departamentos.length > 0">
+                                                    <div class="space-y-2">
+                                                        <template x-for="dept in result.lista_departamentos" :key="dept.id">
+                                                            <div class="rounded-lg border border-purple-200 bg-white p-3">
+                                                                <p class="font-semibold text-gray-900 flex items-center gap-2 text-sm">
+                                                                    <i class="ph-buildings text-purple-500"></i>
+                                                                    <span x-text="dept.nombre"></span>
+                                                                </p>
+                                                                <p class="mt-1 text-xs text-gray-600" x-text="dept.motivo"></p>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </template>
+                                                <template x-if="!result?.lista_departamentos || result.lista_departamentos.length === 0">
+                                                    <p class="text-xs text-gray-500 italic">No hay departamentos sugeridos para este reporte.</p>
+                                                </template>
+                                            </div>
                                         </div>
+
+                                        <!-- Resumen (Full Width Below) -->
+                                        <template x-if="result?.resumen">
+                                            <div>
+                                                <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Resumen generado</h3>
+                                                <p class="text-sm text-gray-700 leading-relaxed bg-white border border-purple-200 rounded-lg p-3" x-text="result.resumen"></p>
+                                            </div>
+                                        </template>
                                     </div>
+                                </template>
 
-                                    <!-- Resumen (Full Width Below) -->
-                                    <template x-if="result?.resumen">
-                                        <div>
-                                            <h3 class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">Resumen generado</h3>
-                                            <p class="text-sm text-gray-700 leading-relaxed bg-white border border-purple-200 rounded-lg p-3" x-text="result.resumen"></p>
-                                        </div>
-                                    </template>
-                                </div>
-
-                                <!-- Apply Suggestions Form -->
+                                <!-- Formulario de Aplicar Sugerencias -->
                                 <form method="POST" class="mt-4">
                                     <input type="hidden" name="apply_gemini_suggestions" value="1">
+                                    <input type="hidden" name="gemini_accion" :value="result?.accion || 'procesar'">
                                     <input type="hidden" name="gemini_categoria_id" :value="result?.categoria_id || 0">
                                     <input type="hidden" name="gemini_departamentos" :value="JSON.stringify(result?.lista_departamentos || [])">
+                                    <input type="hidden" name="gemini_motivo_cierre" :value="result?.motivo_cierre || ''">
+                                    <input type="hidden" name="gemini_duplicado_de" :value="result?.duplicado_de || ''">
                                     
                                     <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
                                         <!-- Note (Left) -->
-                                        <p class="text-xs text-gray-600 bg-green-50 border border-green-200 rounded-lg p-2.5 flex-1">
-                                            <i class="ph-info text-green-600 mr-1"></i>
-                                            Se actualizarán la categoría y departamentos asignados. Se enviarán correos de notificación a los departamentos.
+                                        <p :class="{
+                                            'bg-gray-50 border-gray-200 text-gray-600': result?.accion === 'invalido',
+                                            'bg-orange-50 border-orange-200 text-orange-600': result?.accion === 'duplicado',
+                                            'bg-green-50 border-green-200 text-gray-600': result?.accion === 'procesar' || !result?.accion
+                                        }" class="text-xs border rounded-lg p-2.5 flex-1">
+                                            <i :class="{
+                                                'text-gray-600': result?.accion === 'invalido',
+                                                'text-orange-600': result?.accion === 'duplicado',
+                                                'text-green-600': result?.accion === 'procesar' || !result?.accion
+                                            }" class="ph-info mr-1"></i>
+                                            <span x-show="result?.accion === 'invalido'">Se marcará el reporte como inválido y se agregará un comentario con el motivo.</span>
+                                            <span x-show="result?.accion === 'duplicado'">Se marcará el reporte como duplicado y se agregará un comentario con el motivo.</span>
+                                            <span x-show="result?.accion === 'procesar' || !result?.accion">Se actualizarán la categoría y departamentos asignados. Se enviarán correos de notificación a los departamentos.</span>
                                         </p>
                                         
                                         <!-- Button (Right) -->
                                         <button type="submit" 
-                                                class="inline-flex items-center justify-center gap-2 bg-green-600 text-white font-semibold py-2.5 px-5 rounded-lg hover:bg-green-700 transition-colors shadow whitespace-nowrap">
-                                            <i class="ph-check-circle text-lg"></i>
-                                            Aplicar Sugerencias
+                                                :class="{
+                                                    'bg-gray-600 hover:bg-gray-700': result?.accion === 'invalido',
+                                                    'bg-orange-600 hover:bg-orange-700': result?.accion === 'duplicado',
+                                                    'bg-green-600 hover:bg-green-700': result?.accion === 'procesar' || !result?.accion
+                                                }"
+                                                class="inline-flex items-center justify-center gap-2 text-white font-semibold py-2.5 px-5 rounded-lg transition-colors shadow whitespace-nowrap">
+                                            <i :class="{
+                                                'ph-prohibit': result?.accion === 'invalido',
+                                                'ph-copy': result?.accion === 'duplicado',
+                                                'ph-check-circle': result?.accion === 'procesar' || !result?.accion
+                                            }" class="text-lg"></i>
+                                            <span x-show="result?.accion === 'invalido'">Marcar como Inválido</span>
+                                            <span x-show="result?.accion === 'duplicado'">Marcar como Duplicado</span>
+                                            <span x-show="result?.accion === 'procesar' || !result?.accion">Aplicar Sugerencias</span>
                                         </button>
                                     </div>
                                 </form>

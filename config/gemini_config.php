@@ -9,7 +9,7 @@ if (!defined('GEMINI_API_KEY')) {
 }
 
 if (!defined('GEMINI_MODEL')) {
-    define('GEMINI_MODEL', 'gemini-2.0-flash');
+    define('GEMINI_MODEL', 'gemini-2.5-flash-lite');
 }
 
 if (!defined('GEMINI_API_BASE_URL')) {

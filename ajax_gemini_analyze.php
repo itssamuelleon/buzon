@@ -94,17 +94,48 @@ if (!empty($comments_for_ai)) {
 // Preparar contexto
 $folio = $complaint_for_ai['folio'] ?? str_pad($complaint_for_ai['id'], 6, '0', STR_PAD_LEFT);
 
+// Calcular antigüedad del reporte
+$created_date = new DateTime($complaint_for_ai['created_at']);
+$now = new DateTime();
+$interval = $created_date->diff($now);
+$days_ago = $interval->days;
+
+if ($days_ago == 0) {
+    $antiguedad = 'Hoy';
+} elseif ($days_ago == 1) {
+    $antiguedad = 'Ayer (hace 1 día)';
+} else {
+    $antiguedad = 'Hace ' . $days_ago . ' días';
+}
+
+// Traducir estado técnico a lenguaje legible
+$status_map = [
+    'unattended_ontime' => 'Sin atender (dentro del plazo)',
+    'unattended_late' => 'Sin atender (fuera de plazo / retrasado)',
+    'attended_ontime' => 'Atendido a tiempo',
+    'attended_late' => 'Atendido a destiempo (fuera del plazo)',
+    'in_progress' => 'En proceso de atención',
+    'pending' => 'Pendiente',
+    'closed' => 'Cerrado',
+    'resolved' => 'Resuelto'
+];
+$status_raw = $complaint_for_ai['status'] ?? 'desconocido';
+$status_legible = $status_map[$status_raw] ?? $status_raw;
+
 $context_lines = [
     'Folio del reporte: ' . $folio,
     'Fecha de envío: ' . date('d/m/Y H:i', strtotime($complaint_for_ai['created_at'])),
-    'Estado actual: ' . ($complaint_for_ai['status'] ?? 'desconocido'),
+    'Antigüedad: ' . $antiguedad,
+    'Estado actual: ' . $status_legible,
     'Categoría seleccionada por el usuario: ' . ($complaint_for_ai['category_name'] ?? 'Sin categoría'),
     'Es anónimo: ' . ($complaint_for_ai['is_anonymous'] ? 'sí' : 'no'),
 ];
 
 if (!$complaint_for_ai['is_anonymous']) {
-    $context_lines[] = 'Nombre de quien reporta: ' . ($complaint_for_ai['user_name'] ?? '');
-    $context_lines[] = 'Correo de quien reporta: ' . ($complaint_for_ai['user_email'] ?? '');
+    $context_lines[] = 'Nombre de quien reporta: ' . ($complaint_for_ai['user_name'] ?? 'No especificado');
+    $context_lines[] = 'Correo de quien reporta: ' . ($complaint_for_ai['user_email'] ?? 'No especificado');
+} else {
+    $context_lines[] = 'Nota: Este reporte fue enviado de forma ANÓNIMA';
 }
 
 $context_lines[] = '';
@@ -150,6 +181,46 @@ if (!empty($comments_for_ai)) {
 
 $context = implode("\n", $context_lines);
 
+// Obtener reportes existentes del año para detectar duplicados
+$startOfYear = (new DateTime('first day of january ' . date('Y')))->format('Y-m-d 00:00:00');
+$existing_query = "SELECT c.id, c.folio, c.description, c.status, c.created_at,
+                          cat.name as category_name
+                   FROM complaints c 
+                   LEFT JOIN categories cat ON c.category_id = cat.id 
+                   WHERE c.created_at >= '{$startOfYear}'
+                   AND c.status NOT IN ('invalid', 'duplicate')
+                   AND c.id != {$complaint_id}
+                   ORDER BY c.created_at DESC
+                   LIMIT 80";
+$existing_result = $conn->query($existing_query);
+$existing_reports = [];
+if ($existing_result) {
+    while ($row = $existing_result->fetch_assoc()) {
+        $existing_reports[] = $row;
+    }
+}
+
+// Construir contexto de reportes existentes
+$existing_context = "";
+if (!empty($existing_reports)) {
+    $existing_context = "\n\n=== REPORTES EXISTENTES ESTE AÑO (para detectar duplicados) ===\n";
+    $existing_context .= "IMPORTANTE: Un reporte es DUPLICADO solo si describe el MISMO PROBLEMA ESPECÍFICO.\n";
+    $existing_context .= "- Dos quejas sobre internet lento/sin funcionar = DUPLICADO (mismo problema de infraestructura)\n";
+    $existing_context .= "- Dos quejas sobre inscripción de diferentes estudiantes = NO DUPLICADO (cada estudiante tiene su propio caso)\n";
+    $existing_context .= "- Dos quejas sobre el mismo profesor = DUPLICADO\n";
+    $existing_context .= "- Dos quejas sobre baños sucios = DUPLICADO\n";
+    $existing_context .= "- Dos quejas sobre pagos de diferentes estudiantes = NO DUPLICADO\n\n";
+    
+    foreach ($existing_reports as $idx => $rep) {
+        $rep_folio = $rep['folio'] ?? str_pad($rep['id'], 6, '0', STR_PAD_LEFT);
+        $rep_desc = mb_substr(trim($rep['description']), 0, 120);
+        $existing_context .= "Existente #{$rep_folio} (ID:{$rep['id']}): {$rep_desc}\n";
+    }
+}
+
+// Agregar contexto de reportes existentes al contexto principal
+$context .= $existing_context;
+
 // Obtener categorías disponibles
 $stmt_cat = $conn->query("SELECT id, name, description FROM categories ORDER BY name");
 $categories_list = $stmt_cat->fetch_all(MYSQLI_ASSOC);
@@ -159,59 +230,328 @@ foreach ($categories_list as $cat) {
     $categories_text .= "- ID: " . $cat['id'] . ", Nombre: " . $cat['name'] . " (" . ($cat['description'] ?? '') . ")\n";
 }
 
-// Obtener departamentos disponibles
-$stmt_dept = $conn->query("SELECT id, name FROM departments ORDER BY name");
-$departments_list = $stmt_dept->fetch_all(MYSQLI_ASSOC);
+// Información detallada de departamentos para Gemini
+$departments_info = [
+    // 1. Áreas de Dirección y Gestión (Alto Nivel)
+    1 => [
+        'nombre' => 'Dirección General',
+        'funcion' => 'Máxima autoridad, planeación estratégica y gestión de recursos.',
+        'quejas_tipicas' => 'Falta de respuesta de subdirecciones, problemas graves de seguridad institucional, denuncias éticas graves, quejas sobre gestión general que no fueron atendidas en niveles inferiores.'
+    ],
+    3 => [
+        'nombre' => 'Dirección Académica',
+        'funcion' => 'Responsable de toda la operación docente y de investigación.',
+        'quejas_tipicas' => 'Quejas que no fueron resueltas por las Divisiones de Carrera, problemas con la calidad académica general.'
+    ],
+    4 => [
+        'nombre' => 'Dirección de Administración, Planeación y Vinculación',
+        'funcion' => 'Administra recursos financieros, humanos y la vinculación con el entorno.',
+        'quejas_tipicas' => 'Inconformidad general con servicios administrativos, infraestructura mayor o transparencia.'
+    ],
+    5 => [
+        'nombre' => 'Subdirección Académica',
+        'funcion' => 'Coordina directamente a las jefaturas de carrera y docentes.',
+        'quejas_tipicas' => 'Problemas de carga académica, conflictos no resueltos con jefes de división.'
+    ],
+    6 => [
+        'nombre' => 'Subdirección de Posgrado e Investigación',
+        'funcion' => 'Coordina maestrías y líneas de investigación.',
+        'quejas_tipicas' => 'Problemas con becas de posgrado (CONAHCYT), falta de asesores de tesis de maestría.'
+    ],
+    7 => [
+        'nombre' => 'Subdirección de Servicios Administrativos',
+        'funcion' => 'Supervisa RH, Financieros y Mantenimiento.',
+        'quejas_tipicas' => 'Fallas recurrentes en servicios básicos (luz, agua, limpieza) que no se atienden.'
+    ],
+    8 => [
+        'nombre' => 'Subdirección de Planeación',
+        'funcion' => 'Planeación institucional y equipamiento.',
+        'quejas_tipicas' => 'Falta de crecimiento en infraestructura, quejas sobre procesos de evaluación institucional.'
+    ],
+    9 => [
+        'nombre' => 'Subdirección de Vinculación',
+        'funcion' => 'Relaciones externas, egresados y eventos.',
+        'quejas_tipicas' => 'Falta de convenios con empresas, problemas generales con servicio social.'
+    ],
+    
+    // 2. Divisiones Académicas (Carreras)
+    10 => [
+        'nombre' => 'División de Ingeniería en Electromecánica',
+        'funcion' => 'Coordina horarios, docentes y atención al estudiante de Ingeniería en Electromecánica.',
+        'quejas_tipicas' => 'Profesor falta a clases, empalme de horarios, trato inadecuado de docente, laboratorio sin equipo, problemas con materias de la carrera.'
+    ],
+    11 => [
+        'nombre' => 'División de Ingeniería en Industrias Alimentarias',
+        'funcion' => 'Coordina horarios, docentes y atención al estudiante de Ingeniería en Industrias Alimentarias.',
+        'quejas_tipicas' => 'Profesor falta a clases, empalme de horarios, trato inadecuado de docente, laboratorio sin equipo, problemas con materias de la carrera.'
+    ],
+    12 => [
+        'nombre' => 'División de Ingeniería en Sistemas Computacionales',
+        'funcion' => 'Coordina horarios, docentes y atención al estudiante de Ingeniería en Sistemas Computacionales.',
+        'quejas_tipicas' => 'Profesor falta a clases, empalme de horarios, trato inadecuado de docente, laboratorio de cómputo sin equipo o con equipos dañados, problemas con materias de la carrera, falta de software.'
+    ],
+    13 => [
+        'nombre' => 'División de Ingeniería Industrial',
+        'funcion' => 'Coordina horarios, docentes y atención al estudiante de Ingeniería Industrial.',
+        'quejas_tipicas' => 'Profesor falta a clases, empalme de horarios, trato inadecuado de docente, laboratorio sin equipo, problemas con materias de la carrera.'
+    ],
+    14 => [
+        'nombre' => 'División de Gastronomía',
+        'funcion' => 'Coordina horarios, docentes y atención al estudiante de Gastronomía.',
+        'quejas_tipicas' => 'Profesor falta a clases, empalme de horarios, trato inadecuado de docente, cocina/laboratorio sin equipo o insumos, problemas con materias de la carrera.'
+    ],
+    15 => [
+        'nombre' => 'División de Ingeniería en Gestión Empresarial',
+        'funcion' => 'Coordina horarios, docentes y atención al estudiante de Ingeniería en Gestión Empresarial.',
+        'quejas_tipicas' => 'Profesor falta a clases, empalme de horarios, trato inadecuado de docente, problemas con materias de la carrera.'
+    ],
+    16 => [
+        'nombre' => 'División de Arquitectura',
+        'funcion' => 'Coordina horarios, docentes y atención al estudiante de Arquitectura.',
+        'quejas_tipicas' => 'Profesor falta a clases, empalme de horarios, trato inadecuado de docente, taller sin equipo, problemas con materias de la carrera.'
+    ],
+    17 => [
+        'nombre' => 'División Licenciatura en Administración',
+        'funcion' => 'Coordina horarios, docentes y atención al estudiante de Licenciatura en Administración.',
+        'quejas_tipicas' => 'Profesor falta a clases, empalme de horarios, trato inadecuado de docente, problemas con materias de la carrera.'
+    ],
+    
+    // 3. Departamentos de Apoyo Académico
+    19 => [
+        'nombre' => 'Departamento de Ciencias Básicas',
+        'funcion' => 'Coordina materias de tronco común (Matemáticas, Física, Química).',
+        'quejas_tipicas' => 'El maestro de Cálculo/Química/Física no enseña bien, índices de reprobación excesivos, falta de reactivos en laboratorios de ciencias.'
+    ],
+    18 => [
+        'nombre' => 'Departamento de Desarrollo Académico',
+        'funcion' => 'Capacitación docente, tutorías, material didáctico.',
+        'quejas_tipicas' => 'Mi tutor no me atiende, los profesores no usan herramientas digitales, falta de cursos de actualización docente.'
+    ],
+    
+    // 4. Servicios Escolares y Trámites
+    25 => [
+        'nombre' => 'Departamento de Control Escolar',
+        'funcion' => 'Inscripciones, kardex, certificados, títulos, bajas, seguro facultativo.',
+        'quejas_tipicas' => 'Errores en historial académico, tardanza en entrega de títulos/constancias, problemas con inscripción en el SII, mal trato en ventanilla.'
+    ],
+    22 => [
+        'nombre' => 'Departamento de Recursos Financieros',
+        'funcion' => 'Caja, cobros, facturación.',
+        'quejas_tipicas' => 'Caja cerrada en horario de servicio, no aceptan pago, problemas con referencias bancarias.'
+    ],
+    23 => [
+        'nombre' => 'Departamento de Estadística y Evaluación',
+        'funcion' => 'Datos institucionales, indicadores.',
+        'quejas_tipicas' => 'Errores en reportes estadísticos públicos (poco frecuente para alumnos).'
+    ],
+    21 => [
+        'nombre' => 'Departamento de Planeación y Programación',
+        'funcion' => 'Presupuestos y programación de obras.',
+        'quejas_tipicas' => 'Obras inconclusas o mal planificadas.'
+    ],
+    
+    // 5. Servicios Generales e Infraestructura
+    26 => [
+        'nombre' => 'Departamento de Servicios Generales',
+        'funcion' => 'Limpieza (intendencia), vigilancia, mantenimiento menor, transporte escolar.',
+        'quejas_tipicas' => 'Baños sucios o sin papel, falta de aire acondicionado en aulas, basura en pasillos, inseguridad en estacionamiento, transporte escolar maneja mal.'
+    ],
+    24 => [
+        'nombre' => 'Departamento de Recursos Materiales y Servicios',
+        'funcion' => 'Compras, almacén, inventarios.',
+        'quejas_tipicas' => 'Falta de mobiliario (pupitres/sillas), no hay insumos (borradores/plumones) en almacén.'
+    ],
+    
+    // 6. Recursos Humanos y Calidad
+    20 => [
+        'nombre' => 'Departamento de Personal',
+        'funcion' => 'Contratación, nómina, control de asistencia del personal.',
+        'quejas_tipicas' => 'Personal administrativo ausente en horas laborales, conflictos laborales, mal trato por parte de personal administrativo.'
+    ],
+    2 => [
+        'nombre' => 'Departamento de Certificaciones',
+        'funcion' => 'Sistemas de Gestión de Calidad (ISO), Ambiental, Equidad de Género.',
+        'quejas_tipicas' => 'Discriminación o acoso, procesos burocráticos lentos (quejas de calidad), no se respeta el cuidado ambiental/reciclaje.'
+    ],
+    30 => [
+        'nombre' => 'Buzón de Quejas, Sugerencias y Felicitaciones',
+        'funcion' => 'Administración del propio sistema de quejas.',
+        'quejas_tipicas' => 'El sistema de quejas no funciona, reporte de errores técnicos en la plataforma.'
+    ],
+    
+    // 7. Vinculación con el Entorno
+    27 => [
+        'nombre' => 'Departamento de Vinculación',
+        'funcion' => 'Relación empresa-escuela, visitas industriales.',
+        'quejas_tipicas' => 'Falta de visitas a empresas, bolsa de trabajo deficiente.'
+    ],
+    28 => [
+        'nombre' => 'Departamento Residencias Profesionales y Servicio Social',
+        'funcion' => 'Gestión de trámites de servicio social y residencias.',
+        'quejas_tipicas' => 'No encuentro lugar para residencia, tardanza en liberar cartas de servicio social, poca variedad de convenios.'
+    ],
+    29 => [
+        'nombre' => 'Departamento de Difusión y Concertación',
+        'funcion' => 'Imagen institucional, redes sociales, eventos.',
+        'quejas_tipicas' => 'Información desactualizada en Facebook/Web, falta de difusión de eventos importantes.'
+    ],
+];
 
-$departments_text = "Departamentos disponibles (con sus IDs):\n";
-foreach ($departments_list as $dept) {
-    $departments_text .= "- ID: " . $dept['id'] . ", Nombre: " . $dept['name'] . "\n";
+// Construir texto de departamentos con información detallada
+$departments_text = "=== DEPARTAMENTOS DISPONIBLES CON SUS FUNCIONES ===\n\n";
+
+$departments_text .= "IMPORTANTE: Selecciona el departamento basándote en su FUNCIÓN y TIPO DE QUEJAS que atiende.\n\n";
+
+$departments_text .= "--- ÁREAS DE DIRECCIÓN (Solo para quejas no resueltas en niveles inferiores o muy graves) ---\n";
+foreach ([1, 3, 4, 5, 6, 7, 8, 9] as $id) {
+    if (isset($departments_info[$id])) {
+        $d = $departments_info[$id];
+        $departments_text .= "ID: {$id} | {$d['nombre']}\n";
+        $departments_text .= "  Función: {$d['funcion']}\n";
+        $departments_text .= "  Quejas típicas: {$d['quejas_tipicas']}\n\n";
+    }
+}
+
+$departments_text .= "--- DIVISIONES ACADÉMICAS (Problemas con carreras, docentes, horarios) ---\n";
+foreach ([10, 11, 12, 13, 14, 15, 16, 17] as $id) {
+    if (isset($departments_info[$id])) {
+        $d = $departments_info[$id];
+        $departments_text .= "ID: {$id} | {$d['nombre']}\n";
+        $departments_text .= "  Función: {$d['funcion']}\n";
+        $departments_text .= "  Quejas típicas: {$d['quejas_tipicas']}\n\n";
+    }
+}
+
+$departments_text .= "--- APOYO ACADÉMICO ---\n";
+foreach ([18, 19] as $id) {
+    if (isset($departments_info[$id])) {
+        $d = $departments_info[$id];
+        $departments_text .= "ID: {$id} | {$d['nombre']}\n";
+        $departments_text .= "  Función: {$d['funcion']}\n";
+        $departments_text .= "  Quejas típicas: {$d['quejas_tipicas']}\n\n";
+    }
+}
+
+$departments_text .= "--- SERVICIOS ESCOLARES Y TRÁMITES ---\n";
+foreach ([25, 22, 23, 21] as $id) {
+    if (isset($departments_info[$id])) {
+        $d = $departments_info[$id];
+        $departments_text .= "ID: {$id} | {$d['nombre']}\n";
+        $departments_text .= "  Función: {$d['funcion']}\n";
+        $departments_text .= "  Quejas típicas: {$d['quejas_tipicas']}\n\n";
+    }
+}
+
+$departments_text .= "--- SERVICIOS GENERALES E INFRAESTRUCTURA ---\n";
+foreach ([26, 24] as $id) {
+    if (isset($departments_info[$id])) {
+        $d = $departments_info[$id];
+        $departments_text .= "ID: {$id} | {$d['nombre']}\n";
+        $departments_text .= "  Función: {$d['funcion']}\n";
+        $departments_text .= "  Quejas típicas: {$d['quejas_tipicas']}\n\n";
+    }
+}
+
+$departments_text .= "--- RECURSOS HUMANOS Y CALIDAD ---\n";
+foreach ([20, 2, 30] as $id) {
+    if (isset($departments_info[$id])) {
+        $d = $departments_info[$id];
+        $departments_text .= "ID: {$id} | {$d['nombre']}\n";
+        $departments_text .= "  Función: {$d['funcion']}\n";
+        $departments_text .= "  Quejas típicas: {$d['quejas_tipicas']}\n\n";
+    }
+}
+
+$departments_text .= "--- VINCULACIÓN CON EL ENTORNO ---\n";
+foreach ([27, 28, 29] as $id) {
+    if (isset($departments_info[$id])) {
+        $d = $departments_info[$id];
+        $departments_text .= "ID: {$id} | {$d['nombre']}\n";
+        $departments_text .= "  Función: {$d['funcion']}\n";
+        $departments_text .= "  Quejas típicas: {$d['quejas_tipicas']}\n\n";
+    }
 }
 
 $system_instruction = <<<TXT
 Eres un asistente de clasificación y análisis para el Buzón de Quejas del Instituto Tecnológico Superior de Ciudad Constitución (ITSCC).
 
-Objetivos:
-1. Clasifica el reporte estrictamente como "queja", "sugerencia" o "felicitacion" según el texto proporcionado (este es el "Tipo").
-2. Sugiere la categoría más apropiada de las disponibles en la base de datos (devuelve su ID).
-3. Propón entre uno y tres departamentos más adecuados para atenderlo usando sus IDs. SIEMPRE debes sugerir al menos un departamento, nunca un arreglo vacío.
-4. Genera un resumen COMPLETO Y DETALLADO del reporte en español, usando un tono formal y profesional.
+OBJETIVOS PRINCIPALES:
+1. PRIMERO determina si el reporte es VÁLIDO, INVÁLIDO o DUPLICADO.
+2. Si es válido: clasifica, sugiere categoría, departamentos y genera resumen.
+3. Si es inválido o duplicado: indica la acción y el motivo.
 
-IMPORTANTE SOBRE EL RESUMEN:
-- El resumen debe incluir TODA la información relevante del reporte inicial Y de todos los comentarios de seguimiento.
-- Si hay comentarios de administradores o encargados, incluye sus opiniones, acciones tomadas, y cualquier información adicional que hayan proporcionado.
-- Si hay múltiples comentarios, sintetiza la conversación completa y el progreso del caso.
-- El resumen debe ser comprehensivo (entre 100-200 palabras), no solo del reporte inicial.
-- Incluye cualquier resolución, acción tomada, o estado actual mencionado en los comentarios.
-- Si no hay comentarios, enfócate solo en el reporte inicial.
+=== DETECCIÓN DE REPORTES INVÁLIDOS ===
+Un reporte es INVÁLIDO si:
+- Contiene solo texto sin sentido, spam o caracteres aleatorios
+- No tiene contenido relevante o está prácticamente vacío
+- Es ofensivo sin ninguna queja, sugerencia o felicitación real
+- No está relacionado con la institución educativa
+
+=== DETECCIÓN DE REPORTES DUPLICADOS ===
+Un reporte es DUPLICADO si:
+- Describe el MISMO problema de INFRAESTRUCTURA que otro reporte existente (internet, baños, aires, mobiliario)
+- Se queja del MISMO profesor o personal por el MISMO motivo
+- Reporta el MISMO evento o situación ya reportada
+
+Un reporte NO es duplicado si:
+- Son problemas INDIVIDUALES de cada estudiante (inscripción, pago, calificación, trámite personal)
+- Son quejas de DIFERENTES profesores o materias
+- Son situaciones que afectan personalmente a cada usuario de forma individual
+
+GUÍA PARA SELECCIONAR DEPARTAMENTOS (solo si es válido):
+- Para quejas sobre docentes, horarios o materias de una carrera específica → usa la DIVISIÓN de esa carrera.
+- Para quejas sobre materias de tronco común (Cálculo, Física, Química) → usa "Departamento de Ciencias Básicas" (ID: 19).
+- Para quejas sobre tutores → usa "Departamento de Desarrollo Académico" (ID: 18).
+- Para quejas sobre inscripciones, kardex, títulos → usa "Departamento de Control Escolar" (ID: 25).
+- Para quejas sobre pagos o caja → usa "Departamento de Recursos Financieros" (ID: 22).
+- Para quejas sobre limpieza, baños, vigilancia, aire acondicionado → usa "Departamento de Servicios Generales" (ID: 26).
+- Para quejas sobre mobiliario o insumos → usa "Departamento de Recursos Materiales y Servicios" (ID: 24).
+- Para quejas sobre residencias profesionales o servicio social → usa "Departamento Residencias Profesionales y Servicio Social" (ID: 28).
+- Para quejas sobre personal administrativo → usa "Departamento de Personal" (ID: 20).
+- Para quejas sobre discriminación, acoso o calidad → usa "Departamento de Certificaciones" (ID: 2).
+- Solo escala a Direcciones/Subdirecciones si la queja es MUY grave o no fue atendida previamente.
+
+INFORMACIÓN QUE DEBE INCLUIR EL RESUMEN (solo si es válido):
+- SIEMPRE menciona QUIÉN envió el reporte (nombre de la persona o "una persona de forma anónima" si es anónimo).
+- SIEMPRE menciona HACE CUÁNTO TIEMPO se envió (ejemplo: "hace 5 días", "ayer", "hoy").
+- SIEMPRE menciona el ESTADO ACTUAL del reporte de forma clara.
+- Si hay comentarios de seguimiento, incluye las acciones tomadas.
+- Si el reporte está retrasado o fuera de plazo, menciónalo claramente.
+
+ESTILO DE REDACCIÓN DEL RESUMEN:
+- Usa lenguaje SENCILLO y CLARO, evita términos técnicos.
+- Escribe de forma que cualquier persona pueda entender fácilmente.
+- Redacta en tercera persona y tono formal pero accesible.
+- El resumen debe ser de 80-150 palabras.
 
 $categories_text
 
 $departments_text
 
-Formato de salida:
-Responde EXCLUSIVAMENTE en JSON válido (sin texto adicional ni bloques Markdown) con la siguiente estructura:
+FORMATO DE SALIDA JSON:
 {
+  "accion": "procesar|invalido|duplicado",
+  "duplicado_de": ID_DEL_REPORTE_ORIGINAL_O_NULL,
+  "motivo_cierre": "Razón si es inválido/duplicado, null si es válido",
   "tipo": "queja|sugerencia|felicitacion",
   "categoria_id": ID_NUMERICO_DE_LA_CATEGORIA,
   "lista_departamentos": [
     {
       "id": ID_NUMERICO_DEL_DEPARTAMENTO,
       "nombre": "Nombre exacto del departamento",
-      "motivo": "Explicación breve en español"
+      "motivo": "Explicación breve de por qué este departamento"
     }
   ],
-  "resumen": "Texto del resumen COMPLETO en español, incluyendo información del reporte inicial Y todos los comentarios de seguimiento"
+  "resumen": "Texto del resumen COMPLETO"
 }
 
-Asegúrate de que:
-- El campo "tipo" sea exactamente "queja", "sugerencia" o "felicitacion".
-- El campo "categoria_id" contenga el ID numérico exacto de una categoría disponible (no el nombre, el ID).
-- El campo "lista_departamentos" SIEMPRE contenga al menos un departamento (mínimo 1, máximo 3 elementos) con sus IDs numéricos exactos.
-- Los campos "id" en lista_departamentos deben ser números enteros, no strings.
-- NUNCA devuelvas un arreglo vacío en "lista_departamentos". Siempre sugiere al menos un departamento.
-- NUNCA devuelvas nombres en lugar de IDs. Usa SOLO los IDs proporcionados.
-- El "resumen" debe ser COMPREHENSIVO e incluir información de TODOS los comentarios disponibles, no solo del reporte inicial.
+REGLAS IMPORTANTES:
+- Si accion = "invalido" o "duplicado": motivo_cierre es OBLIGATORIO, los demás campos pueden estar vacíos.
+- Si accion = "procesar": tipo, categoria_id, lista_departamentos y resumen son OBLIGATORIOS.
+- El campo "tipo" debe ser exactamente "queja", "sugerencia" o "felicitacion".
+- lista_departamentos SIEMPRE debe tener al menos 1 departamento (máximo 3) si accion = "procesar".
+- Usa SOLO IDs numéricos de las listas proporcionadas.
+- Si detectas que es duplicado, indica en "duplicado_de" el ID del reporte original.
 TXT;
 
 // Debug: Log the context being sent to Gemini (temporary - remove after verification)
