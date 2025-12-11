@@ -9,12 +9,41 @@ ob_start();
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
 
+// Set up error handler to return JSON on any PHP error
+set_error_handler(function($severity, $message, $file, $line) {
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+
+// Set up shutdown handler to catch fatal errors
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error !== null && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        // Clean any previous output
+        if (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+        header('Content-Type: application/json');
+        echo json_encode([
+            'success' => false, 
+            'error' => 'Error del servidor: ' . $error['message'],
+            'debug' => [
+                'file' => $error['file'],
+                'line' => $error['line']
+            ]
+        ]);
+    }
+});
+
 require_once 'config.php';
 require_once 'services/gemini_service.php';
 
 ob_end_clean();
 
+// Start new output buffer for safety
+ob_start();
+
 header('Content-Type: application/json');
+
 
 // Verificar autenticación y permisos (solo admins)
 if (!isLoggedIn() || !isAdmin()) {
