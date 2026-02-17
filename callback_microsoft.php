@@ -7,16 +7,14 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // Validar estado para prevenir CSRF
-// Validar estado para prevenir CSRF
-// Nota: Si hay problemas con la sesión (ej. cookies, diferentes dominios), esto puede fallar.
-// Se recomienda habilitar esto en producción con una configuración de sesión robusta.
 if (empty($_GET['state'])) {
     die('Error de seguridad: No se recibió el estado.');
 }
-// if (empty($_SESSION['oauth_state']) || ($_GET['state'] !== $_SESSION['oauth_state'])) {
-//     unset($_SESSION['oauth_state']);
-//     die('Error de seguridad: Estado inválido. Por favor, intenta de nuevo.');
-// }
+if (empty($_SESSION['oauth_state']) || ($_GET['state'] !== $_SESSION['oauth_state'])) {
+    unset($_SESSION['oauth_state']);
+    die('Error de seguridad: Estado inválido. Por favor, intenta de nuevo. <a href="login.php">Volver al login</a>');
+}
+unset($_SESSION['oauth_state']); // Limpiar el state después de validar
 
 // Validar si se recibió el código
 if (empty($_GET['code'])) {
@@ -40,7 +38,14 @@ curl_setopt($ch, CURLOPT_URL, $token_url);
 curl_setopt($ch, CURLOPT_POST, 1);
 curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($token_data));
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+curl_setopt($ch, CURLOPT_TIMEOUT, 30);
 $response = curl_exec($ch);
+if (curl_errno($ch)) {
+    $curl_error = curl_error($ch);
+    curl_close($ch);
+    die('Error de conexión al obtener token: ' . htmlspecialchars($curl_error));
+}
 $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 curl_close($ch);
 
@@ -62,7 +67,14 @@ curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'Content-Type: application/json'
 ]);
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+curl_setopt($ch, CURLOPT_TIMEOUT, 30);
 $response = curl_exec($ch);
+if (curl_errno($ch)) {
+    $curl_error = curl_error($ch);
+    curl_close($ch);
+    die('Error de conexión al obtener perfil: ' . htmlspecialchars($curl_error));
+}
 curl_close($ch);
 
 $user_profile = json_decode($response, true);
@@ -83,7 +95,8 @@ curl_setopt($ch_photo, CURLOPT_HTTPHEADER, [
     'Authorization: Bearer ' . $access_token
 ]);
 curl_setopt($ch_photo, CURLOPT_RETURNTRANSFER, true);
-curl_setopt($ch_photo, CURLOPT_BINARYTRANSFER, true);
+curl_setopt($ch_photo, CURLOPT_SSL_VERIFYPEER, true);
+curl_setopt($ch_photo, CURLOPT_TIMEOUT, 15);
 $photo_data = curl_exec($ch_photo);
 $http_code = curl_getinfo($ch_photo, CURLINFO_HTTP_CODE);
 curl_close($ch_photo);

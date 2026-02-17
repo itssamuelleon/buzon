@@ -89,9 +89,9 @@ include 'components/header.php';
                             </div>
                         </div>
                         <h1 class="text-3xl md:text-4xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
-                            Bienvenido de Nuevo
+                            Bienvenido
                         </h1>
-                        <p class="text-slate-600 text-lg">Inicia sesión para continuar</p>
+                        <p class="text-slate-600 text-lg">Ingresa al Buzón Digital</p>
                     </div>
 
                     <!-- Error Message -->
@@ -111,116 +111,122 @@ include 'components/header.php';
                     </div>
                     <?php endif; ?>
 
-                    <!-- Login Form -->
-                    <form method="POST" action="login.php" class="space-y-6" x-data="{ email: '', password: '', showPassword: false }">
+                    <div x-data="{ showManualLogin: <?php echo $error ? 'true' : 'false'; ?>, email: '', password: '', showPassword: false }">
                         
-                        <!-- Email Input -->
-                        <div>
-                            <label for="email" class="block text-sm font-semibold text-slate-700 mb-2">
-                                Correo Electrónico
-                            </label>
-                            <div class="relative group">
-                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                    <svg class="h-5 w-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                                    </svg>
-                                </div>
-                                <input 
-                                    type="email" 
-                                    id="email" 
-                                    name="email" 
-                                    required
-                                    x-model="email"
-                                    placeholder="tucorreo@ejemplo.com"
-                                    class="block w-full pl-12 pr-4 py-3.5 text-slate-900 bg-white border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 placeholder:text-slate-400">
-                            </div>
+                        <!-- Microsoft Login Button (Primary) -->
+                        <div class="mb-8">
+                            <a href="login_microsoft.php" 
+                               class="w-full flex justify-center items-center py-4 px-6 border border-transparent rounded-xl shadow-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-lg font-bold hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-4 focus:ring-blue-500/50 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]">
+                                <svg class="h-6 w-6 mr-3" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+                                    <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
+                                    <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
+                                    <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
+                                    <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
+                                </svg>
+                                <span>Ingresar con Cuenta Institucional</span>
+                            </a>
+                            <p class="text-center text-sm text-slate-500 mt-3">
+                                Acceso unificado para estudiantes y personal del ITSCC
+                            </p>
                         </div>
 
-                        <!-- Password Input -->
-                        <div>
-                            <label for="password" class="block text-sm font-semibold text-slate-700 mb-2">
-                                Contraseña
-                            </label>
-                            <div class="relative group">
-                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                    <svg class="h-5 w-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-                                    </svg>
-                                </div>
-                                <input 
-                                    :type="showPassword ? 'text' : 'password'"
-                                    id="password" 
-                                    name="password" 
-                                    required
-                                    x-model="password"
-                                    placeholder="••••••••"
-                                    class="block w-full pl-12 pr-12 py-3.5 text-slate-900 bg-white border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 placeholder:text-slate-400">
-                                <button 
-                                    type="button"
-                                    @click="showPassword = !showPassword"
-                                    class="absolute inset-y-0 right-0 pr-4 flex items-center">
-                                    <svg x-show="!showPassword" class="h-5 w-5 text-slate-400 hover:text-slate-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                                    </svg>
-                                    <svg x-show="showPassword" class="h-5 w-5 text-slate-400 hover:text-slate-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
-                                    </svg>
-                                </button>
-                            </div>
-                            <div class="flex justify-end mt-2">
-                                <a href="forgot_password.php" class="text-sm font-medium text-blue-600 hover:text-indigo-600 transition-colors">
-                                    ¿Olvidaste tu contraseña?
-                                </a>
-                            </div>
-                        </div>
-
-                        <!-- Submit Button -->
-                        <button 
-                            type="submit"
-                            class="group relative w-full flex justify-center items-center py-4 px-6 border border-transparent rounded-xl text-lg font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-4 focus:ring-blue-500/50 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl">
-                            <svg class="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
-                            </svg>
-                            Iniciar Sesión
-                            <svg class="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
-                            </svg>
-                        </button>
-
-                        <!-- Divider - COMENTADO: Opción de Microsoft deshabilitada temporalmente
+                        <!-- Divider / Toggle -->
                         <div class="relative my-6">
                             <div class="absolute inset-0 flex items-center">
                                 <div class="w-full border-t border-gray-200"></div>
                             </div>
                             <div class="relative flex justify-center text-sm">
-                                <span class="px-2 bg-white text-gray-500">O continúa con</span>
+                                <button @click="showManualLogin = !showManualLogin" 
+                                        class="px-4 py-1 bg-white text-slate-500 hover:text-blue-600 font-medium transition-colors focus:outline-none">
+                                    <span x-text="showManualLogin ? 'Ocultar acceso manual' : 'Usar credenciales manuales'"></span>
+                                </button>
                             </div>
                         </div>
-                        -->
 
-                        <!-- Microsoft Login Button - COMENTADO: Opción de Microsoft deshabilitada temporalmente
-                        <a href="login_microsoft.php" 
-                           class="w-full flex justify-center items-center py-3 px-4 border border-gray-300 rounded-xl shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200 transform hover:scale-[1.02] active:scale-[0.98]">
-                            <svg class="h-5 w-5 mr-2" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
-                                <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
-                                <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
-                                <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
-                                <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
-                            </svg>
-                            <span>Correo Institucional (Microsoft)</span>
-                        </a>
-                        -->
-                    </form>
+                        <!-- Manual Login Form (Hidden by default) -->
+                        <div x-show="showManualLogin" 
+                             x-transition:enter="transition ease-out duration-300"
+                             x-transition:enter-start="opacity-0 transform -translate-y-4"
+                             x-transition:enter-end="opacity-100 transform translate-y-0"
+                             x-cloak>
+                            
+                            <form method="POST" action="login.php" class="space-y-6">
+                                
+                                <!-- Email Input -->
+                                <div>
+                                    <label for="email" class="block text-sm font-semibold text-slate-700 mb-2">
+                                        Correo Electrónico
+                                    </label>
+                                    <div class="relative group">
+                                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                            <svg class="h-5 w-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                            </svg>
+                                        </div>
+                                        <input 
+                                            type="email" 
+                                            id="email" 
+                                            name="email" 
+                                            required
+                                            x-model="email"
+                                            placeholder="tucorreo@ejemplo.com"
+                                            class="block w-full pl-12 pr-4 py-3.5 text-slate-900 bg-white border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 placeholder:text-slate-400">
+                                    </div>
+                                </div>
 
-                    <!-- Register Link -->
-                    <div class="mt-8 text-center">
-                        <p class="text-slate-600">
-                            ¿No tienes una cuenta?
-                            <a href="register.php" class="font-bold text-blue-600 hover:text-indigo-600 transition-colors ml-1">
-                                Regístrate aquí
-                            </a>
-                        </p>
+                                <!-- Password Input -->
+                                <div>
+                                    <label for="password" class="block text-sm font-semibold text-slate-700 mb-2">
+                                        Contraseña
+                                    </label>
+                                    <div class="relative group">
+                                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                            <svg class="h-5 w-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                                            </svg>
+                                        </div>
+                                        <input 
+                                            :type="showPassword ? 'text' : 'password'"
+                                            id="password" 
+                                            name="password" 
+                                            required
+                                            x-model="password"
+                                            placeholder="••••••••"
+                                            class="block w-full pl-12 pr-12 py-3.5 text-slate-900 bg-white border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 placeholder:text-slate-400">
+                                        <button 
+                                            type="button"
+                                            @click="showPassword = !showPassword"
+                                            class="absolute inset-y-0 right-0 pr-4 flex items-center">
+                                            <svg x-show="!showPassword" class="h-5 w-5 text-slate-400 hover:text-slate-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                            </svg>
+                                            <svg x-show="showPassword" class="h-5 w-5 text-slate-400 hover:text-slate-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    <div class="flex justify-end mt-2 hidden">
+                                        <a href="forgot_password.php" class="text-sm font-medium text-blue-600 hover:text-indigo-600 transition-colors">
+                                            ¿Olvidaste tu contraseña?
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <!-- Submit Button -->
+                                <button 
+                                    type="submit"
+                                    class="group relative w-full flex justify-center items-center py-4 px-6 border border-transparent rounded-xl text-lg font-bold text-white bg-slate-800 hover:bg-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-500/50 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl">
+                                    <svg class="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                                    </svg>
+                                    Iniciar Sesión
+                                    <svg class="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                                    </svg>
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </div>
