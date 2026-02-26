@@ -9,6 +9,9 @@ define('DB_USER', getenv('DB_USER') ?: 'root');
 define('DB_PASS', getenv('DB_PASS') ?: '1234567890');
 define('DB_NAME', getenv('DB_NAME') ?: 'buzon_quejas');
 
+// URL base de la aplicación (para links en correos, etc.)
+define('APP_URL', getenv('APP_URL') ?: 'https://cdconstitucion.tecnm.mx/buzon');
+
 $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
 
 if ($conn->connect_error) {

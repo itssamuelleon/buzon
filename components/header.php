@@ -357,7 +357,7 @@ if (!function_exists('isAdmin')) {
                                                 </span>
                                             </div>
                                         <?php endif; ?>
-                                        <span class="font-medium"><?php echo htmlspecialchars($_SESSION['name']); ?></span>
+                                        <span class="font-medium"><?php echo htmlspecialchars(mb_strlen($_SESSION['name']) > 20 ? mb_substr($_SESSION['name'], 0, 20) . '...' : $_SESSION['name']); ?></span>
                                         <i class="ph-caret-down text-sm transition-transform icon-animated" :class="{'rotate-180': userDropdownOpen}"></i>
                                     </button>
                                     
@@ -452,7 +452,7 @@ if (!function_exists('isAdmin')) {
                                             </div>
                                         <?php endif; ?>
                                         <div class="ml-4 flex-1 min-w-0">
-                                            <div class="text-white text-sm font-semibold"><?php echo htmlspecialchars($_SESSION['name']); ?></div>
+                                            <div class="text-white text-sm font-semibold truncate"><?php echo htmlspecialchars(mb_strlen($_SESSION['name']) > 20 ? mb_substr($_SESSION['name'], 0, 20) . '...' : $_SESSION['name']); ?></div>
                                             <div class="text-white/70 text-xs truncate"><?php echo htmlspecialchars($_SESSION['email']); ?></div>
                                         </div>
                                     </div>

@@ -205,7 +205,37 @@ Buzón de Quejas, Sugerencias y Felicitaciones
         $mail->send();
         return true;
     } catch (Exception $e) {
-        error_log("Error al enviar correo de verificación: {$mail->ErrorInfo}");
+        $error_info = $mail->ErrorInfo;
+        error_log("Error al enviar correo de verificación: {$error_info}");
+        
+        // Traducir error SMTP si la función existe
+        if (function_exists('translateSmtpError')) {
+            $friendly_error = translateSmtpError($error_info);
+        } else {
+            // Detección básica del límite diario
+            if (stripos($error_info, 'daily user sending limit exceeded') !== false || stripos($error_info, 'daily sending quota exceeded') !== false) {
+                $friendly_error = 'Se alcanzó el límite diario de envío de correos de Gmail (500/día). Intenta de nuevo más tarde.';
+            } else {
+                $friendly_error = $error_info;
+            }
+        }
+        
+        // Registrar el fallo en la cola de emails para que aparezca en el dashboard
+        if (isset($conn)) {
+            $type_label = ($type === 'password_reset') ? 'Verificación (recuperar contraseña)' : 'Verificación (registro)';
+            $full_error = $type_label . ': ' . $friendly_error;
+            $stmt_fail = $conn->prepare("INSERT INTO email_queue (complaint_id, department_id, status, attempts, max_attempts, error_message) VALUES (0, 0, 'failed', 1, 1, ?)");
+            if ($stmt_fail) {
+                $stmt_fail->bind_param("s", $full_error);
+                $stmt_fail->execute();
+            }
+        }
+        
+        // Guardar el error amigable en sesión para mostrarlo en la página
+        if (isset($_SESSION)) {
+            $_SESSION['email_error_detail'] = $friendly_error;
+        }
+        
         return false;
     }
 }

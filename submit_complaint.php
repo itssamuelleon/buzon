@@ -4,7 +4,7 @@ require_once 'config.php';
 
 // Redirect if not logged in
 if (!isLoggedIn()) {
-    header('Location: login.php');
+    header('Location: login.php?redirect=' . urlencode('submit_complaint.php'));
     exit;
 }
 
@@ -128,8 +128,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $complaint_query->execute();
                     $complaint_data = $complaint_query->get_result()->fetch_assoc();
                     
-                    // Enviar notificación
-                    sendDepartmentNotification($buzon_dept, $complaint_data);
+                    // Enviar notificación (indicando que es un reporte nuevo)
+                    $email_result = sendDepartmentNotification($buzon_dept, $complaint_data, true);
+                    if (!$email_result['success']) {
+                        $_SESSION['warning_message'] = $email_result['message'];
+                        
+                        // Registrar el fallo en la cola para que aparezca en el dashboard
+                        $stmt_fail = $conn->prepare("INSERT INTO email_queue (complaint_id, department_id, status, attempts, max_attempts, error_message) VALUES (?, ?, 'failed', 1, 1, ?)");
+                        $error_msg = $email_result['message'];
+                        $stmt_fail->bind_param("iis", $complaint_id, $buzon_dept['id'], $error_msg);
+                        $stmt_fail->execute();
+                    }
                 }
             }
             
@@ -153,11 +162,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Recuperar mensajes de sesión
 $success = isset($_SESSION['success_message']) ? $_SESSION['success_message'] : '';
 $error = isset($_SESSION['error_message']) ? $_SESSION['error_message'] : '';
+$warning = isset($_SESSION['warning_message']) ? $_SESSION['warning_message'] : '';
 $submitted = isset($_GET['submitted']) && $_GET['submitted'] == '1';
 
 // Limpiar mensajes de sesión
 unset($_SESSION['success_message']);
 unset($_SESSION['error_message']);
+unset($_SESSION['warning_message']);
 
 // Fetch categories for the form
 $categories_query = $conn->query("SELECT id, name, description FROM categories ORDER BY name");
@@ -221,6 +232,16 @@ include 'components/header.php';
                             <div>
                                 <p class="font-bold text-red-800">Error</p>
                                 <p class="text-red-700"><?php echo htmlspecialchars($error); ?></p>
+                            </div>
+                        </div>
+                    <?php endif; ?>
+
+                    <?php if ($warning): ?>
+                        <div class="bg-amber-50 border-l-4 border-amber-500 p-5 mb-8 rounded-r-xl flex items-start animate-fade-in-up" role="alert">
+                            <i class="ph-fill ph-warning text-amber-500 text-2xl mr-3 flex-shrink-0"></i>
+                            <div>
+                                <p class="font-bold text-amber-800">Advertencia</p>
+                                <p class="text-amber-700"><?php echo htmlspecialchars($warning); ?></p>
                             </div>
                         </div>
                     <?php endif; ?>

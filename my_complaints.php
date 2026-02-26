@@ -4,7 +4,7 @@ include 'components/header.php';
 require_once 'status_helper.php'; 
 
 if (!isLoggedIn()) {
-    header('Location: login.php');
+    header('Location: login.php?redirect=' . urlencode('my_complaints.php'));
     exit;
 }
 

@@ -8,7 +8,7 @@ if (!isLoggedIn()) {
         echo json_encode(['error' => 'No autorizado']);
         exit;
     }
-    header('Location: login.php');
+    header('Location: login.php?redirect=' . urlencode('profile.php'));
     exit;
 }
 

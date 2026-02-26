@@ -4,7 +4,7 @@ require_once 'config.php';
 
 // Redirect if not logged in (must be before header.php sends any output)
 if (!isLoggedIn()) {
-    header('Location: login.php');
+    header('Location: login.php?redirect=' . urlencode('dashboard.php'));
     exit;
 }
 
@@ -115,7 +115,8 @@ require_once 'status_helper.php';
     }
     
     // Get quick statistics (Admins and Managers)
-    $stats = ['total' => 0, 'unattended' => 0, 'attended' => 0, 'unassigned' => 0];
+    $stats = ['total' => 0, 'unattended' => 0, 'attended' => 0, 'unassigned' => 0,
+              'unattended_ontime' => 0, 'unattended_late' => 0, 'attended_ontime' => 0, 'attended_late' => 0];
     if (function_exists('isAdmin') && (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager'))) {
         // If user is a manager AND dashboard is restricted, filter stats by their departments
         $is_manager = !isAdmin() && isset($_SESSION['role']) && $_SESSION['role'] === 'manager';
@@ -149,7 +150,11 @@ require_once 'status_helper.php';
             COUNT(*) as total,
             SUM(CASE WHEN status IN ('unattended_ontime', 'unattended_late') THEN 1 ELSE 0 END) as unattended,
             SUM(CASE WHEN status IN ('attended_ontime', 'attended_late') THEN 1 ELSE 0 END) as attended,
-            SUM(CASE WHEN NOT EXISTS (SELECT 1 FROM complaint_departments cd WHERE cd.complaint_id = c.id) THEN 1 ELSE 0 END) as unassigned
+            SUM(CASE WHEN NOT EXISTS (SELECT 1 FROM complaint_departments cd WHERE cd.complaint_id = c.id) THEN 1 ELSE 0 END) as unassigned,
+            SUM(CASE WHEN status = 'unattended_ontime' THEN 1 ELSE 0 END) as unattended_ontime,
+            SUM(CASE WHEN status = 'unattended_late' THEN 1 ELSE 0 END) as unattended_late,
+            SUM(CASE WHEN status = 'attended_ontime' THEN 1 ELSE 0 END) as attended_ontime,
+            SUM(CASE WHEN status = 'attended_late' THEN 1 ELSE 0 END) as attended_late
         FROM complaints c" . $stats_dept_filter;
         $stats_result = $conn->query($stats_query);
         if ($stats_result) {
@@ -239,9 +244,32 @@ require_once 'status_helper.php';
     // Get categories and departments for filter
     $cat_result = $conn->query("SELECT * FROM categories ORDER BY name");
     $dept_result = $conn->query("SELECT * FROM departments ORDER BY name");
+    
+    // Verificar si hay correos fallidos en la cola (solo admins)
+    $failed_emails_count = 0;
+    $failed_emails_error = '';
+    if (isAdmin()) {
+        $failed_q = $conn->query("SELECT COUNT(*) as cnt, MAX(error_message) as last_error FROM email_queue WHERE status = 'failed'");
+        if ($failed_q) {
+            $failed_row = $failed_q->fetch_assoc();
+            $failed_emails_count = intval($failed_row['cnt']);
+            $failed_emails_error = $failed_row['last_error'] ?? '';
+        }
+    }
     ?>
 
     <main class="container mx-auto px-4 py-6">
+        <?php if (isAdmin() && $failed_emails_count > 0): ?>
+        <div class="mb-4 bg-amber-50 border border-amber-300 text-amber-800 px-5 py-3 rounded-lg flex items-center gap-3 shadow-sm">
+            <i class="ph-warning text-xl text-amber-500 flex-shrink-0"></i>
+            <div class="flex-1">
+                <span class="font-semibold"><?php echo $failed_emails_count; ?> correo(s) no se pudieron enviar.</span>
+                <?php if ($failed_emails_error): ?>
+                    <span class="text-amber-700 text-sm ml-1"><?php echo htmlspecialchars($failed_emails_error); ?></span>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endif; ?>
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div class="flex items-center gap-3">
                 <h1 class="text-2xl font-bold text-gray-800">Dashboard</h1>
@@ -258,7 +286,7 @@ require_once 'status_helper.php';
             
             <!-- Quick Stats (Admins and Managers) -->
             <?php if (function_exists('isAdmin') && (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager'))): ?>
-            <div class="flex items-center gap-2 bg-white rounded-lg shadow-sm border border-gray-200 p-1.5">
+            <div class="flex items-center gap-2 bg-white rounded-lg shadow-sm border border-gray-200 p-1.5 flex-wrap">
                 <div class="flex items-center gap-3 px-3 border-r border-gray-200">
                     <div class="flex flex-col">
                         <span class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">Total</span>
@@ -267,14 +295,26 @@ require_once 'status_helper.php';
                 </div>
                 <div class="flex items-center gap-3 px-3 border-r border-gray-200">
                     <div class="flex flex-col">
-                        <span class="text-[10px] uppercase tracking-wider text-green-600 font-semibold">Atendidos</span>
-                        <span class="text-lg font-bold text-green-600 leading-none"><?php echo $stats['attended']; ?></span>
+                        <span class="text-[10px] uppercase tracking-wider text-green-600 font-semibold">Atendido (a tiempo)</span>
+                        <span class="text-lg font-bold text-green-600 leading-none"><?php echo intval($stats['attended_ontime']); ?></span>
                     </div>
                 </div>
                 <div class="flex items-center gap-3 px-3 border-r border-gray-200">
                     <div class="flex flex-col">
-                        <span class="text-[10px] uppercase tracking-wider text-orange-600 font-semibold">Sin Atender</span>
-                        <span class="text-lg font-bold text-orange-600 leading-none"><?php echo $stats['unattended']; ?></span>
+                        <span class="text-[10px] uppercase tracking-wider text-emerald-700 font-semibold">Atendido (a destiempo)</span>
+                        <span class="text-lg font-bold text-emerald-700 leading-none"><?php echo intval($stats['attended_late']); ?></span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 px-3 border-r border-gray-200">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] uppercase tracking-wider text-blue-600 font-semibold">Sin atender (a tiempo)</span>
+                        <span class="text-lg font-bold text-blue-600 leading-none"><?php echo intval($stats['unattended_ontime']); ?></span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 px-3 border-r border-gray-200">
+                    <div class="flex flex-col">
+                        <span class="text-[10px] uppercase tracking-wider text-orange-600 font-semibold">Sin atender (retrasado)</span>
+                        <span class="text-lg font-bold text-orange-600 leading-none"><?php echo intval($stats['unattended_late']); ?></span>
                     </div>
                 </div>
                 <?php 

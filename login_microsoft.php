@@ -8,6 +8,11 @@ if (session_status() === PHP_SESSION_NONE) {
 // Generar estado aleatorio para seguridad CSRF
 $_SESSION['oauth_state'] = bin2hex(random_bytes(16));
 
+// Guardar URL de redirección si existe (para volver después del login)
+if (isset($_GET['redirect']) && preg_match('/^[a-zA-Z0-9_\-\/\.\?\=\&\%]+$/', $_GET['redirect'])) {
+    $_SESSION['login_redirect'] = $_GET['redirect'];
+}
+
 // Parámetros de autorización
 $params = [
     'client_id' => MS_CLIENT_ID,

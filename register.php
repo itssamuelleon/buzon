@@ -80,7 +80,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SESSION['pending_verification_email'] = $email;
                         $success = 'Se ha enviado un código de verificación a tu correo electrónico. Por favor, revisa tu bandeja de entrada.';
                     } else {
-                        $error = 'No se pudo enviar el correo de verificación. Por favor, intenta de nuevo.';
+                        $detail = isset($_SESSION['email_error_detail']) ? $_SESSION['email_error_detail'] : '';
+                        unset($_SESSION['email_error_detail']);
+                        $error = 'No se pudo enviar el correo de verificación.' . ($detail ? ' ' . $detail : ' Por favor, intenta de nuevo.');
                     }
                 } else {
                     $error = 'Ocurrió un error al procesar tu solicitud. Por favor, intenta de nuevo.';

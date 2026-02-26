@@ -161,8 +161,8 @@ foreach ($suggestions as $suggestion) {
                         $stmt_insert->execute();
                         $stmt_insert->close();
                         
-                        // Obtener datos del departamento
-                        $stmt_dept = $conn->prepare("SELECT id, name, manager, email FROM departments WHERE id = ?");
+                        // Obtener nombre del departamento
+                        $stmt_dept = $conn->prepare("SELECT name FROM departments WHERE id = ?");
                         $stmt_dept->bind_param("i", $dept_id);
                         $stmt_dept->execute();
                         $department = $stmt_dept->get_result()->fetch_assoc();
@@ -170,26 +170,21 @@ foreach ($suggestions as $suggestion) {
                         
                         if ($department) {
                             $departments_assigned[] = $department['name'];
-                            
-                            // Enviar notificación por correo
-                            if (!empty($department['email'])) {
-                                $stmt_cat_name = $conn->prepare("SELECT name FROM categories WHERE id = ?");
-                                $cat_id_for_email = $categoria_id ?? $complaint['category_id'];
-                                $stmt_cat_name->bind_param("i", $cat_id_for_email);
-                                $stmt_cat_name->execute();
-                                $cat_result = $stmt_cat_name->get_result()->fetch_assoc();
-                                $stmt_cat_name->close();
-                                
-                                $complaint_for_email = [
-                                    'id' => $complaint_id,
-                                    'folio' => $complaint['folio'] ?? str_pad($complaint_id, 6, '0', STR_PAD_LEFT),
-                                    'description' => $complaint['description'],
-                                    'category_name' => $cat_result['name'] ?? 'Sin categoría',
-                                    'created_at' => $complaint['created_at']
-                                ];
-                                
-                                sendDepartmentNotification($department, $complaint_for_email);
-                            }
+                        }
+                        
+                        // Verificar que no exista ya en la cola para evitar duplicados
+                        $stmt_queue_check = $conn->prepare("SELECT 1 FROM email_queue WHERE complaint_id = ? AND department_id = ? AND status IN ('pending', 'sent')");
+                        $stmt_queue_check->bind_param("ii", $complaint_id, $dept_id);
+                        $stmt_queue_check->execute();
+                        $queue_exists = $stmt_queue_check->get_result()->num_rows > 0;
+                        $stmt_queue_check->close();
+                        
+                        if (!$queue_exists) {
+                            // Agregar a la cola en vez de enviar directamente
+                            $stmt_queue = $conn->prepare("INSERT INTO email_queue (complaint_id, department_id, status) VALUES (?, ?, 'pending')");
+                            $stmt_queue->bind_param("ii", $complaint_id, $dept_id);
+                            $stmt_queue->execute();
+                            $stmt_queue->close();
                         }
                     }
                 }
@@ -215,6 +210,20 @@ foreach ($suggestions as $suggestion) {
         ];
         $error_count++;
     }
+}
+
+// Disparar procesamiento de cola de emails en segundo plano
+if ($success_count > 0 && function_exists('curl_init')) {
+    $process_url = 'http://localhost' . dirname($_SERVER['PHP_SELF']) . '/process_email_queue.php';
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+        CURLOPT_URL => $process_url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT_MS => 100,
+        CURLOPT_CONNECTTIMEOUT_MS => 100,
+    ]);
+    curl_exec($ch);
+    curl_close($ch);
 }
 
 echo json_encode([

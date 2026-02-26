@@ -7,7 +7,8 @@ require_once 'services/gemini_service.php';
 
 // Verificar autenticación
 if (!isLoggedIn()) {
-    header('Location: login.php');
+    $current_page = 'view_complaint.php?' . $_SERVER['QUERY_STRING'];
+    header('Location: login.php?redirect=' . urlencode($current_page));
     exit;
 }
 
@@ -160,6 +161,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_comment'])) {
             }
 
             $conn->commit();
+            
+            // Enviar notificación por correo al autor del reporte
+            // Solo si quien comenta NO es el propio autor
+            if ($_SESSION['user_id'] != $complaint['user_id']) {
+                try {
+                    require_once 'send_email.php';
+                    $commenter_name = $_SESSION['name'] ?? 'Usuario';
+                    $commenter_role = $_SESSION['role'] ?? 'student';
+                    $notification_result = sendCommentNotification(
+                        $complaint,
+                        $commenter_name,
+                        $comment_text,
+                        $commenter_role
+                    );
+                    if ($notification_result['success']) {
+                        error_log("Notificación de comentario enviada para reporte #" . $complaint_id);
+                    } else {
+                        error_log("Error al enviar notificación de comentario: " . $notification_result['message']);
+                        $_SESSION['warning_message'] = $notification_result['message'];
+                        
+                        // Registrar el fallo en la cola para que aparezca en el dashboard
+                        $stmt_fail = $conn->prepare("INSERT INTO email_queue (complaint_id, department_id, status, attempts, max_attempts, error_message) VALUES (?, 0, 'failed', 1, 1, ?)");
+                        $error_msg = $notification_result['message'];
+                        $stmt_fail->bind_param("is", $complaint_id, $error_msg);
+                        $stmt_fail->execute();
+                    }
+                } catch (Exception $email_error) {
+                    // No bloquear la operación si falla el correo
+                    error_log("Excepción al enviar notificación de comentario: " . $email_error->getMessage());
+                    $email_err_msg = translateSmtpError($email_error->getMessage());
+                    $_SESSION['warning_message'] = $email_err_msg;
+                    
+                    // Registrar el fallo en la cola
+                    $stmt_fail = $conn->prepare("INSERT INTO email_queue (complaint_id, department_id, status, attempts, max_attempts, error_message) VALUES (?, 0, 'failed', 1, 1, ?)");
+                    $stmt_fail->bind_param("is", $complaint_id, $email_err_msg);
+                    $stmt_fail->execute();
+                }
+            }
+            
             $_SESSION['success_message'] = 'Respuesta agregada exitosamente.';
             header("Location: view_complaint.php?id=" . $complaint_id);
             exit;
@@ -238,12 +278,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isAdmin() || canCloseReport())) {
         
         $conn->begin_transaction();
         try {
+            // Obtener departamentos actualmente asignados
+            $stmt_current = $conn->prepare("SELECT department_id FROM complaint_departments WHERE complaint_id = ?");
+            $stmt_current->bind_param("i", $complaint_id);
+            $stmt_current->execute();
+            $current_result = $stmt_current->get_result();
+            $current_dept_ids = [];
+            while ($row = $current_result->fetch_assoc()) {
+                $current_dept_ids[] = intval($row['department_id']);
+            }
+            
+            // Determinar departamentos NUEVOS (los que no estaban asignados antes)
+            $new_dept_ids = [];
+            foreach ($selected_departments as $dept_id) {
+                if (is_numeric($dept_id) && !in_array(intval($dept_id), $current_dept_ids)) {
+                    $new_dept_ids[] = intval($dept_id);
+                }
+            }
+            
             // Remove all current assignments
             $stmt = $conn->prepare("DELETE FROM complaint_departments WHERE complaint_id = ?");
             $stmt->bind_param("i", $complaint_id);
             $stmt->execute();
             
-            // Add new assignments and queue emails for background processing
+            // Add new assignments and queue emails ONLY for NEW departments
             $queued_count = 0;
             
             if (!empty($selected_departments)) {
@@ -258,10 +316,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isAdmin() || canCloseReport())) {
                         $stmt->bind_param("ii", $complaint_id, $dept_id);
                         $stmt->execute();
                         
-                        // Queue email for background processing
-                        $stmt_queue->bind_param("ii", $complaint_id, $dept_id);
-                        $stmt_queue->execute();
-                        $queued_count++;
+                        // Queue email ONLY for departments that are NEW and not already in queue
+                        if (in_array($dept_id, $new_dept_ids)) {
+                            // Verificar que no exista ya en la cola
+                            $stmt_queue_check = $conn->prepare("SELECT 1 FROM email_queue WHERE complaint_id = ? AND department_id = ? AND status IN ('pending', 'sent')");
+                            $stmt_queue_check->bind_param("ii", $complaint_id, $dept_id);
+                            $stmt_queue_check->execute();
+                            $queue_exists = $stmt_queue_check->get_result()->num_rows > 0;
+                            $stmt_queue_check->close();
+                            
+                            if (!$queue_exists) {
+                                $stmt_queue->bind_param("ii", $complaint_id, $dept_id);
+                                $stmt_queue->execute();
+                                $queued_count++;
+                            }
+                        }
                     }
                 }
             }
@@ -539,12 +608,14 @@ foreach ($comments as $key => $comment) {
 // Recuperar mensajes de sesión
 $success_message = isset($_SESSION['success_message']) ? $_SESSION['success_message'] : null;
 $error = isset($_SESSION['error_message']) ? $_SESSION['error_message'] : null;
+$warning = isset($_SESSION['warning_message']) ? $_SESSION['warning_message'] : null;
 $gemini_result_data = isset($_SESSION['gemini_result_data']) ? $_SESSION['gemini_result_data'] : null;
 $gemini_result_raw = isset($_SESSION['gemini_result_raw']) ? $_SESSION['gemini_result_raw'] : null;
 
 // Limpiar mensajes de sesión después de recuperarlos
 unset($_SESSION['success_message']);
 unset($_SESSION['error_message']);
+unset($_SESSION['warning_message']);
 unset($_SESSION['gemini_result_data']);
 unset($_SESSION['gemini_result_raw']);
 
@@ -1087,6 +1158,13 @@ include 'components/header.php';
                 <div class="mb-6 bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-lg flex items-center gap-3 shadow-md">
                     <i class="ph-warning-circle text-2xl"></i>
                     <span class="font-medium"><?php echo $error; ?></span>
+                </div>
+            <?php endif; ?>
+            
+            <?php if ($warning): ?>
+                <div class="mb-6 bg-amber-50 border border-amber-400 text-amber-800 px-6 py-4 rounded-lg flex items-center gap-3 shadow-md">
+                    <i class="ph-warning text-2xl text-amber-500"></i>
+                    <span class="font-medium"><?php echo htmlspecialchars($warning); ?></span>
                 </div>
             <?php endif; ?>
             

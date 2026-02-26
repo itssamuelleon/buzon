@@ -202,7 +202,12 @@ if ($result->num_rows > 0) {
     }
 }
 
-// Redireccionar al dashboard/inicio
-header('Location: index.php');
+// Redireccionar al destino original o al inicio
+$redirect_to = 'index.php';
+if (isset($_SESSION['login_redirect']) && !empty($_SESSION['login_redirect'])) {
+    $redirect_to = $_SESSION['login_redirect'];
+    unset($_SESSION['login_redirect']);
+}
+header('Location: ' . $redirect_to);
 exit;
 ?>

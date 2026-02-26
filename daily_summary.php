@@ -96,8 +96,8 @@ while ($row = $result_details->fetch_assoc()) {
     $details[] = $row;
 }
 
-// Definir URL del Dashboard y Base con IP fija
-$base_url = 'http://172.16.124.245';
+// Definir URL del Dashboard y Base desde la configuración
+$base_url = APP_URL;
 $dashboard_url = $base_url . '/dashboard.php';
 
 // 5. Construir el correo HTML
@@ -288,6 +288,15 @@ try {
     $mail->send();
     echo "Correo enviado exitosamente a $target_email\n";
 } catch (Exception $e) {
-    echo "Error al enviar el correo: {$mail->ErrorInfo}\n";
+    $error_info = $mail->ErrorInfo;
+    echo "Error al enviar el correo: {$error_info}\n";
+    
+    // Registrar el fallo en la cola de emails
+    $friendly_error = 'Resumen diario: ' . $error_info;
+    $stmt_fail = $conn->prepare("INSERT INTO email_queue (complaint_id, department_id, status, attempts, max_attempts, error_message) VALUES (0, 0, 'failed', 1, 1, ?)");
+    if ($stmt_fail) {
+        $stmt_fail->bind_param("s", $friendly_error);
+        $stmt_fail->execute();
+    }
 }
 ?>

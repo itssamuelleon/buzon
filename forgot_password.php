@@ -70,7 +70,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         unset($_SESSION['reset_verified']);
                         $success = 'Se ha enviado un código de recuperación a tu correo electrónico.';
                     } else {
-                        $error = 'No se pudo enviar el correo. Por favor, intenta de nuevo.';
+                        $detail = isset($_SESSION['email_error_detail']) ? $_SESSION['email_error_detail'] : '';
+                        unset($_SESSION['email_error_detail']);
+                        $error = 'No se pudo enviar el correo de recuperación.' . ($detail ? ' ' . $detail : ' Por favor, intenta de nuevo.');
                     }
                 } else {
                     $error = 'Ocurrió un error al procesar tu solicitud. Por favor, intenta de nuevo.';

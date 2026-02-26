@@ -3,9 +3,21 @@
 
 require_once 'config.php';
 
+// Capturar URL de redirección (para volver a la página original después del login)
+$redirect_url = '';
+if (isset($_GET['redirect'])) {
+    $redirect_url = $_GET['redirect'];
+} elseif (isset($_POST['redirect'])) {
+    $redirect_url = $_POST['redirect'];
+}
+// Validar que sea una URL interna (prevenir open redirect)
+if ($redirect_url && !preg_match('/^[a-zA-Z0-9_\-\/\.\?\=\&\%]+$/', $redirect_url)) {
+    $redirect_url = '';
+}
+
 // Redirect if already logged in
 if (isLoggedIn()) {
-    header('Location: index.php');
+    header('Location: ' . ($redirect_url ?: 'index.php'));
     exit;
 }
 
@@ -48,7 +60,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['name'] = $user['name'];
             $_SESSION['email'] = $user['email'];
             $_SESSION['role'] = $user['role'];
-            header('Location: index.php');
+            header('Location: ' . ($redirect_url ?: 'index.php'));
             exit;
         }
     }
@@ -115,7 +127,7 @@ include 'components/header.php';
                         
                         <!-- Microsoft Login Button (Primary) -->
                         <div class="mb-8">
-                            <a href="login_microsoft.php" 
+                            <a href="login_microsoft.php<?php echo $redirect_url ? '?redirect=' . urlencode($redirect_url) : ''; ?>" 
                                class="w-full flex justify-center items-center py-4 px-6 border border-transparent rounded-xl shadow-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-lg font-bold hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-4 focus:ring-blue-500/50 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]">
                                 <svg class="h-6 w-6 mr-3" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
                                     <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
@@ -150,7 +162,7 @@ include 'components/header.php';
                              x-transition:enter-end="opacity-100 transform translate-y-0"
                              x-cloak>
                             
-                            <form method="POST" action="login.php" class="space-y-6">
+                            <form method="POST" action="login.php<?php echo $redirect_url ? '?redirect=' . urlencode($redirect_url) : ''; ?>" class="space-y-6">
                                 
                                 <!-- Email Input -->
                                 <div>

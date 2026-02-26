@@ -22,13 +22,39 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
 /**
+ * Traduce errores SMTP a mensajes amigables en español
+ */
+function translateSmtpError($errorInfo) {
+    $error = strtolower($errorInfo);
+    
+    if (strpos($error, 'daily user sending limit exceeded') !== false || strpos($error, 'daily sending quota exceeded') !== false) {
+        return 'Se alcanzó el límite diario de envío de correos de Gmail (500/día). Los correos se enviarán cuando se restablezca el límite (generalmente en 24 horas).';
+    }
+    if (strpos($error, 'rate limit exceeded') !== false || strpos($error, 'too many') !== false) {
+        return 'Se excedió el límite de velocidad de envío de Gmail. Intenta de nuevo en unos minutos.';
+    }
+    if (strpos($error, 'authentication') !== false || strpos($error, 'credentials') !== false || strpos($error, '535') !== false) {
+        return 'Error de autenticación SMTP. Verifica las credenciales del correo en la configuración.';
+    }
+    if (strpos($error, 'connection') !== false || strpos($error, 'connect') !== false || strpos($error, 'timeout') !== false) {
+        return 'No se pudo conectar al servidor de correo. Verifica la conexión a internet y la configuración SMTP.';
+    }
+    if (strpos($error, 'recipient') !== false || strpos($error, 'mailbox') !== false) {
+        return 'La dirección de correo del destinatario no es válida o no existe.';
+    }
+    
+    // Error desconocido: devolver el original
+    return 'Error al enviar correo: ' . $errorInfo;
+}
+
+/**
  * Envía un correo de notificación a un departamento sobre un nuevo reporte asignado
  * 
  * @param array $department Información del departamento (name, manager, email)
- * @param array $complaint Información del reporte (id, description, category_name, created_at)
+ * @param bool $is_new_report True si es un reporte recién creado y notificado al buzón maestro, false si es una asignación a un departamento
  * @return array ['success' => bool, 'message' => string]
  */
-function sendDepartmentNotification($department, $complaint) {
+function sendDepartmentNotification($department, $complaint, $is_new_report = false) {
     global $phpmailer_loaded;
     global $conn;
     
@@ -67,7 +93,9 @@ function sendDepartmentNotification($department, $complaint) {
         // Contenido del correo
         $mail->isHTML(true);
         $folio = $complaint['folio'] ?? str_pad($complaint['id'], 6, '0', STR_PAD_LEFT);
-        $mail->Subject = 'Nuevo Reporte Asignado - Folio #' . $folio;
+        
+        $subject_title = $is_new_report ? 'Nuevo Reporte' : 'Nuevo Reporte Asignado';
+        $mail->Subject = $subject_title . ' - Folio #' . $folio;
 
         // Obtener y procesar adjuntos del reporte
         $inlineImagesHtml = '';
@@ -99,15 +127,19 @@ function sendDepartmentNotification($department, $complaint) {
         }
 
         // Cuerpo del correo en HTML (sin botón de acceso) y con imágenes incrustadas
-        $mail->Body = generateEmailBody($department, $complaint, $inlineImagesHtml);
+        $mail->Body = generateEmailBody($department, $complaint, $inlineImagesHtml, $is_new_report);
 
         // Texto alternativo (sin HTML)
-        $mail->AltBody = generateEmailTextBody($department, $complaint);
+        $mail->AltBody = generateEmailTextBody($department, $complaint, $is_new_report);
         
         // Enviar correo
         $mail->send();
         
-        $mode_text = isTestMode() ? ' (Modo Prueba - enviado a ' . SMTP_USERNAME . ')' : '';
+        $mode_text = '';
+        if (isTestMode()) {
+            $test_recipient = function_exists('getTestEmail') ? getTestEmail() : SMTP_USERNAME;
+            $mode_text = ' (Modo Prueba - enviado a ' . $test_recipient . ')';
+        }
         
         return [
             'success' => true,
@@ -117,7 +149,7 @@ function sendDepartmentNotification($department, $complaint) {
     } catch (Exception $e) {
         return [
             'success' => false,
-            'message' => 'Error al enviar correo: ' . $mail->ErrorInfo
+            'message' => translateSmtpError($mail->ErrorInfo)
         ];
     }
 }
@@ -125,11 +157,11 @@ function sendDepartmentNotification($department, $complaint) {
 /**
  * Genera el cuerpo del correo en HTML
  */
-function generateEmailBody($department, $complaint, $inlineImagesHtml) {
+function generateEmailBody($department, $complaint, $inlineImagesHtml, $is_new_report = false) {
     $folio = $complaint['folio'] ?? str_pad($complaint['id'], 6, '0', STR_PAD_LEFT);
     
-    // Generar URL con IP fija
-    $view_url = 'http://172.16.124.245/view_complaint.php?id=' . $complaint['id'];
+    // Generar URL del reporte
+    $view_url = APP_URL . '/view_complaint.php?id=' . $complaint['id'];
     
     $mode_notice = '';
     if (isTestMode()) {
@@ -139,13 +171,15 @@ function generateEmailBody($department, $complaint, $inlineImagesHtml) {
         </div>';
     }
     
+    $title = $is_new_report ? 'Nuevo Reporte' : 'Nuevo Reporte Asignado';
+    
     $html = '
     <!DOCTYPE html>
     <html lang="es">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Nuevo Reporte Asignado</title>
+        <title>' . $title . '</title>
     </head>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background-color: #2563EB; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
@@ -157,9 +191,15 @@ function generateEmailBody($department, $complaint, $inlineImagesHtml) {
             ' . $mode_notice . '
             
             <h2 style="color: #1f2937; margin-top: 0;">Estimado/a ' . htmlspecialchars($department['manager']) . ',</h2>
+            ';
             
-            <p>Se ha asignado un nuevo reporte al departamento de <strong>' . htmlspecialchars($department['name']) . '</strong>. Le solicitamos amablemente darle seguimiento a la brevedad posible.</p>
+    if ($is_new_report) {
+        $html .= '<p>Se ha creado un nuevo reporte en el sistema y ha sido enviado al departamento de <strong>' . htmlspecialchars($department['name']) . '</strong>. Le solicitamos amablemente revisarlo y asignarle los departamentos correspondientes.</p>';
+    } else {
+        $html .= '<p>Se ha asignado un nuevo reporte al departamento de <strong>' . htmlspecialchars($department['name']) . '</strong>. Le solicitamos amablemente darle seguimiento a la brevedad posible.</p>';
+    }
             
+    $html .= '
             <div style="background-color: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
                 <h3 style="color: #2563EB; margin-top: 0; border-bottom: 2px solid #2563EB; padding-bottom: 10px;">
                     📋 Detalles del Reporte - Folio #' . $folio . '
@@ -211,22 +251,30 @@ function generateEmailBody($department, $complaint, $inlineImagesHtml) {
 /**
  * Genera el cuerpo del correo en texto plano
  */
-function generateEmailTextBody($department, $complaint) {
+function generateEmailTextBody($department, $complaint, $is_new_report = false) {
     $folio = $complaint['folio'] ?? str_pad($complaint['id'], 6, '0', STR_PAD_LEFT);
     
-    // Generar URL con IP fija
-    $view_url = 'http://172.16.124.245/view_complaint.php?id=' . $complaint['id'];
+    // Generar URL del reporte
+    $view_url = APP_URL . '/view_complaint.php?id=' . $complaint['id'];
     
     $mode_notice = '';
     if (isTestMode()) {
         $mode_notice = "\n⚠️ MODO DE PRUEBA ACTIVADO\nEste correo debería enviarse a: " . $department['email'] . "\n\n";
     }
     
-    $text = "ITSCC BUZÓN DE QUEJAS - NUEVO REPORTE ASIGNADO\n\n";
+    $title = $is_new_report ? 'NUEVO REPORTE' : 'NUEVO REPORTE ASIGNADO';
+    $text = "ITSCC BUZÓN DE QUEJAS - " . $title . "\n\n";
     $text .= $mode_notice;
     $text .= "Estimado/a " . $department['manager'] . ",\n\n";
-    $text .= "Se ha asignado un nuevo reporte al departamento de " . $department['name'] . ". ";
-    $text .= "Le solicitamos amablemente darle seguimiento a la brevedad posible.\n\n";
+    
+    if ($is_new_report) {
+         $text .= "Se ha creado un nuevo reporte en el sistema y ha sido enviado al departamento de " . $department['name'] . ". ";
+         $text .= "Le solicitamos amablemente revisarlo y asignarle los departamentos correspondientes.\n\n";
+    } else {
+         $text .= "Se ha asignado un nuevo reporte al departamento de " . $department['name'] . ". ";
+         $text .= "Le solicitamos amablemente darle seguimiento a la brevedad posible.\n\n";
+    }
+    
     $text .= "DETALLES DEL REPORTE - FOLIO #" . $folio . "\n";
     $text .= "----------------------------------------\n";
     $text .= "Categoría: " . $complaint['category_name'] . "\n";
@@ -240,5 +288,172 @@ function generateEmailTextBody($department, $complaint) {
     $text .= "© " . date('Y') . " Instituto Tecnológico Superior de Ciudad Constitución";
     
     return $text;
+}
+
+/**
+ * Envía una notificación por correo al autor de una queja cuando se agrega un comentario/respuesta
+ * 
+ * @param array $complaint Información del reporte (id, folio, description, user_id, is_anonymous)
+ * @param string $commenter_name Nombre de quien hizo el comentario
+ * @param string $comment_text Texto del comentario
+ * @param string $commenter_role Rol de quien comenta (admin, manager, student)
+ * @return array ['success' => bool, 'message' => string]
+ */
+function sendCommentNotification($complaint, $commenter_name, $comment_text, $commenter_role = 'staff') {
+    global $phpmailer_loaded;
+    global $conn;
+    
+    if (!$phpmailer_loaded) {
+        return [
+            'success' => false,
+            'message' => 'PHPMailer no está instalado.'
+        ];
+    }
+    
+    // Obtener datos del autor del reporte
+    $stmt_author = $conn->prepare("SELECT id, name, email FROM users WHERE id = ?");
+    $stmt_author->bind_param("i", $complaint['user_id']);
+    $stmt_author->execute();
+    $author = $stmt_author->get_result()->fetch_assoc();
+    
+    if (!$author || empty($author['email'])) {
+        return [
+            'success' => false,
+            'message' => 'No se pudo encontrar el correo del autor del reporte.'
+        ];
+    }
+    
+    try {
+        $mail = new PHPMailer(true);
+        
+        // Configuración SMTP
+        $mail->isSMTP();
+        $mail->Host = SMTP_HOST;
+        $mail->SMTPAuth = true;
+        $mail->Username = SMTP_USERNAME;
+        $mail->Password = SMTP_PASSWORD;
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = SMTP_PORT;
+        $mail->CharSet = 'UTF-8';
+        
+        // Remitente
+        $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
+        
+        // Anti-spam
+        applyAntiSpamConfig($mail, SMTP_FROM_EMAIL, SMTP_FROM_NAME);
+        
+        // Destinatario (respetando modo de prueba)
+        $recipient_email = getEmailRecipient($author['email']);
+        $mail->addAddress($recipient_email, $author['name']);
+        
+        // Datos del reporte
+        $folio = $complaint['folio'] ?? str_pad($complaint['id'], 6, '0', STR_PAD_LEFT);
+        $view_url = APP_URL . '/view_complaint.php?id=' . $complaint['id'];
+        
+        // Determinar etiqueta del rol
+        $role_label = 'Personal del ITSCC';
+        if ($commenter_role === 'admin') {
+            $role_label = 'Administrador';
+        } elseif ($commenter_role === 'manager') {
+            $role_label = 'Encargado de Departamento';
+        }
+        
+        // Asunto
+        $mail->isHTML(true);
+        $mail->Subject = 'Nueva Respuesta en tu Reporte - Folio #' . $folio;
+        
+        // Modo de prueba
+        $mode_notice = '';
+        if (isTestMode()) {
+            $mode_notice = '<div style="background-color: #FEF3C7; border-left: 4px solid #F59E0B; padding: 12px; margin-bottom: 20px;">
+                <p style="margin: 0; color: #92400E; font-weight: bold;">⚠️ MODO DE PRUEBA ACTIVADO</p>
+                <p style="margin: 5px 0 0 0; color: #92400E; font-size: 14px;">Este correo debería enviarse a: ' . htmlspecialchars($author['email']) . '</p>
+            </div>';
+        }
+        
+        // Cuerpo HTML
+        $comment_preview = htmlspecialchars(substr($comment_text, 0, 300));
+        if (strlen($comment_text) > 300) {
+            $comment_preview .= '...';
+        }
+        
+        $mail->Body = '
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Nueva Respuesta en tu Reporte</title>
+        </head>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f7fa;">
+            <div style="background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: white; padding: 25px; text-align: center;">
+                    <h1 style="margin: 0; font-size: 22px;">💬 Nueva Respuesta en tu Reporte</h1>
+                    <p style="margin: 8px 0 0 0; font-size: 14px; opacity: 0.9;">Folio #' . $folio . '</p>
+                </div>
+                
+                <div style="padding: 30px;">
+                    ' . $mode_notice . '
+                    
+                    <h2 style="color: #1f2937; margin-top: 0; font-size: 18px;">¡Hola, ' . htmlspecialchars($author['name']) . '!</h2>
+                    
+                    <p style="color: #4b5563;">Se ha agregado una nueva respuesta a tu reporte. Aquí tienes un resumen:</p>
+                    
+                    <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                        <div style="margin-bottom: 12px;">
+                            <span style="display: inline-block; background-color: #dcfce7; color: #166534; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600;">' . htmlspecialchars($role_label) . '</span>
+                        </div>
+                        <p style="margin: 0 0 8px 0; font-weight: 600; color: #1f2937;">' . htmlspecialchars($commenter_name) . ' respondió:</p>
+                        <p style="margin: 0; color: #374151; font-style: italic; border-left: 3px solid #10B981; padding-left: 12px;">' . nl2br($comment_preview) . '</p>
+                    </div>
+                    
+                    <!-- Botón de Acción -->
+                    <div style="text-align: center; margin: 30px 0;">
+                        <a href="' . $view_url . '" style="display: inline-block; background-color: #10B981; background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: #ffffff !important; text-decoration: none; padding: 14px 28px; border-radius: 10px; font-weight: bold; font-size: 15px; box-shadow: 0 4px 6px rgba(16, 185, 129, 0.3); border: none; mso-line-height-rule: exactly; line-height: 1.5;">
+                            <span style="color: #ffffff !important; text-decoration: none; font-weight: bold;">📋 Ver Reporte y Responder</span>
+                        </a>
+                    </div>
+                    
+                    <div style="background-color: #EFF6FF; border-left: 4px solid #3B82F6; padding: 12px; margin-top: 20px; border-radius: 0 8px 8px 0;">
+                        <p style="margin: 0; color: #1e40af; font-size: 14px;">
+                            <strong>Tip:</strong> Puedes responder directamente desde el sistema haciendo clic en el botón de arriba.
+                        </p>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 12px; background-color: #f9fafb;">
+                    <p style="margin: 0;">Este es un correo automático del Sistema de Buzón de Quejas ITSCC</p>
+                    <p style="margin: 5px 0 0 0;">© ' . date('Y') . ' Instituto Tecnológico Superior de Ciudad Constitución</p>
+                </div>
+            </div>
+        </body>
+        </html>';
+        
+        // Texto alternativo
+        $mail->AltBody = "NUEVA RESPUESTA EN TU REPORTE - FOLIO #" . $folio . "\n\n";
+        $mail->AltBody .= "Hola, " . $author['name'] . "!\n\n";
+        $mail->AltBody .= "Se ha agregado una nueva respuesta a tu reporte.\n\n";
+        $mail->AltBody .= $commenter_name . " (" . $role_label . ") respondió:\n";
+        $mail->AltBody .= "\"" . substr($comment_text, 0, 300) . "\"\n\n";
+        $mail->AltBody .= "Ver reporte completo: " . $view_url . "\n\n";
+        $mail->AltBody .= "---\n";
+        $mail->AltBody .= "Este es un correo automático del Sistema de Buzón de Quejas ITSCC\n";
+        $mail->AltBody .= "© " . date('Y') . " Instituto Tecnológico Superior de Ciudad Constitución";
+        
+        $mail->send();
+        
+        $mode_text = isTestMode() ? ' (Modo Prueba - enviado a ' . SMTP_USERNAME . ')' : '';
+        
+        return [
+            'success' => true,
+            'message' => 'Notificación enviada al autor del reporte' . $mode_text
+        ];
+        
+    } catch (Exception $e) {
+        return [
+            'success' => false,
+            'message' => translateSmtpError($mail->ErrorInfo)
+        ];
+    }
 }
 ?>
