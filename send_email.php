@@ -27,17 +27,17 @@ use PHPMailer\PHPMailer\Exception;
 function translateSmtpError($errorInfo) {
     $error = strtolower($errorInfo);
     
-    if (strpos($error, 'daily user sending limit exceeded') !== false || strpos($error, 'daily sending quota exceeded') !== false) {
-        return 'Se alcanzó el límite diario de envío de correos de Gmail (500/día). Los correos se enviarán cuando se restablezca el límite (generalmente en 24 horas).';
+    if (strpos($error, 'daily user sending limit exceeded') !== false || strpos($error, 'daily sending quota exceeded') !== false || strpos($error, 'exceeded the rate limit') !== false) {
+        return 'Se alcanzó el límite diario de envío de correos de Microsoft 365. Los correos se enviarán cuando se restablezca el límite (generalmente en 24 horas).';
     }
-    if (strpos($error, 'rate limit exceeded') !== false || strpos($error, 'too many') !== false) {
-        return 'Se excedió el límite de velocidad de envío de Gmail. Intenta de nuevo en unos minutos.';
+    if (strpos($error, 'rate limit exceeded') !== false || strpos($error, 'too many') !== false || strpos($error, 'throttl') !== false) {
+        return 'Se excedió el límite de velocidad de envío de Microsoft 365. Intenta de nuevo en unos minutos.';
     }
     if (strpos($error, 'authentication') !== false || strpos($error, 'credentials') !== false || strpos($error, '535') !== false) {
-        return 'Error de autenticación SMTP. Verifica las credenciales del correo en la configuración.';
+        return 'Error de autenticación SMTP. Verifica las credenciales del correo institucional en la configuración.';
     }
     if (strpos($error, 'connection') !== false || strpos($error, 'connect') !== false || strpos($error, 'timeout') !== false) {
-        return 'No se pudo conectar al servidor de correo. Verifica la conexión a internet y la configuración SMTP.';
+        return 'No se pudo conectar al servidor de correo (Office 365). Verifica la conexión a internet y la configuración SMTP.';
     }
     if (strpos($error, 'recipient') !== false || strpos($error, 'mailbox') !== false) {
         return 'La dirección de correo del destinatario no es válida o no existe.';
@@ -183,8 +183,8 @@ function generateEmailBody($department, $complaint, $inlineImagesHtml, $is_new_r
     </head>
     <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background-color: #2563EB; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-            <h1 style="margin: 0; font-size: 24px;">ITSCC Buzón de Quejas</h1>
-            <p style="margin: 10px 0 0 0; font-size: 14px;">Sistema de Gestión de Reportes</p>
+            <h1 style="margin: 0; font-size: 24px;">BUZÓN DE QUEJAS Y SUGERENCIAS</h1>
+            <p style="margin: 10px 0 0 0; font-size: 14px;">TECNM / CIUDAD CONSTITUCIÓN</p>
         </div>
         
         <div style="background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
@@ -238,7 +238,7 @@ function generateEmailBody($department, $complaint, $inlineImagesHtml, $is_new_r
         </div>
         
         <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 12px;">
-            <p style="margin: 0;">Este es un correo automático del Sistema de Buzón de Quejas ITSCC</p>
+            <p style="margin: 0;">Este es un correo automático de BUZÓN DE QUEJAS Y SUGERENCIAS - TECNM/CIUDAD CONSTITUCIÓN</p>
             <p style="margin: 5px 0 0 0;">© ' . date('Y') . ' Instituto Tecnológico Superior de Ciudad Constitución</p>
         </div>
     </body>
@@ -422,7 +422,7 @@ function sendCommentNotification($complaint, $commenter_name, $comment_text, $co
                 </div>
                 
                 <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 12px; background-color: #f9fafb;">
-                    <p style="margin: 0;">Este es un correo automático del Sistema de Buzón de Quejas ITSCC</p>
+                    <p style="margin: 0;">Este es un correo automático de BUZÓN DE QUEJAS Y SUGERENCIAS - TECNM/CIUDAD CONSTITUCIÓN</p>
                     <p style="margin: 5px 0 0 0;">© ' . date('Y') . ' Instituto Tecnológico Superior de Ciudad Constitución</p>
                 </div>
             </div>
@@ -437,7 +437,7 @@ function sendCommentNotification($complaint, $commenter_name, $comment_text, $co
         $mail->AltBody .= "\"" . substr($comment_text, 0, 300) . "\"\n\n";
         $mail->AltBody .= "Ver reporte completo: " . $view_url . "\n\n";
         $mail->AltBody .= "---\n";
-        $mail->AltBody .= "Este es un correo automático del Sistema de Buzón de Quejas ITSCC\n";
+        $mail->AltBody .= "Este es un correo automático de BUZÓN DE QUEJAS Y SUGERENCIAS - TECNM/CIUDAD CONSTITUCIÓN\n";
         $mail->AltBody .= "© " . date('Y') . " Instituto Tecnológico Superior de Ciudad Constitución";
         
         $mail->send();
@@ -447,6 +447,195 @@ function sendCommentNotification($complaint, $commenter_name, $comment_text, $co
         return [
             'success' => true,
             'message' => 'Notificación enviada al autor del reporte' . $mode_text
+        ];
+        
+    } catch (Exception $e) {
+        return [
+            'success' => false,
+            'message' => translateSmtpError($mail->ErrorInfo)
+        ];
+    }
+}
+
+/**
+ * Genera el cuerpo del correo en HTML para recordatorios
+ */
+function generateReminderEmailBody($department, $complaints) {
+    // Generar URL del dashboard
+    $dashboard_url = APP_URL . '/dashboard.php';
+    
+    $mode_notice = '';
+    if (isTestMode()) {
+        $mode_notice = '<div style="background-color: #FEF3C7; border-left: 4px solid #F59E0B; padding: 12px; margin-bottom: 20px;">
+            <p style="margin: 0; color: #92400E; font-weight: bold;">⚠️ MODO DE PRUEBA ACTIVADO</p>
+            <p style="margin: 5px 0 0 0; color: #92400E; font-size: 14px;">Este correo debería enviarse a: ' . htmlspecialchars($department['email']) . '</p>
+        </div>';
+    }
+    
+    $title = 'Recordatorio: Reportes Sin Atender';
+    
+    $html = '
+    <!DOCTYPE html>
+    <html lang="es">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>' . $title . '</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background-color: #2563EB; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; font-size: 24px;">BUZÓN DE QUEJAS Y SUGERENCIAS</h1>
+            <p style="margin: 10px 0 0 0; font-size: 14px;">TECNM / CIUDAD CONSTITUCIÓN</p>
+        </div>
+        
+        <div style="background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+            ' . $mode_notice . '
+            
+            <h2 style="color: #1f2937; margin-top: 0;">Estimado/a ' . htmlspecialchars($department['manager']) . ',</h2>
+            <p>El departamento de <strong>' . htmlspecialchars($department['name']) . '</strong> tiene reportes asignados que aún <strong>no han sido atendidos</strong>. Le solicitamos amablemente darles seguimiento a la brevedad posible.</p>
+            
+            <h3 style="color: #2563EB; margin-top: 20px; border-bottom: 2px solid #2563EB; padding-bottom: 10px;">
+                📋 Sus Reportes Pendientes
+            </h3>
+            
+            <div style="margin: 20px 0;">';
+            
+    foreach ($complaints as $c) {
+        $folio = htmlspecialchars($c['folio'] ?? str_pad($c['id'], 6, '0', STR_PAD_LEFT));
+        $desc = htmlspecialchars(mb_substr($c['description'], 0, 100));
+        if (mb_strlen($c['description']) > 100) $desc .= '...';
+        
+        $html .= '
+                <div style="background-color: white; border: 1px solid #e5e7eb; border-radius: 6px; padding: 15px; margin-bottom: 10px;">
+                    <div style="font-weight: bold; color: #4b5563; margin-bottom: 5px;">Folio #' . $folio . '</div>
+                    <div style="color: #6b7280; font-size: 14px; margin-bottom: 5px;"><strong>Fecha:</strong> ' . date('d/m/Y H:i', strtotime($c['created_at'])) . '</div>
+                    <div style="color: #374151; font-size: 14px;">' . $desc . '</div>
+                </div>';
+    }
+            
+    $html .= '
+            </div>
+            
+            <!-- Botón de Acción -->
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="' . $dashboard_url . '" style="display: inline-block; background-color: #2563EB; background: linear-gradient(135deg, #2563EB 0%, #1d4ed8 100%); color: #ffffff !important; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 6px rgba(37, 99, 235, 0.3); border: none; mso-line-height-rule: exactly; line-height: 1.5;">
+                    <span style="color: #ffffff !important; text-decoration: none; font-weight: bold;">📊 Ir al Dashboard</span>
+                </a>
+            </div>
+            
+            <div style="background-color: #EFF6FF; border-left: 4px solid #2563EB; padding: 12px; margin-top: 20px;">
+                <p style="margin: 0; color: #1e40af; font-size: 14px;">
+                    <strong>Importante:</strong> Acceda al Dashboard usando el botón de arriba para revisar todos los reportes correspondientes a su departamento.
+                </p>
+            </div>
+        </div>
+        
+        <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 12px;">
+            <p style="margin: 0;">Este es un correo automático de BUZÓN DE QUEJAS Y SUGERENCIAS - TECNM/CIUDAD CONSTITUCIÓN</p>
+            <p style="margin: 5px 0 0 0;">© ' . date('Y') . ' Instituto Tecnológico Superior de Ciudad Constitución</p>
+        </div>
+    </body>
+    </html>
+    ';
+    
+    return $html;
+}
+
+/**
+ * Genera el cuerpo del correo en texto plano para recordatorios
+ */
+function generateReminderEmailTextBody($department, $complaints) {
+    $dashboard_url = APP_URL . '/dashboard.php';
+    
+    $text = "BUZÓN DE QUEJAS Y SUGERENCIAS\n";
+    $text .= "TECNM / CIUDAD CONSTITUCIÓN\n\n";
+    
+    if (isTestMode()) {
+        $text .= "[MODO DE PRUEBA ACTIVADO]\n";
+        $text .= "Este correo debería enviarse a: " . $department['email'] . "\n\n";
+    }
+    
+    $text .= "Estimado/a " . $department['manager'] . ",\n\n";
+    $text .= "El departamento de " . $department['name'] . " tiene reportes asignados que aún NO han sido atendidos. Le solicitamos amablemente darles seguimiento a la brevedad posible.\n\n";
+    
+    $text .= "Sus Reportes Pendientes:\n";
+    $text .= "--------------------------------------------------\n";
+    
+    foreach ($complaints as $c) {
+        $folio = $c['folio'] ?? str_pad($c['id'], 6, '0', STR_PAD_LEFT);
+        $text .= "Folio #" . $folio . "\n";
+        $text .= "Fecha: " . date('d/m/Y H:i', strtotime($c['created_at'])) . "\n";
+        
+        $desc = mb_substr(strip_tags($c['description']), 0, 100);
+        if (mb_strlen(strip_tags($c['description'])) > 100) $desc .= '...';
+        
+        $text .= "Descripción: " . $desc . "\n\n";
+    }
+    
+    $text .= "--------------------------------------------------\n\n";
+    $text .= "Por favor, visite el Dashboard para dar seguimiento:\n";
+    $text .= $dashboard_url . "\n\n";
+    
+    $text .= "Este es un correo automático de BUZÓN DE QUEJAS Y SUGERENCIAS - TECNM/CIUDAD CONSTITUCIÓN\n";
+    
+    return $text;
+}
+
+/**
+ * Envía un correo recordatorio a un departamento con todos sus reportes pendientes
+ */
+function sendDepartmentReminderEmail($department, $complaints) {
+    global $phpmailer_loaded;
+    
+    if (!$phpmailer_loaded) {
+        return [
+            'success' => false,
+            'message' => 'PHPMailer no está instalado.'
+        ];
+    }
+    
+    try {
+        $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+        
+        // Configuración del servidor SMTP
+        $mail->isSMTP();
+        $mail->Host = SMTP_HOST;
+        $mail->SMTPAuth = true;
+        $mail->Username = SMTP_USERNAME;
+        $mail->Password = SMTP_PASSWORD;
+        $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS;
+        $mail->Port = SMTP_PORT;
+        $mail->CharSet = 'UTF-8';
+        
+        // Remitente
+        $mail->setFrom(SMTP_FROM_EMAIL, SMTP_FROM_NAME);
+        
+        // Anti-spam
+        applyAntiSpamConfig($mail, SMTP_FROM_EMAIL, SMTP_FROM_NAME);
+        
+        // Destinatario
+        $recipient_email = getEmailRecipient($department['email']);
+        $mail->addAddress($recipient_email, $department['manager']);
+        
+        // Contenido del correo
+        $mail->isHTML(true);
+        $mail->Subject = 'Recordatorio: Reportes Sin Atender - ' . $department['name'];
+        
+        $mail->Body = generateReminderEmailBody($department, $complaints);
+        $mail->AltBody = generateReminderEmailTextBody($department, $complaints);
+        
+        // Enviar correo
+        $mail->send();
+        
+        $mode_text = '';
+        if (isTestMode()) {
+            $test_recipient = function_exists('getTestEmail') ? getTestEmail() : SMTP_USERNAME;
+            $mode_text = ' (Modo Prueba - enviado a ' . $test_recipient . ')';
+        }
+        
+        return [
+            'success' => true,
+            'message' => 'Correo recordatorio enviado a ' . $department['name'] . $mode_text
         ];
         
     } catch (Exception $e) {

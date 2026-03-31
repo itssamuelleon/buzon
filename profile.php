@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['CONTENT_TYPE']) && 
 }
 
 // 3. Normal Page Rendering
-$page_title = 'Mi Perfil - ITSCC Buzón'; 
+$page_title = 'Mi Perfil - Buzón de Quejas'; 
 include 'components/header.php'; 
 
 // Data Fetching
@@ -83,6 +83,24 @@ $stmt_stats->bind_param("i", $user_id);
 $stmt_stats->execute();
 $stats = $stmt_stats->get_result()->fetch_assoc();
 
+$is_staff = in_array(strtolower($user['role']), ['admin', 'manager']);
+$staff_stats = ['comments' => 0, 'attended' => 0];
+
+if ($is_staff) {
+    $stmt_staff = $conn->prepare("
+        SELECT 
+            COUNT(id) as total_comments,
+            COUNT(DISTINCT complaint_id) as total_attended
+        FROM complaint_comments 
+        WHERE user_id = ?
+    ");
+    $stmt_staff->bind_param("i", $user_id);
+    $stmt_staff->execute();
+    $s_res = $stmt_staff->get_result()->fetch_assoc();
+    $staff_stats['comments'] = $s_res['total_comments'] ?? 0;
+    $staff_stats['attended'] = $s_res['total_attended'] ?? 0;
+}
+
 function formatRoleName($role) {
     if ($role === 'admin') return 'Administrador';
     if ($role === 'manager') return 'Encargado';
@@ -91,7 +109,7 @@ function formatRoleName($role) {
 }
 ?>
 
-<div class="bg-gray-50" x-data="profileManager()">
+<div class="bg-transparent" x-data="profileManager()">
     <main class="container mx-auto px-4 py-12">
         <div class="max-w-4xl mx-auto">
             
@@ -124,23 +142,46 @@ function formatRoleName($role) {
                     </div>
 
                     <!-- User Statistics -->
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
-                        <div class="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <i class="ph-files text-2xl text-blue-600"></i>
+                    <div class="grid grid-cols-2 <?php echo $is_staff ? 'md:grid-cols-4' : 'sm:grid-cols-2'; ?> gap-3 mb-8">
+                        <div class="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i class="ph-files text-xl text-blue-600"></i>
                             </div>
-                            <div class="ml-4">
-                                <p class="text-gray-500 text-sm">Reportes Enviados</p>
-                                <p class="text-xl font-bold text-gray-800"><?php echo $stats['total_complaints']; ?></p>
+                            <div class="ml-3 overflow-hidden">
+                                <p class="text-gray-500 text-[10px] sm:text-xs uppercase tracking-wide truncate">Enviados</p>
+                                <p class="text-base sm:text-lg font-bold text-gray-800 leading-tight"><?php echo $stats['total_complaints']; ?></p>
                             </div>
                         </div>
-                        <div class="flex items-center p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <i class="ph-calendar-check text-2xl text-green-600"></i>
+
+                        <?php if ($is_staff): ?>
+                        <div class="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i class="ph-chat-circle-text text-xl text-purple-600"></i>
                             </div>
-                            <div class="ml-4">
-                                <p class="text-gray-500 text-sm">Miembro Desde</p>
-                                <p class="text-xl font-bold text-gray-800"><?php echo date('d M, Y', strtotime($user['created_at'])); ?></p>
+                            <div class="ml-3 overflow-hidden">
+                                <p class="text-gray-500 text-[10px] sm:text-xs uppercase tracking-wide truncate">Comentarios</p>
+                                <p class="text-base sm:text-lg font-bold text-gray-800 leading-tight"><?php echo $staff_stats['comments']; ?></p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i class="ph-check-circle text-xl text-indigo-600"></i>
+                            </div>
+                            <div class="ml-3 overflow-hidden">
+                                <p class="text-gray-500 text-[10px] sm:text-xs uppercase tracking-wide truncate">Atendidos</p>
+                                <p class="text-base sm:text-lg font-bold text-gray-800 leading-tight"><?php echo $staff_stats['attended']; ?></p>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+
+                        <div class="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i class="ph-calendar-check text-xl text-green-600"></i>
+                            </div>
+                            <div class="ml-3 overflow-hidden">
+                                <p class="text-gray-500 text-[10px] sm:text-xs uppercase tracking-wide truncate">Registro</p>
+                                <p class="text-sm font-bold text-gray-800 leading-tight truncate"><?php echo date('d M Y', strtotime($user['created_at'])); ?></p>
                             </div>
                         </div>
                     </div>

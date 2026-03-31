@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // --- END OF PHP LOGIC ---
 
 // --- HTML PRESENTATION SECOND ---
-$page_title = 'Iniciar Sesión - ITSCC Buzón'; 
+$page_title = 'Iniciar Sesión - Buzón de Quejas'; 
 include 'components/header.php'; 
 ?>
 
@@ -79,10 +79,10 @@ include 'components/header.php';
 <!-- Animated Background -->
 <div class="min-h-screen relative overflow-hidden flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
     <!-- Gradient Background with Animated Blobs -->
-    <div class="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-        <div class="absolute top-0 left-1/4 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl animate-blob"></div>
-        <div class="absolute top-1/2 right-1/4 w-96 h-96 bg-purple-400/20 rounded-full blur-3xl animate-blob animation-delay-2000"></div>
-        <div class="absolute bottom-0 left-1/2 w-96 h-96 bg-indigo-400/20 rounded-full blur-3xl animate-blob animation-delay-4000"></div>
+    <div class="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-blue-950 dark:to-slate-900">
+        <div class="absolute top-0 left-1/4 w-96 h-96 bg-blue-400/20 dark:bg-blue-600/10 rounded-full blur-3xl animate-blob"></div>
+        <div class="absolute top-1/2 right-1/4 w-96 h-96 bg-purple-400/20 dark:bg-purple-600/10 rounded-full blur-3xl animate-blob animation-delay-2000"></div>
+        <div class="absolute bottom-0 left-1/2 w-96 h-96 bg-indigo-400/20 dark:bg-indigo-600/10 rounded-full blur-3xl animate-blob animation-delay-4000"></div>
     </div>
 
     <!-- Main Container -->
@@ -91,19 +91,19 @@ include 'components/header.php';
             
             <!-- Left Side: Login Form -->
             <div class="order-1 lg:order-1">
-                <div class="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl p-8 md:p-12 border border-white/20 animate-slide-in-left">
+                <div class="bg-white/90 dark:bg-slate-800/20 backdrop-blur-xl rounded-3xl shadow-2xl p-8 md:p-12 border border-white/20 dark:border-slate-700/50 animate-slide-in-left">
                     <!-- Logo and Header -->
                     <div class="text-center mb-8">
                         <div class="inline-block relative mb-6">
-                            <div class="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full blur-xl opacity-30 animate-pulse-slow"></div>
-                            <div class="relative p-4 bg-white rounded-2xl shadow-lg">
-                                <img src="assets/logo.png" alt="ITSCC Logo" class="h-16 w-16 mx-auto">
+                            <div class="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-500 dark:to-purple-500 rounded-full blur-xl opacity-30 dark:opacity-40 animate-pulse-slow"></div>
+                            <div class="relative p-4 bg-white dark:bg-slate-700/30 rounded-2xl shadow-lg">
+                                <img src="assets/logo.png" alt="ITSCC Logo" class="h-16 w-16 mx-auto dark:brightness-125 dark:drop-shadow-lg">
                             </div>
                         </div>
                         <h1 class="text-3xl md:text-4xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
                             Bienvenido
                         </h1>
-                        <p class="text-slate-600 text-lg">Ingresa al Buzón Digital</p>
+                        <p class="text-slate-600 dark:text-slate-400 text-lg font-medium">Ingresa al Buzón Digital</p>
                     </div>
 
                     <!-- Error Message -->
@@ -128,7 +128,7 @@ include 'components/header.php';
                         <!-- Microsoft Login Button (Primary) -->
                         <div class="mb-8">
                             <a href="login_microsoft.php<?php echo $redirect_url ? '?redirect=' . urlencode($redirect_url) : ''; ?>" 
-                               class="w-full flex justify-center items-center py-4 px-6 border border-transparent rounded-xl shadow-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-lg font-bold hover:from-blue-700 hover:to-indigo-700 focus:outline-none focus:ring-4 focus:ring-blue-500/50 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]">
+                               class="w-full flex justify-center items-center py-4 px-6 border border-transparent rounded-xl shadow-lg bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-800 dark:to-indigo-900 text-white text-lg font-bold hover:from-blue-700 hover:to-indigo-700 dark:hover:from-blue-900 dark:hover:to-indigo-950 focus:outline-none focus:ring-4 focus:ring-blue-500/50 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98]">
                                 <svg class="h-6 w-6 mr-3" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
                                     <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
                                     <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
@@ -145,12 +145,12 @@ include 'components/header.php';
                         <!-- Divider / Toggle -->
                         <div class="relative my-6">
                             <div class="absolute inset-0 flex items-center">
-                                <div class="w-full border-t border-gray-200"></div>
+                                <div class="w-full border-t border-gray-200 dark:border-slate-700"></div>
                             </div>
                             <div class="relative flex justify-center text-sm">
                                 <button @click="showManualLogin = !showManualLogin" 
-                                        class="px-4 py-1 bg-white text-slate-500 hover:text-blue-600 font-medium transition-colors focus:outline-none">
-                                    <span x-text="showManualLogin ? 'Ocultar acceso manual' : 'Usar credenciales manuales'"></span>
+                                        class="px-4 py-1 bg-white dark:bg-transparent text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 font-medium transition-colors focus:outline-none rounded-full">
+                                    <span x-text="showManualLogin ? 'Ocultar acceso con usuario y contraseña' : 'Acceso con usuario y contraseña'"></span>
                                 </button>
                             </div>
                         </div>
@@ -166,12 +166,12 @@ include 'components/header.php';
                                 
                                 <!-- Email Input -->
                                 <div>
-                                    <label for="email" class="block text-sm font-semibold text-slate-700 mb-2">
+                                    <label for="email" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                                         Correo Electrónico
                                     </label>
                                     <div class="relative group">
                                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <svg class="h-5 w-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg class="h-5 w-5 text-slate-400 dark:text-slate-500 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                                             </svg>
                                         </div>
@@ -182,18 +182,20 @@ include 'components/header.php';
                                             required
                                             x-model="email"
                                             placeholder="tucorreo@ejemplo.com"
-                                            class="block w-full pl-12 pr-4 py-3.5 text-slate-900 bg-white border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 placeholder:text-slate-400">
+                                            style="--tw-bg-opacity: 1; --dark-bg: #475569;"
+                                            class="block w-full pl-12 pr-4 py-3.5 text-slate-900 dark:text-white bg-white border-2 border-slate-200 dark:border-slate-500 rounded-xl focus:border-blue-500 dark:focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 placeholder:text-slate-400 dark:placeholder:text-slate-300"
+                                            onload="this.style.backgroundColor=window.matchMedia('(prefers-color-scheme: dark)').matches ? '#475569' : 'white'">
                                     </div>
                                 </div>
 
                                 <!-- Password Input -->
                                 <div>
-                                    <label for="password" class="block text-sm font-semibold text-slate-700 mb-2">
+                                    <label for="password" class="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
                                         Contraseña
                                     </label>
                                     <div class="relative group">
                                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                            <svg class="h-5 w-5 text-slate-400 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg class="h-5 w-5 text-slate-400 dark:text-slate-500 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
                                             </svg>
                                         </div>
@@ -204,7 +206,9 @@ include 'components/header.php';
                                             required
                                             x-model="password"
                                             placeholder="••••••••"
-                                            class="block w-full pl-12 pr-12 py-3.5 text-slate-900 bg-white border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 placeholder:text-slate-400">
+                                            style="--tw-bg-opacity: 1; --dark-bg: #475569;"
+                                            class="block w-full pl-12 pr-12 py-3.5 text-slate-900 dark:text-white bg-white border-2 border-slate-200 dark:border-slate-500 rounded-xl focus:border-blue-500 dark:focus:border-blue-400 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200 placeholder:text-slate-400 dark:placeholder:text-slate-300"
+                                            onload="this.style.backgroundColor=window.matchMedia('(prefers-color-scheme: dark)').matches ? '#475569' : 'white'">
                                         <button 
                                             type="button"
                                             @click="showPassword = !showPassword"
@@ -228,7 +232,7 @@ include 'components/header.php';
                                 <!-- Submit Button -->
                                 <button 
                                     type="submit"
-                                    class="group relative w-full flex justify-center items-center py-4 px-6 border border-transparent rounded-xl text-lg font-bold text-white bg-slate-800 hover:bg-slate-900 focus:outline-none focus:ring-4 focus:ring-slate-500/50 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl">
+                                    class="group relative w-full flex justify-center items-center py-4 px-6 border border-transparent rounded-xl text-lg font-bold text-white bg-slate-800 dark:bg-blue-800 hover:bg-slate-900 dark:hover:bg-blue-900 focus:outline-none focus:ring-4 focus:ring-slate-500/50 dark:focus:ring-blue-500/50 transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl">
                                     <svg class="w-5 h-5 mr-2 group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
                                     </svg>
@@ -249,20 +253,20 @@ include 'components/header.php';
                     <!-- Decorative Elements -->
                     <div class="absolute -top-10 -left-10 w-72 h-72 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-3xl"></div>
                     
-                    <div class="relative bg-white/40 backdrop-blur-lg rounded-3xl p-12 border border-white/50 shadow-2xl">
+                    <div class="relative bg-white/40 dark:bg-slate-800/40 backdrop-blur-lg rounded-3xl p-6 md:p-12 border border-white/50 dark:border-slate-700/50 shadow-2xl">
                         <!-- Icon Grid -->
-                        <div class="grid grid-cols-3 gap-4 mb-8">
-                            <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 shadow-lg animate-float">
+                        <div class="grid grid-cols-3 gap-4 mb-6 md:mb-8 mx-auto max-w-sm md:max-w-none">
+                            <div class="bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-800 dark:to-blue-900 rounded-2xl p-6 shadow-lg animate-float">
                                 <svg class="w-12 h-12 text-white mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                                 </svg>
                             </div>
-                            <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-6 shadow-lg animate-float animation-delay-1000">
+                            <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 dark:from-indigo-800 dark:to-indigo-900 rounded-2xl p-6 shadow-lg animate-float animation-delay-1000">
                                 <svg class="w-12 h-12 text-white mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
                                 </svg>
                             </div>
-                            <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 shadow-lg animate-float animation-delay-2000">
+                            <div class="bg-gradient-to-br from-purple-500 to-purple-600 dark:from-purple-800 dark:to-purple-900 rounded-2xl p-6 shadow-lg animate-float animation-delay-2000">
                                 <svg class="w-12 h-12 text-white mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                                 </svg>
@@ -270,35 +274,35 @@ include 'components/header.php';
                         </div>
 
                         <!-- Text Content -->
-                        <h2 class="text-4xl md:text-5xl font-black text-slate-800 mb-6 leading-tight">
+                        <h2 class="text-3xl md:text-5xl font-black text-slate-800 dark:text-white mb-4 md:mb-6 leading-tight text-center">
                             Tu Voz<br/>
                             <span class="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                                 Importa
                             </span>
                         </h2>
-                        <p class="text-lg text-slate-600 leading-relaxed mb-8">
+                        <p class="text-base md:text-lg text-slate-600 dark:text-slate-400 leading-relaxed mb-6 md:mb-8 text-center">
                             Reporta incidencias, comparte sugerencias y contribuye a construir una mejor institución educativa para toda la comunidad.
                         </p>
 
                         <!-- Stats -->
-                        <div class="grid grid-cols-3 gap-6">
+                        <div class="grid grid-cols-3 gap-3 md:gap-6 mx-auto max-w-sm md:max-w-none">
                             <div class="text-center">
-                                <div class="text-3xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-1">
+                                <div class="text-2xl md:text-3xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-1">
                                     100%
                                 </div>
-                                <div class="text-sm text-slate-600 font-medium">Seguro</div>
+                                <div class="text-xs md:text-sm text-slate-600 dark:text-slate-400 font-medium">Seguro</div>
                             </div>
                             <div class="text-center">
-                                <div class="text-3xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">
+                                <div class="text-2xl md:text-3xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">
                                     24/7
                                 </div>
-                                <div class="text-sm text-slate-600 font-medium">Disponible</div>
+                                <div class="text-xs md:text-sm text-slate-600 dark:text-slate-400 font-medium">Disponible</div>
                             </div>
                             <div class="text-center">
-                                <div class="text-3xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-1">
+                                <div class="text-2xl md:text-3xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-1">
                                     Rápido
                                 </div>
-                                <div class="text-sm text-slate-600 font-medium">Respuesta</div>
+                                <div class="text-xs md:text-sm text-slate-600 dark:text-slate-400 font-medium">Respuesta</div>
                             </div>
                         </div>
                     </div>
@@ -386,6 +390,28 @@ include 'components/header.php';
 
 .animation-delay-4000 {
     animation-delay: 2s;
+}
+
+/* Dark mode inputs - force visibility */
+html.dark input[type="email"],
+html.dark input[type="password"] {
+    background-color: #1e293b !important;
+    color: #ffffff !important;
+    border-color: #334155 !important;
+    caret-color: #ffffff !important;
+}
+
+html.dark input[type="email"]::placeholder,
+html.dark input[type="password"]::placeholder {
+    color: #cbd5e1 !important;
+    opacity: 1 !important;
+}
+
+/* Additional override for autocomplete */
+html.dark input[type="email"]:-webkit-autofill,
+html.dark input[type="password"]:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 1000px #1e293b inset !important;
+    -webkit-text-fill-color: #ffffff !important;
 }
 </style>
 

@@ -1,18 +1,83 @@
 <?php
 /**
  * Sistema de gestión automática de estados de reportes
- * Basado en días hábiles (lunes a viernes)
+ * Basado en días hábiles (lunes a viernes) y días inhábiles configurados en admin_settings.
  */
 
 /**
- * Calcula el número de días hábile            'icon' => 'ph-hourglass',
-            'color' => 'orange'
-        },incluyendo fracciones) entre dos fechas
+ * Carga y cachea un mapa de fechas (Y-m-d) marcadas como inhábiles (solo año en curso).
+ *
+ * @param mysqli|null $conn
+ * @return array<string, true>
+ */
+function getNonWorkingDaysMap($conn) {
+    static $map = null;
+    static $loaded = false;
+    if ($loaded) {
+        return $map;
+    }
+    $map = [];
+    $loaded = true;
+    if (!$conn || !($conn instanceof mysqli)) {
+        return $map;
+    }
+    $year = (int)date('Y');
+    $stmt = $conn->prepare("SELECT setting_value FROM admin_settings WHERE setting_key = 'non_working_days_current_year'");
+    if (!$stmt) {
+        return $map;
+    }
+    $stmt->execute();
+    $res = $stmt->get_result();
+    if ($row = $res->fetch_assoc()) {
+        $decoded = json_decode($row['setting_value'], true);
+        if (is_array($decoded)) {
+            foreach ($decoded as $d) {
+                if (!is_string($d)) {
+                    continue;
+                }
+                if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $d, $m)) {
+                    continue;
+                }
+                if ((int)$m[1] !== $year) {
+                    continue;
+                }
+                $check = DateTime::createFromFormat('Y-m-d', $d);
+                if ($check && $check->format('Y-m-d') === $d) {
+                    $map[$d] = true;
+                }
+            }
+        }
+    }
+    return $map;
+}
+
+/**
+ * Día hábil para el SLA: lunes a viernes y no marcado como inhábil.
+ *
+ * @param array<string, true> $nonWorkingMap
+ */
+function isBusinessDayForSla(DateTime $dayStart, array $nonWorkingMap) {
+    $dow = (int)$dayStart->format('N');
+    if ($dow < 1 || $dow > 5) {
+        return false;
+    }
+    $key = $dayStart->format('Y-m-d');
+    return empty($nonWorkingMap[$key]);
+}
+
+/**
+ * Calcula el número de días hábiles (incluyendo fracciones) entre dos fechas.
+ * Excluye fines de semana y días marcados como inhábiles en admin_settings.
+ *
  * @param DateTime $start_date Fecha inicial
  * @param DateTime $end_date Fecha final
+ * @param mysqli|null $mysqli_conn Conexión opcional para cargar días inhábiles
  * @return float Número de días hábiles
  */
-function calculateBusinessDays($start_date, $end_date) {
+function calculateBusinessDays($start_date, $end_date, $mysqli_conn = null) {
+    $conn = $mysqli_conn ?? ($GLOBALS['conn'] ?? null);
+    $nonWorkingMap = getNonWorkingDaysMap($conn);
+
     $start = clone $start_date;
     $end = clone $end_date;
 
@@ -28,23 +93,24 @@ function calculateBusinessDays($start_date, $end_date) {
     $endDay->setTime(0, 0, 0);
 
     while ($current <= $endDay) {
-        $dayOfWeek = (int)$current->format('N');
+        $dayStart = clone $current;
+        $dayStart->setTime(0, 0, 0);
 
-        if ($dayOfWeek >= 1 && $dayOfWeek <= 5) {
-            $dayStart = clone $current;
-            $dayStart->setTime(0, 0, 0);
+        if (!isBusinessDayForSla($dayStart, $nonWorkingMap)) {
+            $current->modify('+1 day');
+            continue;
+        }
 
-            $dayEndExclusive = clone $current;
-            $dayEndExclusive->setTime(0, 0, 0);
-            $dayEndExclusive->modify('+1 day');
+        $dayEndExclusive = clone $current;
+        $dayEndExclusive->setTime(0, 0, 0);
+        $dayEndExclusive->modify('+1 day');
 
-            $segmentStart = $dayStart < $start ? clone $start : clone $dayStart;
-            $segmentEnd = $dayEndExclusive > $end ? clone $end : clone $dayEndExclusive;
+        $segmentStart = $dayStart < $start ? clone $start : clone $dayStart;
+        $segmentEnd = $dayEndExclusive > $end ? clone $end : clone $dayEndExclusive;
 
-            if ($segmentEnd > $segmentStart) {
-                $seconds = $segmentEnd->getTimestamp() - $segmentStart->getTimestamp();
-                $totalDays += $seconds / 86400;
-            }
+        if ($segmentEnd > $segmentStart) {
+            $seconds = $segmentEnd->getTimestamp() - $segmentStart->getTimestamp();
+            $totalDays += $seconds / 86400;
         }
 
         $current->modify('+1 day');
@@ -98,14 +164,15 @@ function formatBusinessDayDiffLabel($days, $singular, $plural, $precision = 1) {
  * @param string|null $attended_at Fecha de atención del reporte (null si no ha sido atendido)
  * @return string Estado del reporte: 'unattended_ontime', 'unattended_late', 'attended_ontime', 'attended_late'
  */
-function determineReportStatus($created_at, $attended_at = null) {
+function determineReportStatus($created_at, $attended_at = null, $mysqli_conn = null) {
+    $conn = $mysqli_conn ?? ($GLOBALS['conn'] ?? null);
     $created_date = new DateTime($created_at);
     $now = new DateTime();
     
     // Si el reporte ha sido atendido
     if ($attended_at !== null) {
         $attended_date = new DateTime($attended_at);
-        $business_days = calculateBusinessDays($created_date, $attended_date);
+        $business_days = calculateBusinessDays($created_date, $attended_date, $conn);
         
         // Si se atendió dentro de 5 días hábiles
         if ($business_days <= 5) {
@@ -116,7 +183,7 @@ function determineReportStatus($created_at, $attended_at = null) {
     }
     
     // Si el reporte NO ha sido atendido
-    $business_days = calculateBusinessDays($created_date, $now);
+    $business_days = calculateBusinessDays($created_date, $now, $conn);
     
     // Si aún está dentro de los 5 días hábiles
     if ($business_days <= 5) {

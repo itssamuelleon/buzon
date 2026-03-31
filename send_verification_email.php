@@ -54,13 +54,13 @@ function sendVerificationEmail($email, $name, $code, $type = 'register') {
         $mail->CharSet = 'UTF-8';
         
         // Remitente y destinatario
-        $mail->setFrom(SMTP_USERNAME, 'ITSCC Buzón Digital');
+        $mail->setFrom(SMTP_USERNAME, 'BUZÓN DE QUEJAS Y SUGERENCIAS - TECNM/CIUDAD CONSTITUCIÓN');
         $mail->addAddress($actual_recipient, $name);
         
         // ========================================
         // CONFIGURACIONES ANTI-SPAM
         // ========================================
-        applyAntiSpamConfig($mail, SMTP_USERNAME, 'ITSCC Buzón Digital');
+        applyAntiSpamConfig($mail, SMTP_USERNAME, 'BUZÓN DE QUEJAS Y SUGERENCIAS - TECNM/CIUDAD CONSTITUCIÓN');
         
         // Configurar contenido según el tipo
         $subject_prefix = ($type === 'password_reset') ? 'Recuperación de Contraseña' : 'Código de Verificación';
@@ -76,7 +76,7 @@ function sendVerificationEmail($email, $name, $code, $type = 'register') {
         }
 
         // Add test mode notice to subject if in test mode
-        $subject = $subject_prefix . ' - ITSCC Buzón Digital';
+        $subject = $subject_prefix . ' - BUZÓN DE QUEJAS Y SUGERENCIAS - TECNM/CIUDAD CONSTITUCIÓN';
         if ($test_mode && $actual_recipient !== $original_email) {
             $subject = '[MODO PRUEBA] ' . $subject;
         }
@@ -214,7 +214,7 @@ Buzón de Quejas, Sugerencias y Felicitaciones
         } else {
             // Detección básica del límite diario
             if (stripos($error_info, 'daily user sending limit exceeded') !== false || stripos($error_info, 'daily sending quota exceeded') !== false) {
-                $friendly_error = 'Se alcanzó el límite diario de envío de correos de Gmail (500/día). Intenta de nuevo más tarde.';
+                $friendly_error = 'Se alcanzó el límite diario de envío de correos de Microsoft 365. Intenta de nuevo más tarde.';
             } else {
                 $friendly_error = $error_info;
             }

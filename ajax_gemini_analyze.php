@@ -610,12 +610,23 @@ $gemini_result = generateGeminiResponse($system_instruction, $context, [
 
 if ($gemini_result['success']) {
     $content = trim($gemini_result['content'] ?? '');
-    if (preg_match('/```(?:json)?\s*(.+?)```/is', $content, $matches)) {
-        $content = trim($matches[1]);
+    
+    // Intento de extracción de JSON más robusto: buscar el primer '{' y el último '}'
+    $first_brace = strpos($content, '{');
+    $last_brace = strrpos($content, '}');
+
+    if ($first_brace !== false && $last_brace !== false && $last_brace > $first_brace) {
+        $json_candidate = substr($content, $first_brace, ($last_brace - $first_brace) + 1);
+        
+        // Limpiar comas finales que rompen json_decode
+        $json_candidate = preg_replace('/,\s*([\]\}])/', '$1', $json_candidate);
+        
+        $decoded = json_decode($json_candidate, true);
+    } else {
+        $decoded = null;
     }
 
-    $decoded = json_decode($content, true);
-    if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+    if ($decoded !== null && is_array($decoded)) {
         // Buscar nombre de la categoría
         $category_name = 'Sin categoría';
         if (isset($decoded['categoria_id'])) {
@@ -630,7 +641,12 @@ if ($gemini_result['success']) {
         
         echo json_encode(['success' => true, 'data' => $decoded]);
     } else {
-        echo json_encode(['success' => true, 'raw' => $content]);
+        echo json_encode([
+            'success' => false, 
+            'error' => 'Error al interpretar la respuesta de la IA. El formato no es un JSON válido.',
+            'raw' => $content,
+            'json_error' => json_last_error_msg()
+        ]);
     }
 } else {
     echo json_encode(['success' => false, 'error' => $gemini_result['error'] ?? 'Error desconocido de Gemini']);

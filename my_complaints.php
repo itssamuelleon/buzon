@@ -1,5 +1,5 @@
 <?php 
-$page_title = 'Mis Reportes - ITSCC Buzón'; 
+$page_title = 'Mis Reportes - Buzón de Quejas'; 
 include 'components/header.php';
 require_once 'status_helper.php'; 
 
@@ -34,7 +34,7 @@ function getStatusInfo($status) {
 
 ?>
 
-<div class="bg-gray-50 min-h-screen">
+<div class="bg-transparent min-h-screen">
     <main class="container mx-auto px-4 py-12">
         <div class="max-w-5xl mx-auto">
             
@@ -136,7 +136,7 @@ function getStatusInfo($status) {
                                                 $interval = $createdDate->diff($now);
                                                 $daysAgo = $interval->days;
                                                 if ($daysAgo === 0) {
-                                                    $timeText = 'Hace 0 días';
+                                                    $timeText = 'Hoy';
                                                 } elseif ($daysAgo === 1) {
                                                     $timeText = 'Hace 1 día';
                                                 } else {

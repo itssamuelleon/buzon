@@ -1,7 +1,7 @@
 <?php
-// Redirección temporal a login.php
-//header('Location: login.php');
-//exit;
+// Registro deshabilitado - se utiliza login institucional de Microsoft
+header('Location: index.php');
+exit;
 
 // --- PHP LOGIC FIRST ---
 require_once 'config.php';
@@ -171,7 +171,7 @@ if (isset($_SESSION['pending_verification_email']) && $step === 'register') {
 // --- END OF PHP LOGIC ---
 
 // --- HTML PRESENTATION SECOND ---
-$page_title = 'Registrarse - ITSCC Buzón'; 
+$page_title = 'Registrarse - Buzón de Quejas'; 
 include 'components/header.php'; 
 ?>
 

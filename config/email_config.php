@@ -1,13 +1,13 @@
 <?php
 // Configuración de correo electrónico con PHPMailer
 
-// Credenciales de Microsoft 365 (Institucional)
-define('SMTP_HOST', 'smtp.office365.com');
-define('SMTP_PORT', 587);
-define('SMTP_USERNAME', 'buzon@cdconstitucion.tecnm.mx');
-define('SMTP_PASSWORD', 'Calidad2021');
-define('SMTP_FROM_EMAIL', 'buzon@cdconstitucion.tecnm.mx');
-define('SMTP_FROM_NAME', 'Buzón de Quejas ITSCC');
+// === CONFIGURACIÓN DE CORREO (Desde .env) ===
+define('SMTP_HOST', getenv('SMTP_HOST'));
+define('SMTP_PORT', getenv('SMTP_PORT'));
+define('SMTP_USERNAME', getenv('SMTP_USERNAME'));
+define('SMTP_PASSWORD', getenv('SMTP_PASSWORD'));
+define('SMTP_FROM_EMAIL', getenv('SMTP_FROM_EMAIL'));
+define('SMTP_FROM_NAME', getenv('SMTP_FROM_NAME'));
 
 // Función para obtener configuración de modo de prueba
 function isTestMode() {

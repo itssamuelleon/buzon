@@ -26,6 +26,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply_settings'])) {
     
     if ($row = $result->fetch_assoc()) {
         if (password_verify($password, $row['password'])) {
+            // Validar días inhábiles (JSON array de Y-m-d del año actual)
+            $non_working_raw = $_POST['non_working_days_current_year'] ?? '[]';
+            $decoded_nwd = json_decode($non_working_raw, true);
+            if (!is_array($decoded_nwd)) {
+                $_SESSION['error_message'] = 'El calendario de días inhábiles no es válido.';
+                header('Location: admin_settings.php');
+                exit;
+            }
+            $current_year = (int)date('Y');
+            $normalized_nwd = [];
+            foreach ($decoded_nwd as $d) {
+                if (!is_string($d)) {
+                    continue;
+                }
+                if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $d, $m)) {
+                    continue;
+                }
+                if ((int)$m[1] !== $current_year) {
+                    continue;
+                }
+                $dt = DateTime::createFromFormat('Y-m-d', $d);
+                if ($dt && $dt->format('Y-m-d') === $d) {
+                    $normalized_nwd[] = $d;
+                }
+            }
+            $normalized_nwd = array_values(array_unique($normalized_nwd));
+            sort($normalized_nwd);
+            $json_nwd = json_encode($normalized_nwd, JSON_UNESCAPED_UNICODE);
+
             // Validar email de pruebas
             if (!empty($test_email) && !filter_var($test_email, FILTER_VALIDATE_EMAIL)) {
                 $_SESSION['error_message'] = 'El correo electrónico de pruebas no es válido.';
@@ -59,6 +88,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply_settings'])) {
             $stmt_dashboard = $conn->prepare("INSERT INTO admin_settings (setting_key, setting_value, updated_by) VALUES ('restrict_dashboard_access', ?, ?) ON DUPLICATE KEY UPDATE setting_value = ?, updated_by = ?");
             $stmt_dashboard->bind_param("sisi", $restrict_dashboard, $_SESSION['user_id'], $restrict_dashboard, $_SESSION['user_id']);
             $stmt_dashboard->execute();
+
+            // Días inhábiles del año en curso
+            $stmt_nwd = $conn->prepare("INSERT INTO admin_settings (setting_key, setting_value, updated_by) VALUES ('non_working_days_current_year', ?, ?) ON DUPLICATE KEY UPDATE setting_value = ?, updated_by = ?");
+            $stmt_nwd->bind_param("sisi", $json_nwd, $_SESSION['user_id'], $json_nwd, $_SESSION['user_id']);
+            $stmt_nwd->execute();
             
             // Actualizar encargados de departamentos
             if (isset($_POST['managers']) && is_array($_POST['managers'])) {
@@ -162,6 +196,37 @@ if ($row_dashboard = $result_dashboard->fetch_assoc()) {
     $restrict_dashboard_access = $row_dashboard['setting_value'] == '1';
 }
 
+// Días inhábiles del año actual (JSON array de Y-m-d)
+$non_working_days = [];
+$stmt_nwd = $conn->prepare("SELECT setting_value FROM admin_settings WHERE setting_key = 'non_working_days_current_year'");
+$stmt_nwd->execute();
+$result_nwd = $stmt_nwd->get_result();
+$current_year = (int)date('Y');
+if ($row_nwd = $result_nwd->fetch_assoc()) {
+    $decoded_nwd = json_decode($row_nwd['setting_value'], true);
+    if (is_array($decoded_nwd)) {
+        foreach ($decoded_nwd as $d) {
+            if (!is_string($d)) {
+                continue;
+            }
+            if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $d, $m)) {
+                continue;
+            }
+            if ((int)$m[1] !== $current_year) {
+                continue;
+            }
+            $dt = DateTime::createFromFormat('Y-m-d', $d);
+            if ($dt && $dt->format('Y-m-d') === $d) {
+                $non_working_days[] = $d;
+            }
+        }
+    }
+}
+sort($non_working_days);
+$non_working_days_json = json_encode($non_working_days, JSON_HEX_APOS | JSON_HEX_QUOT);
+$calendar_year = $current_year;
+$calendar_month_index = max(0, (int)date('n') - 1);
+
 // Obtener departamentos y encargados
 try {
     $departments_query = $conn->query("SELECT id, name, manager, email, COALESCE(is_hidden, 0) as is_hidden FROM departments ORDER BY name");
@@ -178,11 +243,11 @@ $error = isset($_SESSION['error_message']) ? $_SESSION['error_message'] : '';
 unset($_SESSION['success_message']);
 unset($_SESSION['error_message']);
 
-$page_title = 'Configuración de Administrador - ITSCC Buzón';
+$page_title = 'Configuración de Administrador - Buzón de Quejas';
 include 'components/header.php';
 ?>
 
-<div class="bg-gray-50 min-h-screen py-12">
+<div class="bg-transparent min-h-screen py-12">
     <main class="container mx-auto px-4">
         <div class="max-w-4xl mx-auto">
             
@@ -254,6 +319,12 @@ include 'components/header.php';
                 "newDepartments": [],
                 "departments": <?php echo $departments_json; ?>,
                 "hiddenDepts": <?php echo $hidden_depts_json; ?>,
+                "calendarYear": <?php echo (int)$calendar_year; ?>,
+                "calendarMonth": <?php echo (int)$calendar_month_index; ?>,
+                "calendarMonthNames": ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
+                "nonWorkingDaysDraft": <?php echo $non_working_days_json; ?>,
+                "calendarDoneHint": false,
+                "nonWorkingCalendarModal": false,
                 "hasPendingChanges": false,
                 "editDepartment": function(dept) {
                     this.currentDept = JSON.parse(JSON.stringify(dept));
@@ -309,6 +380,63 @@ include 'components/header.php';
                 },
                 "isNewDept": function(deptId) {
                     return deptId < 0;
+                },
+                "calendarCells": function() {
+                    const y = this.calendarYear;
+                    const m = this.calendarMonth;
+                    const first = new Date(y, m, 1);
+                    const lastDay = new Date(y, m + 1, 0).getDate();
+                    const pad = (first.getDay() + 6) % 7;
+                    const cells = [];
+                    for (let i = 0; i < 42; i++) {
+                        const dayNum = i - pad + 1;
+                        if (dayNum < 1 || dayNum > lastDay) {
+                            cells.push({ empty: true });
+                        } else {
+                            const iso = y + "-" + String(m + 1).padStart(2, "0") + "-" + String(dayNum).padStart(2, "0");
+                            const d = new Date(y, m, dayNum);
+                            const dow = d.getDay();
+                            const weekend = (dow === 0 || dow === 6);
+                            cells.push({ empty: false, day: dayNum, iso: iso, weekend: weekend });
+                        }
+                    }
+                    return cells;
+                },
+                "toggleNonWorkingDay": function(iso, weekend) {
+                    if (weekend) return;
+                    const idx = this.nonWorkingDaysDraft.indexOf(iso);
+                    if (idx > -1) {
+                        this.nonWorkingDaysDraft.splice(idx, 1);
+                    } else {
+                        this.nonWorkingDaysDraft.push(iso);
+                    }
+                    this.nonWorkingDaysDraft.sort();
+                    this.hasPendingChanges = true;
+                    this.calendarDoneHint = false;
+                },
+                "clearNonWorkingDays": function() {
+                    this.nonWorkingDaysDraft = [];
+                    this.hasPendingChanges = true;
+                    this.calendarDoneHint = false;
+                },
+                "confirmNonWorkingCalendar": function() {
+                    this.hasPendingChanges = true;
+                    this.calendarDoneHint = true;
+                    this.nonWorkingCalendarModal = false;
+                    const self = this;
+                    setTimeout(function() { self.calendarDoneHint = false; }, 6000);
+                },
+                "closeNonWorkingCalendarModal": function() {
+                    this.nonWorkingCalendarModal = false;
+                },
+                "prevCalendarMonth": function() {
+                    if (this.calendarMonth > 0) this.calendarMonth--;
+                },
+                "nextCalendarMonth": function() {
+                    if (this.calendarMonth < 11) this.calendarMonth++;
+                },
+                "isNonWorkingSelected": function(iso) {
+                    return this.nonWorkingDaysDraft.includes(iso);
                 }
             }' class="max-w-5xl mx-auto">
                 
@@ -318,6 +446,7 @@ include 'components/header.php';
                     <input type="hidden" name="notify_buzon_on_new_report" :value="notifyBuzon ? '1' : '0'">
                     <input type="hidden" name="disable_institutional_email_check" :value="disableEmailCheck ? '1' : '0'">
                     <input type="hidden" name="restrict_dashboard_access" :value="restrictDashboard ? '1' : '0'">
+                    <input type="hidden" name="non_working_days_current_year" :value="JSON.stringify(nonWorkingDaysDraft.slice().sort())">
                     <template x-for="deptId in hiddenDepts" :key="deptId">
                         <input type="hidden" name="hidden_departments[]" :value="deptId">
                     </template>
@@ -454,6 +583,40 @@ include 'components/header.php';
                         </div>
                     </div>
 
+                    <!-- Tarjeta: Días inhábiles (año actual) — calendario en popup -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                        <div class="px-6 py-4 border-b border-gray-100 bg-amber-50/50 flex items-center gap-3">
+                            <div class="p-2 bg-amber-100 text-amber-700 rounded-lg flex items-center justify-center">
+                                <i class="ph-calendar-x text-xl leading-none"></i>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <h2 class="text-lg font-semibold text-gray-800">Días inhábiles</h2>
+                                <p class="text-sm text-gray-500">Feriados y días sin cómputo de plazo (<?php echo (int)$calendar_year; ?>)</p>
+                            </div>
+                        </div>
+                        <div class="p-6 space-y-4">
+                            <p class="text-sm text-gray-600">
+                                Los fines de semana ya se excluyen del cómputo. Marca aquí feriados u otros inhábiles. Los cambios se guardan con <strong>Guardar Cambios</strong> y tu contraseña.
+                            </p>
+                            <div x-show="calendarDoneHint" x-transition class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 flex items-center gap-2">
+                                <i class="ph-check-circle text-lg shrink-0"></i>
+                                <span>Listo: la selección se guardará en la base de datos cuando confirmes con <strong>Guardar Cambios</strong> y tu contraseña.</span>
+                            </div>
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                <p class="text-sm text-gray-700">
+                                    <span class="font-semibold text-amber-800" x-text="nonWorkingDaysDraft.length"></span>
+                                    <span x-text="nonWorkingDaysDraft.length === 1 ? ' día marcado' : ' días marcados'"></span>
+                                </p>
+                                <button type="button"
+                                        @click="nonWorkingCalendarModal = true"
+                                        class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 shadow-sm shrink-0">
+                                    <i class="ph-calendar text-lg"></i>
+                                    Abrir calendario
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Tarjeta: Encargados -->
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                         <div class="px-6 py-4 border-b border-gray-100 bg-emerald-50/50 flex items-center justify-between">
@@ -586,6 +749,109 @@ include 'components/header.php';
                         </button>
                     </div>
                 </form>
+
+                <!-- Modal: Calendario días inhábiles -->
+                <div x-show="nonWorkingCalendarModal"
+                     x-transition:enter="ease-out duration-200"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     x-transition:leave="ease-in duration-150"
+                     x-transition:leave-start="opacity-100"
+                     x-transition:leave-end="opacity-0"
+                     @keydown.escape.window="nonWorkingCalendarModal = false"
+                     x-cloak
+                     class="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4"
+                     style="display: none;"
+                     x-init="$watch('nonWorkingCalendarModal', value => { document.body.style.overflow = value ? 'hidden' : 'auto' })">
+                    <div class="fixed inset-0 bg-black/50 backdrop-blur-sm" @click="nonWorkingCalendarModal = false"></div>
+                    <div @click.away="nonWorkingCalendarModal = false"
+                         x-transition:enter="ease-out duration-200"
+                         x-transition:enter-start="opacity-0 scale-95"
+                         x-transition:enter-end="opacity-100 scale-100"
+                         x-transition:leave="ease-in duration-150"
+                         x-transition:leave-start="opacity-100 scale-100"
+                         x-transition:leave-end="opacity-0 scale-95"
+                         class="relative z-10 w-full max-w-md h-[min(92vh,36rem)] max-h-[92vh] flex flex-col rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 overflow-hidden">
+                        <div class="shrink-0 flex items-start justify-between gap-3 border-b border-gray-100 bg-amber-50/80 px-4 py-3 sm:px-5">
+                            <div class="min-w-0">
+                                <h3 class="text-base font-bold text-gray-900">Días inhábiles <?php echo (int)$calendar_year; ?></h3>
+                                <p class="text-xs text-gray-600 mt-0.5">Toca un día laborable para marcarlo. Fin de semana en gris.</p>
+                            </div>
+                            <button type="button"
+                                    @click="nonWorkingCalendarModal = false"
+                                    class="shrink-0 rounded-lg p-1.5 text-gray-500 hover:bg-amber-100 hover:text-gray-800"
+                                    aria-label="Cerrar">
+                                <i class="ph-x text-xl"></i>
+                            </button>
+                        </div>
+                        <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 space-y-4">
+                            <div class="flex items-center justify-between gap-2">
+                                <button type="button"
+                                        @click="prevCalendarMonth()"
+                                        :disabled="calendarMonth === 0"
+                                        :class="calendarMonth === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-100'"
+                                        class="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg border border-gray-200 bg-white text-gray-700 shrink-0">
+                                    <i class="ph-caret-left text-lg"></i>
+                                </button>
+                                <h4 class="text-sm sm:text-base font-semibold text-gray-900 text-center truncate px-1"
+                                    x-text="calendarMonthNames[calendarMonth] + ' ' + calendarYear"></h4>
+                                <button type="button"
+                                        @click="nextCalendarMonth()"
+                                        :disabled="calendarMonth === 11"
+                                        :class="calendarMonth === 11 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-100'"
+                                        class="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg border border-gray-200 bg-white text-gray-700 shrink-0">
+                                    <i class="ph-caret-right text-lg"></i>
+                                </button>
+                            </div>
+                            <div class="grid grid-cols-7 gap-0.5 sm:gap-1 text-center text-[10px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+                            </div>
+                            <div class="grid grid-cols-7 gap-0.5 sm:gap-1">
+                                <template x-for="(cell, idx) in calendarCells()" :key="idx">
+                                    <div class="min-w-0">
+                                        <template x-if="cell.empty">
+                                            <div class="aspect-square max-h-10 sm:max-h-11 rounded-md bg-gray-50/50"></div>
+                                        </template>
+                                        <template x-if="!cell.empty">
+                                            <button type="button"
+                                                    @click="toggleNonWorkingDay(cell.iso, cell.weekend)"
+                                                    :class="{
+                                                        'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200': cell.weekend,
+                                                        'bg-amber-100 border-2 border-amber-500 text-amber-900 font-semibold': !cell.weekend && isNonWorkingSelected(cell.iso),
+                                                        'bg-white border border-gray-200 text-gray-800 hover:border-amber-300': !cell.weekend && !isNonWorkingSelected(cell.iso)
+                                                    }"
+                                                    class="aspect-square max-h-10 sm:max-h-11 rounded-md flex items-center justify-center text-xs sm:text-sm w-full transition-colors"
+                                                    :disabled="cell.weekend">
+                                                <span x-text="cell.day"></span>
+                                            </button>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <div class="shrink-0 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 border-t border-gray-100 bg-gray-50 px-4 py-3 sm:px-5">
+                            <button type="button"
+                                    @click="clearNonWorkingDays()"
+                                    class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-100 text-sm w-full sm:w-auto">
+                                <i class="ph-broom text-lg"></i>
+                                Limpiar
+                            </button>
+                            <div class="flex gap-2 w-full sm:w-auto">
+                                <button type="button"
+                                        @click="closeNonWorkingCalendarModal()"
+                                        class="inline-flex flex-1 sm:flex-initial items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-100 text-sm">
+                                    Cerrar
+                                </button>
+                                <button type="button"
+                                        @click="confirmNonWorkingCalendar()"
+                                        class="inline-flex flex-1 sm:flex-initial items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 shadow-sm text-sm">
+                                    <i class="ph-check text-lg"></i>
+                                    Listo
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
                 <!-- Modal: Edit Department -->
                 <div x-show="editDeptModal" 

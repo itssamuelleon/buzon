@@ -341,7 +341,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isAdmin() || canCloseReport())) {
             $success_msg = "Departamentos asignados correctamente.";
             $is_test_mode = function_exists('isTestMode') && isTestMode();
             if ($is_test_mode) {
-                $success_msg .= " Modo de prueba activado: los correos se enviarán a " . SMTP_USERNAME . " en lugar de los departamentos.";
+                $test_email_dest = function_exists('getTestEmail') ? getTestEmail() : SMTP_USERNAME;
+                $success_msg .= " Modo de prueba activado: los correos se enviarán a " . $test_email_dest . " en lugar de los departamentos.";
             } else {
                 $success_msg .= " Los correos de notificación se enviarán en segundo plano.";
             }
@@ -538,7 +539,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isAdmin() || canCloseReport())) {
                     $success_msg .= "Departamentos asignados.";
                     $is_test_mode = function_exists('isTestMode') && isTestMode();
                     if ($is_test_mode) {
-                        $success_msg .= " Modo de prueba activado: los correos se enviarán a " . SMTP_USERNAME . " en lugar de los departamentos.";
+                        $test_email_dest = function_exists('getTestEmail') ? getTestEmail() : SMTP_USERNAME;
+                        $success_msg .= " Modo de prueba activado: los correos se enviarán a " . $test_email_dest . " en lugar de los departamentos.";
                     } else {
                         $success_msg .= " Los correos de notificación se enviarán en segundo plano.";
                     }
@@ -636,11 +638,11 @@ function getFileIcon($file_type) {
 }
 
 // AHORA sí incluir el header después de todo el procesamiento
-$page_title = 'Ver Reporte - ITSCC Buzón';
+$page_title = 'Ver Reporte - Buzón de Quejas';
 include 'components/header.php';
 ?>
 
-<div class="bg-gray-50 min-h-screen" 
+<div class="bg-transparent min-h-screen" 
      x-data="{ 
          isModalOpen: false, 
          modalImageUrl: '', 
@@ -1169,6 +1171,29 @@ include 'components/header.php';
             <?php endif; ?>
             
 
+            <?php
+            $referer = $_SERVER['HTTP_REFERER'] ?? '';
+            $is_staff_user = function_exists('isAdmin') && (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager'));
+            
+            if (strpos($referer, 'my_complaints.php') !== false) {
+                $backUrl = 'my_complaints.php';
+                $backText = 'Volver a Mis Reportes';
+            } elseif (!$is_staff_user) {
+                $backUrl = 'my_complaints.php';
+                $backText = 'Volver a Mis Reportes';
+            } else {
+                $backUrl = 'dashboard.php';
+                $backText = 'Volver al Dashboard';
+            }
+            ?>
+            <!-- Breadcrumb -->
+            <div class="mb-6">
+                <a href="<?php echo htmlspecialchars($backUrl); ?>" class="inline-flex items-center text-gray-500 hover:text-blue-600 font-semibold transition-colors group">
+                    <i class="ph-arrow-left text-lg mr-2 group-hover:-translate-x-1 transition-transform"></i>
+                    <?php echo $backText; ?>
+                </a>
+            </div>
+
             <div class="bg-white rounded-2xl shadow-xl overflow-hidden"
                  <?php if (isAdmin()): ?>
                  x-data="{ 
@@ -1575,17 +1600,17 @@ include 'components/header.php';
                                     <?php endif; ?>
                                 </div>
                                 <?php if ($assigned_departments->num_rows == 0): ?>
-                                    <div class="mt-2 bg-yellow-50 rounded-lg p-2 md:p-3 border border-yellow-200">
+                                    <div class="mt-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-2 md:p-3 border border-yellow-200 dark:border-yellow-700/50">
                                         <div class="flex items-center gap-2">
-                                            <i class="ph-warning-circle text-yellow-600 text-base md:text-lg"></i>
+                                            <i class="ph-warning-circle text-yellow-600 dark:text-yellow-400 text-base md:text-lg"></i>
                                             <div>
-                                                <p class="font-medium text-yellow-800 text-xs md:text-sm">Reporte sin asignar</p>
+                                                <p class="font-medium text-yellow-800 dark:text-yellow-300 text-xs md:text-sm">Reporte sin asignar</p>
                                                 <?php if (isAdmin()): ?>
-                                                    <p class="text-yellow-700 text-[10px] md:text-xs mt-0.5">
+                                                    <p class="text-yellow-700 dark:text-yellow-400 text-[10px] md:text-xs mt-0.5">
                                                         Usa el botón "Asignar Departamentos" para asignar departamentos responsables.
                                                     </p>
                                                 <?php else: ?>
-                                                    <p class="text-yellow-700 text-[10px] md:text-xs mt-0.5">
+                                                    <p class="text-yellow-700 dark:text-yellow-400 text-[10px] md:text-xs mt-0.5">
                                                         El reporte aún no ha sido asignado a ningún departamento.
                                                     </p>
                                                 <?php endif; ?>
@@ -1816,7 +1841,7 @@ include 'components/header.php';
                                     x-transition:leave-start="opacity-100 transform scale-100"
                                     x-transition:leave-end="opacity-0 transform scale-95"
                                     style="display: none;"
-                                    class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200 relative">
+                                    class="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800/50 relative">
                                     
                                     <!-- Cancel Button (Top Right, Icon Only) -->
                                     <button 
@@ -1958,9 +1983,9 @@ include 'components/header.php';
                         <?php else: ?>
                             <div class="space-y-6">
                                 <?php foreach ($comments as $comment): ?>
-                                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                                    <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
                                         <!-- Comment Header -->
-                                        <div class="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+                                        <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800/50 dark:to-slate-800/50">
                                             <div class="flex items-start justify-between gap-4">
                                                 <div class="flex items-start gap-3 flex-1 min-w-0">
                                                     <?php 

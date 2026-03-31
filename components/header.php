@@ -23,9 +23,9 @@ if (isLoggedIn() && isset($_SESSION['user_id'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo isset($page_title) ? $page_title : 'Buzón de Quejas - ITSCC'; ?></title>
+    <title><?php echo isset($page_title) ? $page_title : 'Buzón de Quejas'; ?></title>
     
-    <link rel="icon" href="./assets/x-icon.png" type="image/png">
+    <link rel="icon" href="./assets/logo.png" type="image/png">
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -50,7 +50,25 @@ if (isLoggedIn() && isset($_SESSION['user_id'])) {
     <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
 
     <script>
+        // Check theme immediately to prevent FOUC
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+
+        window.toggleDarkMode = function() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        };
+
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
                     fontFamily: {
@@ -86,12 +104,150 @@ if (isLoggedIn() && isset($_SESSION['user_id'])) {
     </script>
     
     <style>
+        /* GLOBAL DARK MODE OVERRIDES */
+        /* GLOBAL DARK MODE OVERRIDES */
+        html.dark body { background-color: #0f172a !important; color: #e2e8f0 !important; }
+        html.dark .bg-white, html.dark .bg-slate-50, html.dark .bg-gray-50 {
+            background-color: #1e293b !important;
+            border-color: #334155 !important;
+            background-image: none !important;
+        }
+        
+        /* Soft tinted backgrounds for specific colors in dark mode instead of full slate */
+        html.dark .bg-blue-50, html.dark .bg-blue-100, html.dark [class*="bg-blue-50/"], html.dark [class*="bg-blue-100/"] { background-color: rgba(59, 130, 243, 0.15) !important; border-color: rgba(59, 130, 243, 0.2) !important; color: #93c5fd !important; background-image: none !important; }
+        html.dark .bg-indigo-50, html.dark .bg-indigo-100, html.dark [class*="bg-indigo-50/"], html.dark [class*="bg-indigo-100/"] { background-color: rgba(99, 102, 241, 0.15) !important; border-color: rgba(99, 102, 241, 0.2) !important; background-image: none !important; }
+        html.dark .bg-purple-50, html.dark .bg-purple-100, html.dark [class*="bg-purple-50/"], html.dark [class*="bg-purple-100/"] { background-color: rgba(168, 85, 247, 0.15) !important; border-color: rgba(168, 85, 247, 0.2) !important; background-image: none !important; }
+        html.dark .bg-emerald-50, html.dark .bg-green-50, html.dark .bg-emerald-100, html.dark .bg-green-100, html.dark [class*="bg-emerald-50/"], html.dark [class*="bg-green-50/"], html.dark [class*="bg-emerald-100/"], html.dark [class*="bg-green-100/"], html.dark .text-emerald-50 { background-color: rgba(16, 185, 129, 0.15) !important; border-color: rgba(16, 185, 129, 0.2) !important; color: #6ee7b7 !important; background-image: none !important; }
+        html.dark .bg-amber-50, html.dark .bg-orange-50, html.dark .bg-yellow-50, html.dark .bg-amber-100, html.dark .bg-orange-100, html.dark .bg-yellow-100, html.dark [class*="bg-amber-50/"], html.dark [class*="bg-orange-50/"], html.dark [class*="bg-yellow-50/"], html.dark [class*="bg-amber-100/"], html.dark [class*="bg-orange-100/"], html.dark [class*="bg-yellow-100/"] { background-color: rgba(245, 158, 11, 0.15) !important; border-color: rgba(245, 158, 11, 0.2) !important; color: #fcd34d !important; background-image: none !important; }
+        html.dark .bg-red-50, html.dark .bg-rose-50, html.dark .bg-red-100, html.dark .bg-rose-100, html.dark [class*="bg-red-50/"], html.dark [class*="bg-rose-50/"], html.dark [class*="bg-red-100/"], html.dark [class*="bg-rose-100/"] { background-color: rgba(239, 68, 68, 0.15) !important; border-color: rgba(239, 68, 68, 0.2) !important; color: #fca5a5 !important; background-image: none !important; }
+        
+        /* Gradients overrides - using precise classes to avoid matching blue-500 with blue-50* wildcard */
+        html.dark .from-blue-50, html.dark .from-slate-50, html.dark .from-green-50, html.dark .from-amber-50, html.dark .from-indigo-50, html.dark .from-blue-100, html.dark [class*="from-blue-50/"], html.dark [class*="from-blue-100/"] { 
+            background-color: #0f172a !important; 
+            background-image: none !important; 
+        }
+        
+        /* Body overrides just in case tailwind rules try to win via specificity */
+        html.dark body { 
+            background-color: #0f172a !important; 
+            background-image: none !important;
+            color: #e2e8f0 !important;
+        }
+
+        /* Typography overrides */
+        html.dark .text-slate-900, html.dark .text-gray-800, html.dark .text-gray-900, html.dark .text-gray-700 { color: #f8fafc !important; }
+        html.dark .text-slate-800, html.dark .text-slate-700, html.dark .text-slate-600, html.dark .text-gray-600 { color: #cbd5e1 !important; }
+        html.dark .text-gray-500 { color: #94a3b8 !important; }
+
+        html.dark .text-amber-900, html.dark .text-amber-800, html.dark .text-amber-700 { color: #fde68a !important; }
+        html.dark .text-blue-900, html.dark .text-blue-800, html.dark .text-blue-700 { color: #bfdbfe !important; }
+        html.dark .text-green-900, html.dark .text-green-800, html.dark .text-green-700, html.dark .text-green-600, html.dark .text-emerald-800, html.dark .text-emerald-700, html.dark .text-emerald-600 { color: #6ee7b7 !important; }
+        html.dark .text-purple-900, html.dark .text-purple-800, html.dark .text-purple-700 { color: #d8b4fe !important; }
+        html.dark .text-orange-900, html.dark .text-orange-800, html.dark .text-orange-700 { color: #ffb366 !important; }
+        html.dark .text-red-900, html.dark .text-red-800, html.dark .text-red-700 { color: #fca5a5 !important; }
+        
+        /* Navbar & Footer dark mode backgrounds */
+        html.dark nav .bg-gradient-to-r,
+        html.dark footer {
+            background: linear-gradient(to right, #0f172a, #1a2333) !important;
+        }
+        
+        /* Dim footer blobs in dark mode - slightly more visible now */
+        html.dark footer .bg-gradient-to-br,
+        html.dark footer .bg-gradient-to-tl {
+            opacity: 0.15 !important;
+        }
+
+        /* Mobile Menu Dark Mode */
+        html.dark .mobile-menu-glass {
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%) !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
+        }
+        
+        html.dark .mobile-profile-card {
+            background: rgba(51, 65, 85, 0.4) !important;
+            border-color: rgba(255, 255, 255, 0.05) !important;
+        }
+        
+        html.dark .mobile-menu-item-gradient {
+            background: rgba(51, 65, 85, 0.2) !important;
+        }
+        
+        html.dark .mobile-menu-item-gradient:hover {
+            background: rgba(51, 65, 85, 0.4) !important;
+        }
+
+        /* Borders & Special Containers */
+        html.dark .border-gray-100, html.dark .border-gray-200, html.dark .border-slate-200, html.dark .border-gray-300 { border-color: #334155 !important; }
+        html.dark .border-gray-50 { border-color: transparent !important; }
+        
+        html.dark .glass-card, html.dark .glass-effect {
+            background: rgba(30, 41, 59, 0.7) !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        /* Forms & Inputs & TomSelect */
+        html.dark input[type="text"], html.dark input[type="password"], html.dark input[type="email"], html.dark select, html.dark textarea,
+        html.dark .ts-control, html.dark .ts-dropdown, html.dark .ts-dropdown .option {
+            background-color: #0f172a !important;
+            color: #f8fafc !important;
+            border-color: #475569 !important;
+            box-shadow: none !important;
+        }
+        html.dark .ts-wrapper.multi .ts-control > div {
+            background-color: #1e293b !important;
+            color: #f8fafc !important;
+            border-color: #334155 !important;
+        }
+        html.dark .ts-dropdown .active { background-color: #1e293b !important; color: #60a5fa !important; }
+        
+        html.dark input::-webkit-input-placeholder, html.dark textarea::-webkit-input-placeholder { color: #64748b !important; }
+        html.dark input::placeholder, html.dark textarea::placeholder { color: #64748b !important; }
+        html.dark input:focus, html.dark select:focus, html.dark textarea:focus, html.dark .ts-control.focus {
+            border-color: #60a5fa !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5) !important;
+            --tw-ring-color: transparent !important;
+        }
+        
+        /* Checkboxes */
+        html.dark input[type="checkbox"] {
+            background-color: #1e293b !important;
+            border-color: #475569 !important;
+            border-width: 2px !important;
+            color: #3b82f6 !important;
+        }
+
+        /* Dropdowns, Buttons & States */
+        html.dark .bg-gray-100, html.dark .bg-gray-200 { background-color: #334155 !important; color: #f8fafc !important; border-color: #475569 !important; }
+        html.dark .hover\:bg-gray-100:hover, html.dark .hover\:bg-gray-200:hover, html.dark .hover\:bg-gray-300:hover { background-color: #334155 !important; color: #ffffff !important; }
+        html.dark .hover\:bg-gray-50:hover { background-color: #334155 !important; }
+        html.dark .hover\:bg-red-50:hover { background-color: rgba(239, 68, 68, 0.2) !important; }
+        html.dark .hover\:bg-blue-50:hover { background-color: rgba(59, 130, 246, 0.2) !important; }
+        html.dark .hover\:bg-indigo-50:hover { background-color: rgba(99, 102, 241, 0.2) !important; }
+        
+        /* Shadows adjustment */
+        html.dark .shadow-xl, html.dark .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.7), 0 4px 6px -2px rgba(0, 0, 0, 0.5) !important; }
+        html.dark .shadow-sm, html.dark .shadow { box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.5), 0 1px 2px -1px rgba(0, 0, 0, 0.3) !important; }
+
         * { font-family: 'Inter', sans-serif; }
         
         @keyframes float {
             0%, 100% { transform: translateY(0px) rotate(0deg); }
             33% { transform: translateY(-20px) rotate(-5deg); }
             66% { transform: translateY(-10px) rotate(5deg); }
+        }
+        
+        .blob {
+            position: absolute;
+            filter: blur(80px);
+            z-index: -1;
+            opacity: 0.6;
+            animation: float-slow 10s infinite ease-in-out alternate;
+        }
+        
+        @keyframes float-slow {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(30px, 30px) scale(1.1); }
         }
         
         @keyframes glow {
@@ -275,6 +431,15 @@ if (isLoggedIn() && isset($_SESSION['user_id'])) {
 </head>
 <body class="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen relative overflow-x-hidden">
     
+<!-- ══════════════════════════════════
+     GLOBAL FIXED BACKGROUND BLOBS
+     ══════════════════════════════════ -->
+<div class="fixed inset-0 pointer-events-none overflow-hidden" style="z-index: -5;">
+    <div class="blob bg-blue-500 w-[500px] h-[500px] sm:w-96 sm:h-96 rounded-full top-[-5%] left-[-5%] mix-blend-multiply opacity-40 dark:opacity-50 dark:mix-blend-screen animate-float-slow"></div>
+    <div class="blob bg-purple-500 w-[600px] h-[600px] sm:w-[500px] sm:h-[500px] rounded-full bottom-[-15%] right-[-15%] animation-delay-2000 mix-blend-multiply opacity-40 dark:opacity-50 dark:mix-blend-screen animate-float-slow"></div>
+    <div class="blob bg-pink-500 w-[400px] h-[400px] sm:w-80 sm:h-80 rounded-full top-[30%] left-[35%] mix-blend-multiply opacity-25 dark:opacity-30 dark:mix-blend-screen animate-float-slow" style="animation-delay: 4000ms;"></div>
+</div>
+
 <?php 
 // Define helper functions if not already defined
 if (!function_exists('isLoggedIn')) {
@@ -298,44 +463,68 @@ if (!function_exists('isAdmin')) {
                 <div class="container mx-auto px-4">
                     <div class="flex justify-between items-center h-20">
                         <!-- Logo Section -->
-                        <div class="flex items-center space-x-4">
-                            <a href="index.php" class="flex items-center group">
-                                <div class="relative">
+                        <div class="flex items-center space-x-4 min-w-0">
+                            <a href="index.php" class="flex items-center group min-w-0">
+                                <div class="relative flex-shrink-0">
                                     <div class="absolute inset-0 bg-white rounded-xl blur-xl opacity-50 group-hover:opacity-70 transition-opacity"></div>
                                     <img src="assets/logo.png" alt="ITSCC Logo" class="relative h-14 w-auto transform group-hover:scale-105 transition-transform duration-300">
                                 </div>
-                                <div class="ml-4">
-                                    <span class="text-white text-2xl font-bold tracking-tight">Buzón de Quejas</span>
-                                    <span class="block text-white/80 text-sm font-light">ITSCC</span>
+                                <div class="ml-3 min-w-0">
+                                    <span class="text-white text-lg sm:text-xl lg:text-2xl font-bold tracking-tight whitespace-nowrap">Buzón de Quejas</span>
+                                    <span class="block text-white/80 text-[11px] sm:text-xs lg:text-sm font-light whitespace-nowrap">TecNM - Ciudad Constitución</span>
                                 </div>
                             </a>
                         </div>
                         
                         <!-- Desktop Navigation -->
-                        <div class="hidden md:flex items-center space-x-2">
+                        <div class="hidden md:flex items-center space-x-1 lg:space-x-2">
+                            <!-- Dark Mode Toggle (Desktop) -->
+                            <button onclick="toggleDarkMode()" 
+                                    class="nav-item flex items-center justify-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 h-10 w-10 rounded-xl transition-all duration-300 group icon-animated leading-none" 
+                                    title="Alternar Modo Oscuro">
+                                <i class="ph-sun text-xl block dark:hidden leading-none"></i>
+                                <i class="ph-moon text-xl hidden dark:block leading-none"></i>
+                            </button>
+                            <div class="h-8 w-px bg-white/20 mx-2"></div>
                             <?php if (isLoggedIn()): ?>
                                 <?php if (canAccessDashboard()): ?>
-                                    <a href="dashboard.php" class="nav-item flex items-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-5 py-2.5 rounded-xl transition-all duration-300 group">
-                                        <i class="ph-chart-line text-xl mr-2 icon-animated icon-wiggle-on-hover"></i>
-                                        <span class="font-medium">Dashboard</span>
+                                    <a href="dashboard.php" class="nav-item flex items-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-3 lg:px-5 py-2.5 rounded-xl transition-all duration-300 group" title="Dashboard">
+                                        <i class="ph-chart-line text-xl lg:mr-2 icon-animated icon-wiggle-on-hover"></i>
+                                        <span class="font-medium hidden lg:inline">Dashboard</span>
                                     </a>
                                 <?php endif; ?>
                                 
-                                <a href="submit_complaint.php" class="nav-item flex items-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-5 py-2.5 rounded-xl transition-all duration-300 group">
-                                    <i class="ph-plus-circle text-xl mr-2 icon-animated icon-rotate-on-hover"></i>
-                                    <span class="font-medium">Nuevo Reporte</span>
-                                </a>
-                                
-                                <a href="my_complaints.php" class="nav-item relative flex items-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-5 py-2.5 rounded-xl transition-all duration-300 group">
-                                    <i class="ph-folder-open text-xl mr-2 icon-animated icon-bounce-on-hover"></i>
-                                    <span class="font-medium">Mis Reportes</span>
-                                    <?php
-                                    // Check for unread responses (optional feature)
-                                    $unread_count = 0; // You can implement this logic
-                                    if ($unread_count > 0): ?>
-                                        <span class="notification-dot"></span>
-                                    <?php endif; ?>
-                                </a>
+                                <?php if (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager')): ?>
+                                    <!-- Admin/Manager: icon-only buttons -->
+                                    <a href="submit_complaint.php" class="nav-item flex items-center justify-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-2.5 rounded-xl transition-all duration-300 group" title="Nuevo Reporte">
+                                        <i class="ph-plus-circle text-xl icon-animated icon-rotate-on-hover"></i>
+                                    </a>
+                                    
+                                    <a href="my_complaints.php" class="nav-item relative flex items-center justify-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-2.5 rounded-xl transition-all duration-300 group" title="Mis Reportes">
+                                        <i class="ph-folder-open text-xl icon-animated icon-bounce-on-hover"></i>
+                                        <?php
+                                        $unread_count = 0;
+                                        if ($unread_count > 0): ?>
+                                            <span class="notification-dot"></span>
+                                        <?php endif; ?>
+                                    </a>
+                                <?php else: ?>
+                                    <!-- Regular user: full buttons -->
+                                    <a href="submit_complaint.php" class="nav-item flex items-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-3 lg:px-5 py-2.5 rounded-xl transition-all duration-300 group" title="Nuevo Reporte">
+                                        <i class="ph-plus-circle text-xl lg:mr-2 icon-animated icon-rotate-on-hover"></i>
+                                        <span class="font-medium hidden lg:inline">Nuevo Reporte</span>
+                                    </a>
+                                    
+                                    <a href="my_complaints.php" class="nav-item relative flex items-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 px-3 lg:px-5 py-2.5 rounded-xl transition-all duration-300 group" title="Mis Reportes">
+                                        <i class="ph-folder-open text-xl lg:mr-2 icon-animated icon-bounce-on-hover"></i>
+                                        <span class="font-medium hidden lg:inline">Mis Reportes</span>
+                                        <?php
+                                        $unread_count = 0;
+                                        if ($unread_count > 0): ?>
+                                            <span class="notification-dot"></span>
+                                        <?php endif; ?>
+                                    </a>
+                                <?php endif; ?>
                                 
                                 <div class="h-8 w-px bg-white/20 mx-2"></div>
                                 
@@ -403,22 +592,23 @@ if (!function_exists('isAdmin')) {
                                     <i class="ph-sign-in text-xl mr-2 group-hover:translate-x-1 transition-transform"></i>
                                     <span class="font-medium">Iniciar Sesión</span>
                                 </a>
-                                
-                                <a href="register.php" class="flex items-center text-gray-800 bg-white hover:bg-gray-50 px-5 py-2.5 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 group">
-                                    <i class="ph-user-plus text-xl mr-2 icon-animated icon-rotate-on-hover"></i>
-                                    <span class="font-semibold">Registrarse</span>
-                                </a>
 
                             <?php endif; ?>
                         </div>
                         
-                        <!-- Mobile Menu Button -->
-                        <button @click="mobileMenuOpen = !mobileMenuOpen" 
-                                class="md:hidden inline-flex items-center justify-center p-2 rounded-lg text-white bg-white/10 hover:bg-white/20 transition-colors">
-                            <span class="sr-only">Abrir menú principal</span>
-                            <i class="ph-list-bold text-2xl icon-animated icon-pulse-soft" x-show="!mobileMenuOpen" x-cloak></i>
-                            <i class="ph-x-bold text-2xl icon-animated icon-wiggle-on-hover" x-show="mobileMenuOpen" x-cloak></i>
-                        </button>
+                        <div class="md:hidden flex items-center space-x-3">
+                            <button onclick="toggleDarkMode()" 
+                                    class="flex items-center justify-center text-white bg-white/10 hover:bg-white/20 h-10 w-10 rounded-lg transition-colors leading-none">
+                                <i class="ph-sun text-2xl block dark:hidden leading-none"></i>
+                                <i class="ph-moon text-2xl hidden dark:block leading-none"></i>
+                            </button>
+                            <button @click="mobileMenuOpen = !mobileMenuOpen" 
+                                    class="p-2 rounded-lg flex items-center justify-center text-white bg-white/10 hover:bg-white/20 transition-colors">
+                                <span class="sr-only">Abrir menú principal</span>
+                                <i class="ph-list-bold text-2xl icon-animated icon-pulse-soft" x-show="!mobileMenuOpen" x-cloak></i>
+                                <i class="ph-x-bold text-2xl icon-animated icon-wiggle-on-hover" x-show="mobileMenuOpen" x-cloak></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -491,7 +681,7 @@ if (!function_exists('isAdmin')) {
                                 </div>
 
                                 <!-- Logout Button -->
-                                <div class="mt-8 pt-6 mobile-section-divider">
+                                <div class="mt-6 pt-4 border-t border-white/10">
                                     <form action="logout.php" method="POST" class="block w-full">
                                         <button type="submit" 
                                                 class="logout-button-gradient flex items-center justify-center w-full text-red-100 px-5 py-3.5 rounded-xl transition-all duration-300 font-semibold hover:text-red-50">
@@ -506,11 +696,6 @@ if (!function_exists('isAdmin')) {
                                     <a href="login.php" class="mobile-menu-item-gradient flex items-center text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
                                         <i class="ph-sign-in text-2xl mr-4 icon-animated icon-bounce-on-hover text-blue-300"></i>
                                         <span class="font-medium">Iniciar Sesión</span>
-                                    </a>
-                                    
-                                    <a href="register.php" class="flex items-center text-gray-900 bg-gradient-to-r from-blue-200 to-purple-200 hover:from-blue-300 hover:to-purple-300 px-5 py-3.5 rounded-xl transition-all duration-300 font-semibold shadow-lg hover:shadow-xl">
-                                        <i class="ph-user-plus text-2xl mr-4 icon-animated icon-rotate-on-hover"></i>
-                                        <span>Registrarse</span>
                                     </a>
 
                                 </div>

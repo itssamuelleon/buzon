@@ -27,7 +27,7 @@ if (!function_exists('generateGeminiResponse')) {
         $generationConfig = array_merge([
             'temperature' => 0.2,
             'topP' => 0.9,
-            'maxOutputTokens' => 1024,
+            'maxOutputTokens' => 65536,
         ], $options['generationConfig'] ?? []);
 
         $mime = $options['responseMimeType'] ?? ($options['response_mime_type'] ?? 'application/json');
@@ -97,9 +97,18 @@ if (!function_exists('generateGeminiResponse')) {
         }
 
         if (!isset($decoded['candidates'][0]['content']['parts'])) {
+            // Check if the model ran out of tokens (common with thinking models)
+            $finishReason = $decoded['candidates'][0]['finishReason'] ?? 'UNKNOWN';
+            if ($finishReason === 'MAX_TOKENS') {
+                return [
+                    'success' => false,
+                    'error' => 'El modelo de IA agotó su límite de tokens antes de generar la respuesta. Intenta con menos reportes o un modelo diferente.',
+                    'raw' => $decoded,
+                ];
+            }
             return [
                 'success' => false,
-                'error' => 'Respuesta inesperada de Gemini. No se encontró contenido utilizable.',
+                'error' => 'Respuesta inesperada de Gemini. No se encontró contenido utilizable. (finishReason: ' . $finishReason . ')',
                 'raw' => $decoded,
             ];
         }

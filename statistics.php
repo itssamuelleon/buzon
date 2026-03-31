@@ -1,5 +1,5 @@
 <?php 
-$page_title = 'Estadísticas - ITSCC Buzón'; 
+$page_title = 'Estadísticas - Buzón de Quejas'; 
 require_once 'config.php';
 require_once 'status_helper.php';
 
@@ -245,7 +245,7 @@ $export_data = [
 
 ?>
 
-<div class="min-h-screen bg-gray-50">
+<div class="min-h-screen bg-transparent">
     <main class="container mx-auto px-4 py-8">
         <!-- Encabezado -->
         <div class="mb-8">

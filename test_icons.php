@@ -1,5 +1,5 @@
 <?php 
-$page_title = 'Test de Iconos - ITSCC'; 
+$page_title = 'Test de Iconos - Buzón de Quejas'; 
 include 'components/header.php'; 
 ?>
 

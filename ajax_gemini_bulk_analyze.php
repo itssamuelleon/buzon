@@ -261,15 +261,36 @@ if (!$gemini_result['success']) {
 
 // Parsear respuesta
 $content = trim($gemini_result['content'] ?? '');
-if (preg_match('/```(?:json)?\s*(.+?)```/is', $content, $matches)) {
-    $content = trim($matches[1]);
+
+// Intento de extracción de JSON más robusto: buscar el primer '{' y el último '}'
+$first_brace = strpos($content, '{');
+$last_brace = strrpos($content, '}');
+
+if ($first_brace !== false && $last_brace !== false && $last_brace > $first_brace) {
+    $json_candidate = substr($content, $first_brace, ($last_brace - $first_brace) + 1);
+    
+    // Limpiar posibles comas finales antes de cerrar corchetes/llaves (común en salidas de IA)
+    $json_candidate = preg_replace('/,\s*([\]\}])/', '$1', $json_candidate);
+    
+    $decoded = json_decode($json_candidate, true);
+} else {
+    $decoded = null;
 }
 
-$decoded = json_decode($content, true);
-if (json_last_error() !== JSON_ERROR_NONE || !isset($decoded['reportes'])) {
+if ($decoded === null) {
     echo json_encode([
         'success' => false, 
-        'error' => 'Error al parsear respuesta de IA',
+        'error' => 'Error al interpretar la respuesta de la IA. El formato no es un JSON válido.',
+        'raw' => $content,
+        'json_error' => json_last_error_msg()
+    ]);
+    exit;
+}
+
+if (!isset($decoded['reportes'])) {
+    echo json_encode([
+        'success' => false, 
+        'error' => 'La IA respondió con un formato válido pero falto la estructura de "reportes".',
         'raw' => $content
     ]);
     exit;

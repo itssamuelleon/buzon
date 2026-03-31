@@ -1,6 +1,9 @@
 <?php
 session_start();
 
+// Establecer zona horaria de B.C.S. para que cuadre con la BD
+date_default_timezone_set('America/Mazatlan');
+
 require_once __DIR__ . '/env_loader.php';
 loadEnv(__DIR__ . '/.env');
 

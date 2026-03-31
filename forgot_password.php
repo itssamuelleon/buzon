@@ -167,7 +167,7 @@ if (isset($_GET['reset']) && $_GET['reset'] === 'true') {
     exit;
 }
 
-$page_title = 'Recuperar Contraseña - ITSCC Buzón'; 
+$page_title = 'Recuperar Contraseña - Buzón de Quejas'; 
 include 'components/header.php'; 
 ?>
 

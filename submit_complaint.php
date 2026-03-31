@@ -175,7 +175,7 @@ $categories_query = $conn->query("SELECT id, name, description FROM categories O
 $categories = $categories_query->fetch_all(MYSQLI_ASSOC);
 
 // AHORA sí incluir el header
-$page_title = 'Enviar Reporte - ITSCC Buzón';
+$page_title = 'Enviar Reporte - Buzón de Quejas';
 include 'components/header.php';
 
 ?>
@@ -208,7 +208,7 @@ include 'components/header.php';
 }
 </style>
 
-<div class="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen py-12">
+<div class="bg-transparent min-h-screen py-12">
     <main class="container mx-auto px-4">
         <div class="max-w-4xl mx-auto">
             
@@ -320,23 +320,24 @@ include 'components/header.php';
                                     @dragleave.prevent="isDragging = false"
                                     @drop.prevent="handleDrop($event)">
                                     
+                                    <!-- Invisible input and full-cover label -->
+                                    <input 
+                                        type="file" 
+                                        name="attachments[]" 
+                                        id="attachments" 
+                                        multiple 
+                                        class="sr-only"
+                                        @change="handleFileSelect($event)">
+                                    <label for="attachments" class="absolute inset-0 z-0 cursor-pointer"></label>
+                                    
                                     <div class="space-y-3 text-center">
                                         <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-100 to-purple-100 rounded-2xl">
                                             <i class="ph ph-upload-simple text-blue-600 text-3xl"></i>
                                         </div>
                                         <div class="flex flex-col space-y-2">
-                                            <label class="relative cursor-pointer group">
-                                                <span class="text-base font-semibold text-blue-600 group-hover:text-blue-700 transition-colors">
-                                                    Haz clic para seleccionar archivos
-                                                </span>
-                                                <input 
-                                                    type="file" 
-                                                    name="attachments[]" 
-                                                    id="attachments" 
-                                                    multiple 
-                                                    class="sr-only"
-                                                    @change="handleFileSelect($event)">
-                                            </label>
+                                            <span class="text-base font-semibold text-blue-600 group-hover:text-blue-700 transition-colors">
+                                                Haz clic para seleccionar archivos
+                                            </span>
                                             <p class="text-gray-600">o arrastra y suelta aquí</p>
                                         </div>
                                         <div class="flex items-center justify-center gap-2 text-xs text-gray-500 pt-2">
