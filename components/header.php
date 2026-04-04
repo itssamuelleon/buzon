@@ -16,6 +16,11 @@ if (isLoggedIn() && isset($_SESSION['user_id'])) {
         $user_profile_photo = $row_photo['profile_photo'];
     }
 }
+
+// Global variable to show/hide decorative blobs (can be overridden in individual pages)
+if (!isset($show_global_blobs)) {
+    $show_global_blobs = true;
+}
 ?>
 
 <!DOCTYPE html>
@@ -104,7 +109,68 @@ if (isLoggedIn() && isset($_SESSION['user_id'])) {
     </script>
     
     <style>
-        /* GLOBAL DARK MODE OVERRIDES */
+        :root {
+            --glass-opacity: 0.7;
+            --glass-border: rgba(255, 255, 255, 0.05);
+            --glass-inner-opacity: 0.05;
+            
+            --glass-inner-blur: 20px;
+            --glass-blur: 5px;
+
+            /* Background image controls */
+            --bg-opacity: 0.7;
+            --bg-blur: 3px;
+            --bg-brightness: 1;
+        }
+
+        .dark {
+            --glass-opacity: 0.7;
+            --glass-border: rgba(255, 255, 255, 0.05);
+            --glass-inner-opacity: 0.05;
+
+            /* Background image controls (dark) */
+            --bg-opacity: 0.35;
+            --bg-blur: 3px;
+            --bg-brightness: 1;
+        }
+
+        /* Institutional background image utility class */
+        .bg-institutional {
+            opacity: var(--bg-opacity);
+            filter: blur(var(--bg-blur)) brightness(var(--bg-brightness));
+            transition: opacity 0.7s ease, filter 0.7s ease;
+            background-image: url('assets/tecnm.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /* Global Liquid Glass Utility Classes */
+        .liquid-glass {
+            background: rgba(255, 255, 255, var(--glass-opacity)) !important;
+            backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+            -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
+            border: 1px solid var(--glass-border) !important;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07), 
+                        inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .glass-inner {
+            background: rgba(255, 255, 255, var(--glass-inner-opacity)) !important;
+            backdrop-filter: blur(var(--glass-inner-blur)) !important;
+            -webkit-backdrop-filter: blur(var(--glass-inner-blur)) !important;
+            border: 1px solid var(--glass-border) !important;
+        }
+
+        .dark .liquid-glass {
+            background: rgba(15, 23, 42, var(--glass-opacity)) !important;
+        }
+
+        .dark .glass-inner {
+            background: rgba(255, 255, 255, var(--glass-inner-opacity)) !important;
+        }
+
         /* GLOBAL DARK MODE OVERRIDES */
         html.dark body { background-color: #0f172a !important; color: #e2e8f0 !important; }
         html.dark .bg-white, html.dark .bg-slate-50, html.dark .bg-gray-50 {
@@ -146,10 +212,23 @@ if (isLoggedIn() && isset($_SESSION['user_id'])) {
         html.dark .text-orange-900, html.dark .text-orange-800, html.dark .text-orange-700 { color: #ffb366 !important; }
         html.dark .text-red-900, html.dark .text-red-800, html.dark .text-red-700 { color: #fca5a5 !important; }
         
-        /* Navbar & Footer dark mode backgrounds */
+        nav .bg-gradient-to-r,
+        footer,
+        .blue-footer,
+        nav > div:first-child {
+            background: linear-gradient(to right, #2563eb, #1e40af) !important;
+            transition: background 0.5s ease-out !important;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
         html.dark nav .bg-gradient-to-r,
-        html.dark footer {
-            background: linear-gradient(to right, #0f172a, #1a2333) !important;
+        html.dark footer,
+        html.dark .blue-footer,
+        html.dark nav > div:first-child {
+            background: linear-gradient(to right, #111827, #0f172a) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
         
         /* Dim footer blobs in dark mode - slightly more visible now */
@@ -429,8 +508,9 @@ if (isLoggedIn() && isset($_SESSION['user_id'])) {
         }
     </style>
 </head>
-<body class="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen relative overflow-x-hidden">
+<body class="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen relative overflow-x-hidden flex flex-col">
     
+<?php if ($show_global_blobs): ?>
 <!-- ══════════════════════════════════
      GLOBAL FIXED BACKGROUND BLOBS
      ══════════════════════════════════ -->
@@ -439,6 +519,7 @@ if (isLoggedIn() && isset($_SESSION['user_id'])) {
     <div class="blob bg-purple-500 w-[600px] h-[600px] sm:w-[500px] sm:h-[500px] rounded-full bottom-[-15%] right-[-15%] animation-delay-2000 mix-blend-multiply opacity-40 dark:opacity-50 dark:mix-blend-screen animate-float-slow"></div>
     <div class="blob bg-pink-500 w-[400px] h-[400px] sm:w-80 sm:h-80 rounded-full top-[30%] left-[35%] mix-blend-multiply opacity-25 dark:opacity-30 dark:mix-blend-screen animate-float-slow" style="animation-delay: 4000ms;"></div>
 </div>
+<?php endif; ?>
 
 <?php 
 // Define helper functions if not already defined
@@ -458,10 +539,9 @@ if (!function_exists('isAdmin')) {
     <!-- Modern Navigation Bar -->
     <nav class="sticky top-0 z-50" x-data="{ mobileMenuOpen: false, userDropdownOpen: false }">
         <!-- Main Navigation -->
-        <div class="bg-gradient-to-r from-blue-700 to-indigo-800 shadow-2xl">
-            <div class="glass-effect">
-                <div class="container mx-auto px-4">
-                    <div class="flex justify-between items-center h-20">
+        <div class="shadow-2xl">
+            <div class="container mx-auto px-4">
+                <div class="flex justify-between items-center h-20">
                         <!-- Logo Section -->
                         <div class="flex items-center space-x-4 min-w-0">
                             <a href="index.php" class="flex items-center group min-w-0">

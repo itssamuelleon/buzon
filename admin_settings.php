@@ -244,8 +244,19 @@ unset($_SESSION['success_message']);
 unset($_SESSION['error_message']);
 
 $page_title = 'Configuración de Administrador - Buzón de Quejas';
+$show_global_blobs = false; // Disable global blobs for Liquid Glass design
 include 'components/header.php';
 ?>
+
+<!-- Liquid Glass Pattern Implementation -->
+<div class="fixed inset-0 overflow-hidden pointer-events-none -z-50">
+    <div class="absolute inset-0 bg-institutional">
+        <div class="absolute inset-0 bg-gradient-to-b from-slate-50/40 via-transparent to-slate-50/40 dark:from-slate-900/60 dark:via-transparent dark:to-slate-900/60"></div>
+    </div>
+</div>
+
+</style>
+
 
 <div class="bg-transparent min-h-screen py-12">
     <main class="container mx-auto px-4">
@@ -253,7 +264,7 @@ include 'components/header.php';
             
             <!-- Breadcrumb -->
             <div class="mb-6">
-                <a href="dashboard.php" class="flex items-center text-gray-500 hover:text-blue-600 font-semibold transition-colors group">
+                <a href="dashboard.php" class="inline-flex items-center text-black hover:text-gray-600 dark:text-white dark:hover:text-gray-300 font-bold transition-colors group text-sm md:text-base bg-transparent">
                     <i class="ph-arrow-left text-lg mr-2 group-hover:-translate-x-1 transition-transform"></i>
                     Volver al Dashboard
                 </a>
@@ -275,12 +286,12 @@ include 'components/header.php';
             <?php endif; ?>
 
             <!-- Header Simplificado -->
-            <div class="mb-8">
-                <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <div class="mb-8 liquid-glass p-8 rounded-3xl shadow-xl">
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                     <i class="ph-gear text-blue-600"></i>
                     Configuración de Administrador
                 </h1>
-                <p class="text-gray-500 mt-1">Gestiona las configuraciones globales del sistema</p>
+                <p class="text-gray-500 dark:text-gray-400 mt-1">Gestiona las configuraciones globales del sistema</p>
             </div>
 
             <!-- Formulario de Configuración Mejorado -->
@@ -439,6 +450,22 @@ include 'components/header.php';
                     return this.nonWorkingDaysDraft.includes(iso);
                 }
             }' class="max-w-5xl mx-auto">
+
+                <!-- Aviso permanente de cambios sin guardar -->
+                <div x-show="hasPendingChanges"
+                     x-cloak
+                     x-transition
+                     class="fixed top-24 right-4 z-[10000] w-[22rem] max-w-[calc(100vw-2rem)] bg-amber-50 dark:bg-amber-900/80 dark:backdrop-blur-sm border border-amber-200 dark:border-amber-700 rounded-xl shadow-lg px-4 py-3">
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex items-start gap-2">
+                            <i class="ph-warning text-amber-600 dark:text-amber-400 text-lg mt-0.5"></i>
+                            <div>
+                                <p class="text-sm text-amber-800 dark:text-amber-200 font-semibold">Hay cambios sin guardar</p>
+                                <p class="text-xs text-amber-700 dark:text-amber-300">Por favor, usa el botón al final de la página para aplicarlos.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 
                 <form method="POST" action="admin_settings.php" id="settingsForm" class="space-y-8">
                     <input type="hidden" name="apply_settings" value="1">
@@ -455,7 +482,7 @@ include 'components/header.php';
                     </template>
 
                     <!-- Tarjeta: Configuración General -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="liquid-glass rounded-3xl shadow-sm border border-gray-200/30 overflow-hidden">
                         <div class="px-6 py-4 border-b border-gray-100 bg-blue-50/50 flex items-center gap-3">
                             <div class="p-2 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
                                 <i class="ph-sliders text-xl leading-none"></i>
@@ -534,7 +561,7 @@ include 'components/header.php';
                     </div>
 
                     <!-- Tarjeta: Modo de Pruebas -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="liquid-glass rounded-3xl shadow-sm border border-gray-200/30 overflow-hidden">
                         <div class="px-6 py-4 border-b border-gray-100 bg-purple-50/50 flex justify-between items-center">
                             <div class="flex items-center gap-3">
                                 <div class="p-2 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center">
@@ -584,7 +611,7 @@ include 'components/header.php';
                     </div>
 
                     <!-- Tarjeta: Días inhábiles (año actual) — calendario en popup -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="liquid-glass rounded-3xl shadow-sm border border-gray-200/30 overflow-hidden">
                         <div class="px-6 py-4 border-b border-gray-100 bg-amber-50/50 flex items-center gap-3">
                             <div class="p-2 bg-amber-100 text-amber-700 rounded-lg flex items-center justify-center">
                                 <i class="ph-calendar-x text-xl leading-none"></i>
@@ -596,7 +623,7 @@ include 'components/header.php';
                         </div>
                         <div class="p-6 space-y-4">
                             <p class="text-sm text-gray-600">
-                                Los fines de semana ya se excluyen del cómputo. Marca aquí feriados u otros inhábiles. Los cambios se guardan con <strong>Guardar Cambios</strong> y tu contraseña.
+                                Marca aquí días feriados u otros días inhábiles. Los fines de semana ya se excluyen del cómputo. Los cambios se guardan con <strong>Guardar Cambios</strong> y tu contraseña.
                             </p>
                             <div x-show="calendarDoneHint" x-transition class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 flex items-center gap-2">
                                 <i class="ph-check-circle text-lg shrink-0"></i>
@@ -618,7 +645,7 @@ include 'components/header.php';
                     </div>
 
                     <!-- Tarjeta: Encargados -->
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="liquid-glass rounded-3xl shadow-sm border border-gray-200/30 overflow-hidden">
                         <div class="px-6 py-4 border-b border-gray-100 bg-emerald-50/50 flex items-center justify-between">
                             <div class="flex items-center gap-3">
                                 <div class="p-2 bg-emerald-100 text-emerald-600 rounded-lg flex items-center justify-center">
@@ -652,12 +679,6 @@ include 'components/header.php';
                             <p class="text-sm text-gray-600 mb-6">
                                 Define los nombres de los responsables para cada área. Estos nombres se utilizarán para personalizar las firmas en los correos electrónicos automáticos y en la interfaz de seguimiento de reportes.
                             </p>
-                            
-                            <!-- Pending Changes Alert -->
-                            <div x-show="hasPendingChanges" x-transition class="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-center gap-2">
-                                <i class="ph-warning text-yellow-600 text-lg"></i>
-                                <p class="text-sm text-yellow-800 font-medium">Hay cambios pendientes. Haz clic en "Guardar Cambios" para aplicarlos.</p>
-                            </div>
                             
                             <div class="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                                 <template x-for="dept in departments" :key="dept.id">
@@ -734,11 +755,13 @@ include 'components/header.php';
                     </div>
 
                     <!-- Botón Guardar -->
-                    <div class="flex items-center justify-between pt-4">
-                        <p class="text-sm text-gray-500 italic">
-                            <i class="ph-lock-key mr-1"></i>
-                            Se requerirá contraseña para guardar
-                        </p>
+                    <div class="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 mt-4">
+                        <div class="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/50 rounded-xl">
+                            <i class="ph-lock-key text-amber-600 dark:text-amber-400 text-lg"></i>
+                            <p class="text-sm font-medium text-amber-800 dark:text-amber-200">
+                                Se requerirá contraseña para guardar los cambios
+                            </p>
+                        </div>
                         <button type="button" 
                                 @click="showPasswordModal = true" 
                                 class="inline-flex items-center px-6 py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors shadow-sm hover:shadow"
@@ -775,11 +798,11 @@ include 'components/header.php';
                         <div class="shrink-0 flex items-start justify-between gap-3 border-b border-gray-100 bg-amber-50/80 px-4 py-3 sm:px-5">
                             <div class="min-w-0">
                                 <h3 class="text-base font-bold text-gray-900">Días inhábiles <?php echo (int)$calendar_year; ?></h3>
-                                <p class="text-xs text-gray-600 mt-0.5">Toca un día laborable para marcarlo. Fin de semana en gris.</p>
+                                <p class="text-xs text-gray-600 mt-0.5">Selecciona un día para marcarlo como inhábil. Los fines de semana ya están marcados automáticamente.</p>
                             </div>
                             <button type="button"
                                     @click="nonWorkingCalendarModal = false"
-                                    class="shrink-0 rounded-lg p-1.5 text-gray-500 hover:bg-amber-100 hover:text-gray-800"
+                                    class="shrink-0 rounded-lg p-1.5 text-gray-500 hover:bg-amber-100 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-slate-700 dark:hover:text-gray-200"
                                     aria-label="Cerrar">
                                 <i class="ph-x text-xl"></i>
                             </button>
@@ -789,17 +812,17 @@ include 'components/header.php';
                                 <button type="button"
                                         @click="prevCalendarMonth()"
                                         :disabled="calendarMonth === 0"
-                                        :class="calendarMonth === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-100'"
-                                        class="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg border border-gray-200 bg-white text-gray-700 shrink-0">
+                                        :class="calendarMonth === 0 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-slate-700'"
+                                        class="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 shrink-0">
                                     <i class="ph-caret-left text-lg"></i>
                                 </button>
-                                <h4 class="text-sm sm:text-base font-semibold text-gray-900 text-center truncate px-1"
+                                <h4 class="text-sm sm:text-base font-semibold text-gray-900 dark:text-white text-center truncate px-1"
                                     x-text="calendarMonthNames[calendarMonth] + ' ' + calendarYear"></h4>
                                 <button type="button"
                                         @click="nextCalendarMonth()"
                                         :disabled="calendarMonth === 11"
-                                        :class="calendarMonth === 11 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-100'"
-                                        class="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg border border-gray-200 bg-white text-gray-700 shrink-0">
+                                        :class="calendarMonth === 11 ? 'opacity-40 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-slate-700'"
+                                        class="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 shrink-0">
                                     <i class="ph-caret-right text-lg"></i>
                                 </button>
                             </div>
@@ -810,15 +833,15 @@ include 'components/header.php';
                                 <template x-for="(cell, idx) in calendarCells()" :key="idx">
                                     <div class="min-w-0">
                                         <template x-if="cell.empty">
-                                            <div class="aspect-square max-h-10 sm:max-h-11 rounded-md bg-gray-50/50"></div>
+                                            <div class="aspect-square w-full max-h-10 sm:max-h-11 rounded-md bg-gray-50/50 dark:bg-slate-800/50 border border-transparent dark:border-slate-700/30"></div>
                                         </template>
                                         <template x-if="!cell.empty">
                                             <button type="button"
                                                     @click="toggleNonWorkingDay(cell.iso, cell.weekend)"
                                                     :class="{
-                                                        'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200': cell.weekend,
-                                                        'bg-amber-100 border-2 border-amber-500 text-amber-900 font-semibold': !cell.weekend && isNonWorkingSelected(cell.iso),
-                                                        'bg-white border border-gray-200 text-gray-800 hover:border-amber-300': !cell.weekend && !isNonWorkingSelected(cell.iso)
+                                                        'bg-gray-50 text-gray-500 cursor-not-allowed border border-gray-200 opacity-60 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700': cell.weekend,
+                                                        'bg-amber-100 border-2 border-amber-500 text-amber-900 font-semibold dark:bg-amber-900/30 dark:border-amber-500 dark:text-amber-100': !cell.weekend && isNonWorkingSelected(cell.iso),
+                                                        'bg-white border border-gray-200 text-gray-800 hover:border-amber-300 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200 dark:hover:border-amber-500/50 dark:hover:bg-slate-700': !cell.weekend && !isNonWorkingSelected(cell.iso)
                                                     }"
                                                     class="aspect-square max-h-10 sm:max-h-11 rounded-md flex items-center justify-center text-xs sm:text-sm w-full transition-colors"
                                                     :disabled="cell.weekend">
@@ -829,22 +852,17 @@ include 'components/header.php';
                                 </template>
                             </div>
                         </div>
-                        <div class="shrink-0 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 border-t border-gray-100 bg-gray-50 px-4 py-3 sm:px-5">
+                        <div class="shrink-0 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 border-t border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50 px-4 py-3 sm:px-5">
                             <button type="button"
                                     @click="clearNonWorkingDays()"
-                                    class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-100 text-sm w-full sm:w-auto">
-                                <i class="ph-broom text-lg"></i>
+                                    class="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-700 dark:text-gray-300 font-semibold hover:bg-gray-100 dark:hover:bg-slate-700 text-sm w-full sm:w-auto transition-colors">
+                                <i class="ph-trash text-lg"></i>
                                 Limpiar
                             </button>
                             <div class="flex gap-2 w-full sm:w-auto">
                                 <button type="button"
-                                        @click="closeNonWorkingCalendarModal()"
-                                        class="inline-flex flex-1 sm:flex-initial items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-gray-300 bg-white text-gray-700 font-semibold hover:bg-gray-100 text-sm">
-                                    Cerrar
-                                </button>
-                                <button type="button"
                                         @click="confirmNonWorkingCalendar()"
-                                        class="inline-flex flex-1 sm:flex-initial items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-amber-600 text-white font-semibold hover:bg-amber-700 shadow-sm text-sm">
+                                        class="inline-flex flex-1 sm:flex-initial items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-amber-600 dark:bg-amber-600/90 text-white font-semibold hover:bg-amber-700 dark:hover:bg-amber-600 shadow-sm text-sm transition-colors">
                                     <i class="ph-check text-lg"></i>
                                     Listo
                                 </button>

@@ -7,11 +7,10 @@
 
     <!-- Modern Footer -->
     <!-- UPDATED: Replaced 'bg-gray-900' with the new blue gradient -->
-    <footer class="relative bg-gradient-to-r from-blue-700 to-indigo-800 text-white pt-20 pb-8 overflow-hidden">
-        <!-- Decorative Gradient Blobs -->
+    <footer class="relative blue-footer text-white pt-20 pb-8 overflow-hidden">
         <div class="absolute inset-0 pointer-events-none">
-            <div class="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-blue-600 to-purple-900 rounded-full filter blur-3xl opacity-30 animate-float"></div>
-            <div class="absolute bottom-0 right-0 w-80 h-80 bg-gradient-to-tl from-indigo-800 to-blue-900 rounded-full filter blur-3xl opacity-20" style="animation-delay: -3s;"></div>
+            <div class="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-blue-600 to-purple-900 rounded-full filter blur-3xl opacity-40 animate-float"></div>
+            <div class="absolute bottom-0 right-0 w-80 h-80 bg-gradient-to-tl from-indigo-800 to-blue-900 rounded-full filter blur-3xl opacity-30" style="animation-delay: -3s;"></div>
         </div>
 
         <!-- Decorative Top Border (optional, but looks good with the theme) -->
@@ -212,13 +211,13 @@
         }
     })();
     </script>
+    <?php endif; ?>
     <style>
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-5px); }
             to { opacity: 1; transform: translateY(0); }
         }
     </style>
-    <?php endif; ?>
 
 </body>
 </html>

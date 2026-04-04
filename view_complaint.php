@@ -357,7 +357,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isAdmin() || canCloseReport())) {
                 if (function_exists('curl_init')) {
                     $ch = curl_init();
                     curl_setopt_array($ch, [
-                        CURLOPT_URL => 'http://localhost' . $process_url,
+                        CURLOPT_URL => rtrim(APP_URL, '/') . '/process_email_queue.php',
                         CURLOPT_RETURNTRANSFER => true,
                         CURLOPT_TIMEOUT_MS => 100,
                         CURLOPT_CONNECTTIMEOUT_MS => 100,
@@ -556,7 +556,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isAdmin() || canCloseReport())) {
                     if (function_exists('curl_init')) {
                         $ch = curl_init();
                         curl_setopt_array($ch, [
-                            CURLOPT_URL => 'http://localhost' . $process_url,
+                            CURLOPT_URL => rtrim(APP_URL, '/') . '/process_email_queue.php',
                             CURLOPT_RETURNTRANSFER => true,
                             CURLOPT_TIMEOUT_MS => 100,
                             CURLOPT_CONNECTTIMEOUT_MS => 100,
@@ -639,8 +639,18 @@ function getFileIcon($file_type) {
 
 // AHORA sí incluir el header después de todo el procesamiento
 $page_title = 'Ver Reporte - Buzón de Quejas';
+$show_global_blobs = false; // Disable global header blobs to use institutional background
 include 'components/header.php';
 ?>
+
+</style>
+
+<!-- Background Image (Institutional) -->
+<div class="fixed inset-0 overflow-hidden pointer-events-none -z-10 bg-slate-50 dark:bg-transparent transition-colors duration-500">
+    <div class="fixed inset-0 bg-institutional">
+        <div class="absolute inset-0 bg-gradient-to-b from-slate-50/70 via-transparent to-slate-50/70 dark:from-slate-900/80 dark:via-transparent dark:to-slate-900/80"></div>
+    </div>
+</div>
 
 <div class="bg-transparent min-h-screen" 
      x-data="{ 
@@ -1186,15 +1196,7 @@ include 'components/header.php';
                 $backText = 'Volver al Dashboard';
             }
             ?>
-            <!-- Breadcrumb -->
-            <div class="mb-6">
-                <a href="<?php echo htmlspecialchars($backUrl); ?>" class="inline-flex items-center text-gray-500 hover:text-blue-600 font-semibold transition-colors group">
-                    <i class="ph-arrow-left text-lg mr-2 group-hover:-translate-x-1 transition-transform"></i>
-                    <?php echo $backText; ?>
-                </a>
-            </div>
-
-            <div class="bg-white rounded-2xl shadow-xl overflow-hidden"
+            <div class="liquid-glass rounded-2xl overflow-visible"
                  <?php if (isAdmin()): ?>
                  x-data="{ 
                     isLoading: false, 
@@ -1230,8 +1232,16 @@ include 'components/header.php';
                  }"
                  <?php endif; ?>
             >
-                <div class="p-4 md:p-12">
-                    <div class="border-b border-gray-200 pb-4 md:pb-8 mb-4 md:mb-8">
+                <div class="px-6 py-6 md:px-12 md:pt-8 md:pb-12">
+                    <!-- Breadcrumb Inside Card -->
+                    <div class="mb-4 md:mb-6">
+                        <a href="<?php echo htmlspecialchars($backUrl); ?>" class="inline-flex items-center text-black hover:text-gray-600 dark:text-white dark:hover:text-gray-300 font-bold transition-colors group text-sm md:text-base bg-transparent">
+                            <i class="ph-arrow-left text-lg mr-2 group-hover:-translate-x-1 transition-transform"></i>
+                            <?php echo $backText; ?>
+                        </a>
+                    </div>
+
+                    <div class="border-b border-white/10 dark:border-white/5 pb-4 md:pb-8 mb-4 md:mb-8">
                         <div class="flex flex-col md:flex-row justify-between items-start gap-2 md:gap-4">
                             <div class="w-full md:w-auto">
                                 <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Detalles del Reporte</h1>
@@ -1584,54 +1594,45 @@ include 'components/header.php';
                         }
                         ?>
                         <div class="flex items-start gap-3">
-                            <div class="w-10 h-10 md:w-12 md:h-12 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <i class="ph-buildings text-xl md:text-2xl text-gray-500"></i>
+                            <div class="w-10 h-10 md:w-12 md:h-12 bg-white/10 dark:bg-white/5 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i class="ph-buildings text-xl md:text-2xl text-gray-500 dark:text-gray-400"></i>
                             </div>
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center justify-between gap-2">
-                                    <h3 class="font-semibold text-gray-500 text-xs md:text-sm">Departamentos Asignados</h3>
+                                    <h3 class="font-semibold text-gray-500 dark:text-gray-400 text-xs md:text-sm">Departamentos Asignados</h3>
                                     <?php if (isAdmin()): ?>
                                         <button type="button"
                                                 @click="isAdminPanelOpen = true; adminModalMode = 'departments'; activeTab = 'departments';"
-                                                class="inline-flex items-center gap-1 text-xs md:text-sm font-semibold text-blue-600 hover:text-blue-800">
+                                                class="inline-flex items-center gap-1 text-xs md:text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800">
                                             <i class="ph-buildings text-sm md:text-base"></i>
                                             <span class="hidden md:inline">Asignar</span>
                                         </button>
                                     <?php endif; ?>
                                 </div>
                                 <?php if ($assigned_departments->num_rows == 0): ?>
-                                    <div class="mt-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-2 md:p-3 border border-yellow-200 dark:border-yellow-700/50">
+                                    <div class="mt-2 glass-inner rounded-lg p-2 md:p-3 border border-yellow-200 dark:border-yellow-500/40 dark:bg-yellow-900/20 animate-pulse">
                                         <div class="flex items-center gap-2">
                                             <i class="ph-warning-circle text-yellow-600 dark:text-yellow-400 text-base md:text-lg"></i>
                                             <div>
                                                 <p class="font-medium text-yellow-800 dark:text-yellow-300 text-xs md:text-sm">Reporte sin asignar</p>
-                                                <?php if (isAdmin()): ?>
-                                                    <p class="text-yellow-700 dark:text-yellow-400 text-[10px] md:text-xs mt-0.5">
-                                                        Usa el botón "Asignar Departamentos" para asignar departamentos responsables.
-                                                    </p>
-                                                <?php else: ?>
-                                                    <p class="text-yellow-700 dark:text-yellow-400 text-[10px] md:text-xs mt-0.5">
-                                                        El reporte aún no ha sido asignado a ningún departamento.
-                                                    </p>
-                                                <?php endif; ?>
                                             </div>
                                         </div>
                                     </div>
                                 <?php else: ?>
                                     <div class="mt-2 space-y-2">
                                         <?php while ($dept = $assigned_departments->fetch_assoc()): ?>
-                                            <div class="bg-gray-50 rounded-lg p-2 md:p-3 border border-gray-200">
+                                            <div class="glass-inner rounded-lg p-2 md:p-3">
                                                 <div class="flex justify-between items-start gap-2 md:gap-4">
                                                     <div class="flex-1 min-w-0">
-                                                        <p class="font-bold text-gray-900 text-sm md:text-base truncate"><?php echo htmlspecialchars($dept['name']); ?></p>
-                                                        <p class="text-gray-600 text-xs md:text-sm mt-0.5 truncate">
+                                                        <p class="font-bold text-gray-900 dark:text-white text-sm md:text-base truncate"><?php echo htmlspecialchars($dept['name']); ?></p>
+                                                        <p class="text-gray-600 dark:text-gray-400 text-xs md:text-sm mt-0.5 truncate">
                                                             <span class="font-medium"><?php echo htmlspecialchars($dept['manager']); ?></span> · 
-                                                            <a href="mailto:<?php echo htmlspecialchars($dept['email']); ?>" class="text-blue-600 hover:text-blue-800">
+                                                            <a href="mailto:<?php echo htmlspecialchars($dept['email']); ?>" class="text-blue-600 dark:text-blue-400 hover:text-blue-800">
                                                                 <?php echo htmlspecialchars($dept['email']); ?>
                                                             </a>
                                                         </p>
                                                     </div>
-                                                    <div class="text-[10px] md:text-xs text-gray-500 whitespace-nowrap">
+                                                    <div class="text-[10px] md:text-xs text-gray-500 dark:text-gray-500 whitespace-nowrap">
                                                         <?php echo date('d/m/Y H:i', strtotime($dept['assigned_at'])); ?>
                                                     </div>
                                                 </div>
@@ -1644,35 +1645,35 @@ include 'components/header.php';
                     </div>
                     
                     <div class="mb-4 md:mb-8">
-                        <h2 class="text-lg md:text-xl font-bold text-gray-800 mb-3 md:mb-4">Descripción del Reporte</h2>
-                        <div class="bg-gray-50 rounded-lg p-4 md:p-6 border border-gray-200">
-                            <p class="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm md:text-base"><?php echo htmlspecialchars($complaint['description']); ?></p>
+                        <h2 class="text-lg md:text-xl font-bold text-gray-800 dark:text-white mb-3 md:mb-4">Descripción del Reporte</h2>
+                        <div class="glass-inner rounded-xl p-4 md:p-6">
+                            <p class="text-gray-700 dark:text-gray-200 whitespace-pre-wrap leading-relaxed text-sm md:text-base"><?php echo htmlspecialchars($complaint['description']); ?></p>
                         </div>
                     </div>
 
                     <div class="mb-4 md:mb-8">
-                        <h2 class="text-lg md:text-xl font-bold text-gray-800 mb-3 md:mb-4">Evidencia Adjunta</h2>
+                        <h2 class="text-lg md:text-xl font-bold text-gray-800 dark:text-white mb-3 md:mb-4">Evidencia Adjunta</h2>
                         <?php if (empty($attachments)): ?>
-                            <div class="bg-gray-50 rounded-lg p-6 text-center border-2 border-dashed border-gray-200">
-                                <p class="text-gray-500">No se adjuntó ninguna evidencia para este reporte.</p>
+                            <div class="glass-inner rounded-xl p-6 text-center border-2 border-dashed border-gray-200 dark:border-gray-700">
+                                <p class="text-gray-500 dark:text-gray-400">No se adjuntó ninguna evidencia para este reporte.</p>
                             </div>
                         <?php else: ?>
                             <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-4">
                                 <?php foreach ($attachments as $attachment): ?>
-                                    <div class="border border-gray-200 rounded-lg overflow-hidden group transition-shadow hover:shadow-md">
+                                    <div class="glass-inner rounded-xl overflow-hidden group transition-shadow hover:shadow-md border border-gray-100 dark:border-gray-700">
                                         <?php if (str_contains($attachment['file_type'], 'image/')): ?>
                                             <button @click="isModalOpen = true; modalImageUrl = '<?php echo htmlspecialchars($attachment['file_path']); ?>'" class="w-full h-24 md:h-40 block">
                                                 <img src="<?php echo htmlspecialchars($attachment['file_path']); ?>" alt="<?php echo htmlspecialchars($attachment['file_name']); ?>" class="w-full h-full object-cover">
                                             </button>
                                         <?php else: ?>
-                                            <div class="w-full h-24 md:h-40 bg-gray-100 flex items-center justify-center">
-                                                <i class="<?php echo getFileIcon($attachment['file_type']); ?> text-3xl md:text-6xl text-gray-400"></i>
+                                            <div class="w-full h-24 md:h-40 bg-gray-100/50 dark:bg-slate-800/50 flex items-center justify-center">
+                                                <i class="<?php echo getFileIcon($attachment['file_type']); ?> text-3xl md:text-6xl text-gray-400 dark:text-gray-500"></i>
                                             </div>
                                         <?php endif; ?>
-                                        <div class="p-2 md:p-4 bg-white">
-                                            <p class="text-xs md:text-sm font-semibold text-gray-700 truncate"><?php echo htmlspecialchars($attachment['file_name']); ?></p>
+                                        <div class="p-2 md:p-4">
+                                            <p class="text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-200 truncate"><?php echo htmlspecialchars($attachment['file_name']); ?></p>
                                             <a href="<?php echo htmlspecialchars($attachment['file_path']); ?>" target="_blank" download
-                                               class="inline-flex items-center mt-1 md:mt-2 text-xs md:text-sm text-blue-600 hover:text-blue-800 font-semibold group/link">
+                                               class="inline-flex items-center mt-1 md:mt-2 text-xs md:text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 font-semibold group/link">
                                                 Descargar <i class="ph-download-simple text-sm md:text-lg ml-1 group-hover/link:translate-y-0.5 transition-transform"></i>
                                             </a>
                                         </div>
@@ -1973,9 +1974,9 @@ include 'components/header.php';
                         
                         <!-- Comments Timeline -->
                         <?php if (empty($comments)): ?>
-                            <div class="bg-gray-50 rounded-lg p-8 text-center border-2 border-dashed border-gray-200">
+                            <div class="liquid-glass rounded-lg p-8 text-center border border-white/20">
                                 <i class="ph-chats text-5xl text-gray-400 mb-3"></i>
-                                <p class="text-gray-500 font-medium">Aún no hay respuestas para este reporte.</p>
+                                <p class="text-gray-500 dark:text-gray-400 font-medium">Aún no hay respuestas para este reporte.</p>
                                 <?php if (isStaff()): ?>
                                     <p class="text-gray-400 text-sm mt-1">Sé el primero en responder usando el formulario de arriba.</p>
                                 <?php endif; ?>
@@ -1983,18 +1984,17 @@ include 'components/header.php';
                         <?php else: ?>
                             <div class="space-y-6">
                                 <?php foreach ($comments as $comment): ?>
-                                    <div class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
+                                    <div class="liquid-glass rounded-xl border border-white/20 shadow-sm hover:shadow-md transition-shadow">
                                         <!-- Comment Header -->
-                                        <div class="px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-slate-800/50 dark:to-slate-800/50">
+                                        <div class="px-6 py-4 border-b border-white/10">
                                             <div class="flex items-start justify-between gap-4">
                                                 <div class="flex items-start gap-3 flex-1 min-w-0">
                                                     <?php 
-                                                    // Check if this comment is from the original anonymous author
                                                     $is_anonymous_author = ($comment['user_id'] == $complaint['user_id'] && $comment['is_anonymous']);
                                                     $avatar_char = $is_anonymous_author ? '?' : strtoupper(substr($comment['user_name'] ?? '?', 0, 1));
                                                     ?>
                                                     <?php if (!empty($comment['user_profile_photo'])): ?>
-                                                        <div class="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 border-2 border-gray-200">
+                                                        <div class="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 border-2 border-white/20">
                                                             <img src="data:image/jpeg;base64,<?php echo $comment['user_profile_photo']; ?>" 
                                                                  alt="Profile" 
                                                                  class="w-full h-full object-cover"
@@ -2007,11 +2007,11 @@ include 'components/header.php';
                                                     <?php endif; ?>
                                                     <div class="flex-1 min-w-0">
                                                         <div class="flex items-center gap-2 flex-wrap mb-1">
-                                                            <p class="font-semibold text-gray-900">
+                                                            <p class="font-semibold text-gray-900 dark:text-white">
                                                                 <?php echo $is_anonymous_author ? 'Usuario Anónimo' : htmlspecialchars($comment['user_name']); ?>
                                                             </p>
                                                             <?php if ($comment['user_id'] == $complaint['user_id']): ?>
-                                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-600 dark:text-green-400">
                                                                     <i class="ph-check-circle text-xs"></i>
                                                                     Autor
                                                                 </span>
@@ -2020,13 +2020,12 @@ include 'components/header.php';
                                                         
                                                         <div class="flex items-center gap-2 flex-wrap">
                                                             <?php if ($is_anonymous_author): ?>
-                                                                <p class="text-xs text-gray-500 font-medium">Estudiante</p>
+                                                                <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Estudiante</p>
                                                             <?php elseif ($comment['user_role'] === 'admin'): ?>
-                                                                <p class="text-xs text-purple-600 font-medium">Administrador</p>
+                                                                <p class="text-xs text-purple-600 dark:text-purple-400 font-medium">Administrador</p>
                                                             <?php elseif ($comment['user_role'] === 'manager'): ?>
-                                                                <p class="text-xs text-blue-600 font-medium">
+                                                                <p class="text-xs text-blue-600 dark:text-blue-400 font-medium">
                                                                     <?php 
-                                                                    // Get department name for this manager
                                                                     $stmt_dept = $conn->prepare("SELECT name FROM departments WHERE email = (SELECT email FROM users WHERE id = ?)");
                                                                     $stmt_dept->bind_param("i", $comment['user_id']);
                                                                     $stmt_dept->execute();
@@ -2039,24 +2038,22 @@ include 'components/header.php';
                                                                     ?>
                                                                 </p>
                                                             <?php elseif ($comment['user_role'] === 'student'): ?>
-                                                                <p class="text-xs text-gray-500 font-medium">Estudiante</p>
+                                                                <p class="text-xs text-gray-500 dark:text-gray-400 font-medium">Estudiante</p>
                                                             <?php endif; ?>
 
-                                                            <!-- Mobile Date -->
-                                                            <span class="text-gray-300 sm:hidden">&bull;</span>
+                                                            <span class="text-gray-300 dark:text-gray-600 sm:hidden">&bull;</span>
                                                             <span class="text-xs text-gray-400 sm:hidden">
                                                                 <?php echo date('d/m/y H:i', strtotime($comment['created_at'])); ?>
                                                             </span>
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <!-- Fecha y Hora (Esquina Superior Derecha - Desktop Only) -->
                                                 <div class="hidden sm:block text-right flex-shrink-0">
-                                                    <p class="text-xs text-gray-500 whitespace-nowrap">
+                                                    <p class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                                                         <i class="ph-clock text-xs mr-1"></i>
                                                         <?php echo date('d/m/Y', strtotime($comment['created_at'])); ?>
                                                     </p>
-                                                    <p class="text-xs text-gray-500 whitespace-nowrap">
+                                                    <p class="text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
                                                         <?php echo date('H:i', strtotime($comment['created_at'])); ?>
                                                     </p>
                                                 </div>
@@ -2066,7 +2063,7 @@ include 'components/header.php';
                                         <!-- Comment Body -->
                                         <div class="px-6 py-4">
                                             <?php if (!empty($comment['comment'])): ?>
-                                                <p class="text-gray-700 whitespace-pre-wrap leading-relaxed"><?php echo htmlspecialchars($comment['comment']); ?></p>
+                                                <p class="text-gray-700 dark:text-gray-200 whitespace-pre-wrap leading-relaxed"><?php echo htmlspecialchars($comment['comment']); ?></p>
                                             <?php endif; ?>
                                             
                                             <!-- Attachments -->
@@ -2079,29 +2076,27 @@ include 'components/header.php';
                                                         ?>
                                                         <div class="group relative">
                                                             <?php if ($is_image): ?>
-                                                                <!-- Image Thumbnail -->
                                                                 <button 
                                                                     type="button"
                                                                     @click="isModalOpen = true; modalImageUrl = '<?php echo addslashes($attachment['file_path']); ?>'"
-                                                                    class="block w-full aspect-square rounded-lg overflow-hidden border-2 border-gray-200 hover:border-blue-400 transition-all cursor-pointer">
+                                                                    class="block w-full aspect-square rounded-lg overflow-hidden border border-white/20 hover:border-blue-400 transition-all cursor-pointer">
                                                                     <img 
                                                                         src="<?php echo htmlspecialchars($attachment['file_path']); ?>" 
                                                                         alt="<?php echo htmlspecialchars($attachment['file_name']); ?>"
                                                                         class="w-full h-full object-cover group-hover:scale-110 transition-transform"
                                                                         loading="lazy">
-                                                                    <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
+                                                                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all flex items-center justify-center">
                                                                         <i class="ph-magnifying-glass-plus text-white text-2xl opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg"></i>
                                                                     </div>
                                                                 </button>
                                                             <?php else: ?>
-                                                                <!-- File Icon -->
                                                                 <a 
                                                                     href="<?php echo htmlspecialchars($attachment['file_path']); ?>" 
                                                                     target="_blank" 
                                                                     download
-                                                                    class="block w-full aspect-square rounded-lg border-2 border-gray-200 hover:border-blue-400 bg-gradient-to-br from-gray-50 to-gray-100 flex flex-col items-center justify-center gap-2 transition-all group-hover:shadow-md">
-                                                                    <i class="<?php echo getFileIcon($attachment['file_type']); ?> text-4xl text-gray-600"></i>
-                                                                    <p class="text-xs text-gray-600 font-medium px-2 text-center truncate w-full">
+                                                                    class="block w-full aspect-square rounded-lg border border-white/20 hover:border-blue-400 bg-white/5 flex flex-col items-center justify-center gap-2 transition-all group-hover:shadow-md">
+                                                                    <i class="<?php echo getFileIcon($attachment['file_type']); ?> text-4xl text-gray-600 dark:text-gray-400"></i>
+                                                                    <p class="text-xs text-gray-600 dark:text-gray-400 font-medium px-2 text-center truncate w-full">
                                                                         <?php echo htmlspecialchars($attachment['file_name']); ?>
                                                                     </p>
                                                                 </a>

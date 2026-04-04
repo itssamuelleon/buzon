@@ -214,7 +214,7 @@ foreach ($suggestions as $suggestion) {
 
 // Disparar procesamiento de cola de emails en segundo plano
 if ($success_count > 0 && function_exists('curl_init')) {
-    $process_url = 'http://localhost' . dirname($_SERVER['PHP_SELF']) . '/process_email_queue.php';
+    $process_url = rtrim(APP_URL, '/') . '/process_email_queue.php';
     $ch = curl_init();
     curl_setopt_array($ch, [
         CURLOPT_URL => $process_url,

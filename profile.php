@@ -66,7 +66,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['CONTENT_TYPE']) && 
 
 // 3. Normal Page Rendering
 $page_title = 'Mi Perfil - Buzón de Quejas'; 
+$show_global_blobs = false; // Disable global blobs for Liquid Glass design
 include 'components/header.php'; 
+?>
+
+<!-- Liquid Glass Pattern Implementation -->
+<div class="fixed inset-0 overflow-hidden pointer-events-none -z-50">
+    <div class="absolute inset-0 bg-institutional">
+        <div class="absolute inset-0 bg-gradient-to-b from-slate-50/40 via-transparent to-slate-50/40 dark:from-slate-900/60 dark:via-transparent dark:to-slate-900/60"></div>
+    </div>
+</div>
+
+</style>
+
+<?php
 
 // Data Fetching
 $user_id = $_SESSION['user_id'];
@@ -113,7 +126,7 @@ function formatRoleName($role) {
     <main class="container mx-auto px-4 py-12">
         <div class="max-w-4xl mx-auto">
             
-            <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div class="liquid-glass rounded-3xl overflow-hidden shadow-2xl">
                 <div class="p-8 md:p-12">
                     <!-- Page Header -->
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
@@ -133,17 +146,17 @@ function formatRoleName($role) {
                                 </div>
                             <?php endif; ?>
                             <div>
-                                <h1 class="text-3xl md:text-4xl font-bold text-gray-800">
+                                <h1 class="text-3xl md:text-4xl font-bold text-gray-800 dark:text-white">
                                     <?php echo htmlspecialchars($user['name']); ?>
                                 </h1>
-                                <p class="text-gray-500 mt-1">Gestiona la información de tu cuenta y revisa tu actividad.</p>
+                                <p class="text-gray-500 dark:text-gray-400 mt-1">Gestiona la información de tu cuenta y revisa tu actividad.</p>
                             </div>
                         </div>
                     </div>
 
                     <!-- User Statistics -->
                     <div class="grid grid-cols-2 <?php echo $is_staff ? 'md:grid-cols-4' : 'sm:grid-cols-2'; ?> gap-3 mb-8">
-                        <div class="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div class="flex items-center p-3 glass-inner rounded-lg border border-gray-200/50">
                             <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                                 <i class="ph-files text-xl text-blue-600"></i>
                             </div>
@@ -154,7 +167,7 @@ function formatRoleName($role) {
                         </div>
 
                         <?php if ($is_staff): ?>
-                        <div class="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div class="flex items-center p-3 glass-inner rounded-lg border border-gray-200/50">
                             <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
                                 <i class="ph-chat-circle-text text-xl text-purple-600"></i>
                             </div>
@@ -164,7 +177,7 @@ function formatRoleName($role) {
                             </div>
                         </div>
 
-                        <div class="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div class="flex items-center p-3 glass-inner rounded-lg border border-gray-200/50">
                             <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
                                 <i class="ph-check-circle text-xl text-indigo-600"></i>
                             </div>
@@ -175,7 +188,7 @@ function formatRoleName($role) {
                         </div>
                         <?php endif; ?>
 
-                        <div class="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div class="flex items-center p-3 glass-inner rounded-lg border border-gray-200/50">
                             <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
                                 <i class="ph-calendar-check text-xl text-green-600"></i>
                             </div>
@@ -188,7 +201,7 @@ function formatRoleName($role) {
 
                     <!-- Profile Details -->
                     <div class="space-y-6">
-                        <h3 class="text-xl font-bold text-gray-800 border-b pb-3">Información de la Cuenta</h3>
+                        <h3 class="text-xl font-bold text-gray-800 dark:text-white border-b border-gray-200/50 pb-3">Información de la Cuenta</h3>
                         
                         <div class="flex items-center p-4">
                             <div class="w-10 h-10 flex items-center justify-center text-gray-400 mr-4"><i class="ph-user text-2xl"></i></div>
@@ -198,11 +211,11 @@ function formatRoleName($role) {
                             </div>
                         </div>
                         
-                        <div class="flex items-center p-4 bg-gray-50 rounded-lg">
+                        <div class="flex items-center p-4 glass-inner rounded-lg">
                             <div class="w-10 h-10 flex items-center justify-center text-gray-400 mr-4"><i class="ph-envelope-simple text-2xl"></i></div>
                             <div class="flex-grow">
                                 <p class="text-sm text-gray-500">Dirección de Correo</p>
-                                <p class="text-base font-semibold text-gray-700"><?php echo htmlspecialchars($user['email']); ?></p>
+                                <p class="text-base font-semibold text-gray-700 dark:text-gray-300"><?php echo htmlspecialchars($user['email']); ?></p>
                             </div>
                         </div>
 
@@ -256,7 +269,7 @@ function formatRoleName($role) {
              x-transition:leave="ease-in duration-200"
              x-transition:leave-start="opacity-100 scale-100"
              x-transition:leave-end="opacity-0 scale-95"
-             class="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 z-10">
+             class="relative liquid-glass rounded-3xl shadow-2xl max-w-md w-full p-8 z-10 border border-white/20">
             
             <div class="text-center mb-6">
                 <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">

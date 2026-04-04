@@ -8,7 +8,20 @@ if (!isAdmin()) {
     exit;
 }
 
+$show_global_blobs = false; // Disable global blobs for Liquid Glass design
 include 'components/header.php';
+?>
+
+<!-- Liquid Glass Pattern Implementation -->
+<div class="fixed inset-0 overflow-hidden pointer-events-none -z-50">
+    <div class="absolute inset-0 bg-institutional">
+        <div class="absolute inset-0 bg-gradient-to-b from-slate-50/40 via-transparent to-slate-50/40 dark:from-slate-900/60 dark:via-transparent dark:to-slate-900/60"></div>
+    </div>
+</div>
+
+</style>
+
+<?php
 
 // Incluir Chart.js y sus plugins (después del header)
 echo '
@@ -64,6 +77,11 @@ $stats_query = "
     $year_condition";
 
 $stats_result = $conn->query($stats_query)->fetch_assoc();
+
+// Obtener también los reportes sin departamento asignado para la métrica individual
+$u_cond = $selected_year > 0 ? "AND YEAR(created_at) = $selected_year" : "";
+$unassigned_query = "SELECT COUNT(*) as count FROM complaints WHERE id NOT IN (SELECT complaint_id FROM complaint_departments) $u_cond";
+$stats_result['unassigned'] = $conn->query($unassigned_query)->fetch_assoc()['count'];
 
 // Estadísticas por categoría
 $categories_query = "
@@ -245,18 +263,42 @@ $export_data = [
 
 ?>
 
-<div class="min-h-screen bg-transparent">
+<style>
+    /* Force high contrast text on gray text elements for better readability */
+    .text-gray-400,
+    .text-gray-500,
+    .text-gray-600,
+    .text-gray-700 {
+        color: #111827 !important; /* black */
+    }
+    html.dark .text-gray-400,
+    html.dark .text-gray-500,
+    html.dark .text-gray-600,
+    html.dark .text-gray-700 {
+        color: #f8fafc !important; /* white */
+    }
+    
+    /* Ensure icons don't randomly turn pitch black unless desired, but usually they inherit.
+       We specifically target textual elements by only overriding text classes */
+</style>
+
+<div class="flex-grow bg-transparent">
     <main class="container mx-auto px-4 py-8">
         <!-- Encabezado -->
-        <div class="mb-8">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-3xl font-bold text-gray-900">Estadísticas y Análisis</h1>
-                    <p class="mt-1 text-sm text-gray-500">
-                        Análisis detallado de reportes y métricas de atención
-                    </p>
+        <div class="mb-6 liquid-glass p-5 rounded-2xl shadow-sm border border-gray-200/50 dark:border-white/5">
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="flex items-center gap-4">
+                    <div class="inline-flex items-center justify-center w-12 h-12 bg-blue-600 dark:bg-blue-500/20 rounded-xl flex-shrink-0 shadow-sm dark:shadow-none border border-transparent dark:border-blue-500/30 hidden sm:flex">
+                        <i class="ph-chart-pie-slice text-white dark:text-blue-400 text-2xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Estadísticas y Análisis</h1>
+                        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                            Análisis detallado de reportes y métricas de atención
+                        </p>
+                    </div>
                 </div>
-                <a href="dashboard.php" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                <a href="dashboard.php" class="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white/50 dark:bg-black/20 dark:text-gray-300 border border-gray-300/30 dark:border-white/10 rounded-xl hover:bg-white transition-all shadow-sm">
                     <i class="ph-arrow-left text-lg mr-2"></i>
                     Volver al Dashboard
                 </a>
@@ -264,12 +306,12 @@ $export_data = [
         </div>
 
         <!-- Filtro de año y botones de exportación -->
-        <div class="bg-white rounded-lg shadow-sm p-4 mb-8">
+        <div class="liquid-glass rounded-2xl shadow-sm p-4 border border-gray-200/50 dark:border-white/5 mb-6">
             <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <form method="GET" class="flex items-center gap-4">
-                    <label for="year" class="font-medium text-gray-700">Periodo:</label>
+                    <label for="year" class="font-medium text-gray-700 dark:text-gray-200">Periodo:</label>
                     <select id="year" name="year" 
-                            class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
+                            class="rounded-xl border-gray-300/30 bg-white/50 dark:bg-black/20 dark:border-white/10 dark:text-white shadow-sm focus:border-blue-500 focus:ring focus:ring-blue-500 focus:ring-opacity-50"
                             onchange="this.form.submit()">
                         <option value="0" <?php echo $selected_year == 0 ? 'selected' : ''; ?>>Todos los años</option>
                         <?php foreach ($available_years as $year): ?>
@@ -282,14 +324,14 @@ $export_data = [
                 
                 <!-- Botones de exportación -->
                 <div class="flex items-center gap-3">
-                    <span class="text-sm text-gray-500 hidden sm:inline">Exportar:</span>
+                    <span class="text-sm text-gray-500 dark:text-gray-400 hidden sm:inline">Exportar:</span>
                     <button onclick="exportToPDF()" 
-                            class="group inline-flex items-center px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-red-500 to-red-600 rounded-lg shadow-md hover:shadow-lg hover:from-red-600 hover:to-red-700 transition-all duration-300 transform hover:scale-105">
+                            class="group inline-flex items-center px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-red-500 to-red-600 rounded-xl shadow-md hover:shadow-lg hover:from-red-600 hover:to-red-700 transition-all duration-300 transform hover:scale-105">
                         <i class="ph-file-pdf text-lg mr-2 group-hover:animate-bounce"></i>
                         PDF
                     </button>
                     <button onclick="exportToExcel()" 
-                            class="group inline-flex items-center px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-green-500 to-green-600 rounded-lg shadow-md hover:shadow-lg hover:from-green-600 hover:to-green-700 transition-all duration-300 transform hover:scale-105">
+                            class="group inline-flex items-center px-4 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-green-500 to-green-600 rounded-xl shadow-md hover:shadow-lg hover:from-green-600 hover:to-green-700 transition-all duration-300 transform hover:scale-105">
                         <i class="ph-file-xls text-lg mr-2 group-hover:animate-bounce"></i>
                         Excel
                     </button>
@@ -298,63 +340,66 @@ $export_data = [
         </div>
 
         <!-- Resumen General -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:flex lg:flex-row gap-3 w-full mb-6">
             <?php
             $total = $stats_result['total_complaints'];
             $metrics = [
                 [
-                    'label' => 'Total de Reportes',
+                    'title' => 'Total',
+                    'subtitle' => '',
                     'value' => $total,
-                    'icon' => 'ph-files',
-                    'color' => 'blue'
+                    'icon' => 'ph-list-checks',
+                    'color' => 'gray'
                 ],
                 [
-                    'label' => 'Atendidos a Tiempo',
+                    'title' => 'Atendido',
+                    'subtitle' => 'a tiempo',
                     'value' => $stats_result['attended_ontime'],
-                    'percent' => $total > 0 ? round(($stats_result['attended_ontime'] / $total) * 100) : 0,
                     'icon' => 'ph-check-circle',
                     'color' => 'green'
                 ],
                 [
-                    'label' => 'Atendidos Tarde',
+                    'title' => 'Atendido',
+                    'subtitle' => 'tarde',
                     'value' => $stats_result['attended_late'],
-                    'percent' => $total > 0 ? round(($stats_result['attended_late'] / $total) * 100) : 0,
-                    'icon' => 'ph-clock-counter-clockwise',
-                    'color' => 'yellow'
+                    'icon' => 'ph-clock-afternoon',
+                    'color' => 'orange'
                 ],
                 [
-                    'label' => 'Sin Atender',
-                    'value' => $stats_result['unattended_ontime'] + $stats_result['unattended_late'],
-                    'percent' => $total > 0 ? round((($stats_result['unattended_ontime'] + $stats_result['unattended_late']) / $total) * 100) : 0,
-                    'icon' => 'ph-hourglass',
+                    'title' => 'Sin atender',
+                    'subtitle' => 'a tiempo',
+                    'value' => $stats_result['unattended_ontime'],
+                    'icon' => 'ph-hourglass-medium',
+                    'color' => 'blue'
+                ],
+                [
+                    'title' => 'Sin atender',
+                    'subtitle' => 'retrasado',
+                    'value' => $stats_result['unattended_late'],
+                    'icon' => 'ph-warning',
                     'color' => 'red'
+                ],
+                [
+                    'title' => 'Sin',
+                    'subtitle' => 'Asignar',
+                    'value' => $stats_result['unassigned'],
+                    'icon' => 'ph-folder',
+                    'color' => 'yellow'
                 ]
             ];
             ?>
             <?php foreach ($metrics as $metric): ?>
-            <div class="bg-white rounded-lg shadow-sm p-6">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <span class="inline-flex p-3 rounded-lg text-<?php echo $metric['color']; ?>-600 bg-<?php echo $metric['color']; ?>-100">
-                            <i class="<?php echo $metric['icon']; ?> text-2xl"></i>
-                        </span>
-                    </div>
-                    <div class="ml-5 w-0 flex-1">
-                        <dl>
-                            <dt class="text-sm font-medium text-gray-500 truncate">
-                                <?php echo $metric['label']; ?>
-                            </dt>
-                            <dd class="flex items-baseline">
-                                <div class="text-2xl font-semibold text-gray-900">
-                                    <?php echo number_format($metric['value']); ?>
-                                </div>
-                                <?php if (isset($metric['percent'])): ?>
-                                <div class="ml-2 flex items-baseline text-sm font-semibold text-<?php echo $metric['color']; ?>-600">
-                                    <?php echo $metric['percent']; ?>%
-                                </div>
-                                <?php endif; ?>
-                            </dd>
-                        </dl>
+            <div class="liquid-glass rounded-xl p-3 flex items-center gap-3 flex-1 min-w-[120px] border-l-4 border-l-<?php echo $metric['color']; ?>-<?php echo $metric['color'] === 'gray' ? '400' : '500'; ?> transition-all">
+                <div class="w-12 h-12 rounded-xl bg-<?php echo $metric['color']; ?>-500/10 dark:bg-<?php echo $metric['color']; ?>-400/10 flex items-center justify-center flex-shrink-0">
+                    <i class="ph-fill <?php echo $metric['icon']; ?> text-<?php echo $metric['color']; ?>-600 dark:text-<?php echo $metric['color']; ?>-400 text-xl"></i>
+                </div>
+                <div class="min-w-0">
+                    <div class="text-xl font-bold text-<?php echo $metric['color'] === 'gray' ? 'gray-900' : $metric['color'] . '-600'; ?> dark:text-<?php echo $metric['color'] === 'gray' ? 'white' : $metric['color'] . '-400'; ?> leading-none"><?php echo number_format($metric['value']); ?></div>
+                    <div class="mt-1.5" title="<?php echo trim($metric['title'] . ' ' . $metric['subtitle']); ?>">
+                        <div class="text-[11px] uppercase tracking-widest text-<?php echo $metric['color'] === 'gray' ? 'gray-500' : $metric['color'] . '-600'; ?> dark:text-<?php echo $metric['color'] === 'gray' ? 'gray-400' : $metric['color'] . '-400/80'; ?> font-bold whitespace-nowrap leading-tight truncate"><?php echo $metric['title']; ?></div>
+                        <?php if (!empty($metric['subtitle'])): ?>
+                        <div class="text-[9px] uppercase tracking-widest text-<?php echo $metric['color'] === 'gray' ? 'gray-400' : $metric['color'] . '-500/70'; ?> font-semibold whitespace-nowrap leading-tight mt-0.5 truncate"><?php echo $metric['subtitle']; ?></div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
@@ -362,18 +407,18 @@ $export_data = [
         </div>
 
         <!-- Gráficas -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
             <!-- Estado de Reportes -->
-            <div class="bg-white rounded-lg shadow-sm p-6">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Estado de Reportes</h3>
+            <div class="liquid-glass rounded-2xl shadow-sm p-5 border border-gray-200/50 dark:border-white/5">
+                <h3 class="text-base font-bold text-gray-800 dark:text-gray-100 mb-3">Estado de Reportes</h3>
                 <div class="aspect-[4/3]">
                     <canvas id="statusChart"></canvas>
                 </div>
             </div>
 
             <!-- Tendencia Mensual -->
-            <div class="bg-white rounded-lg shadow-sm p-6">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Tendencia Mensual</h3>
+            <div class="liquid-glass rounded-2xl shadow-sm p-5 border border-gray-200/50 dark:border-white/5">
+                <h3 class="text-base font-bold text-gray-800 dark:text-gray-100 mb-3">Tendencia Mensual</h3>
                 <div class="aspect-[4/3]">
                     <canvas id="trendChart"></canvas>
                 </div>
@@ -382,18 +427,18 @@ $export_data = [
         </div>
 
         <!-- Segunda fila de gráficas -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
             <!-- Mapa de Calor de Actividad -->
-            <div class="bg-white rounded-lg shadow-sm p-6">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Actividad por Hora y Día</h3>
+            <div class="liquid-glass rounded-2xl shadow-sm p-5 border border-gray-200/50 dark:border-white/5">
+                <h3 class="text-base font-bold text-gray-800 dark:text-gray-100 mb-3">Actividad por Hora y Día</h3>
                 <div class="aspect-[4/3]">
                     <canvas id="heatmapChart"></canvas>
                 </div>
             </div>
 
             <!-- Tiempo Promedio de Respuesta -->
-            <div class="bg-white rounded-lg shadow-sm p-6">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Tiempo Promedio de Respuesta</h3>
+            <div class="liquid-glass rounded-2xl shadow-sm p-5 border border-gray-200/50 dark:border-white/5">
+                <h3 class="text-base font-bold text-gray-800 dark:text-gray-100 mb-3">Tiempo Promedio de Respuesta</h3>
                 <div class="aspect-[4/3]">
                     <canvas id="responseTimeChart"></canvas>
                 </div>
@@ -401,11 +446,11 @@ $export_data = [
         </div>
 
         <!-- Tercera fila de gráficas -->
-        <div class="grid grid-cols-1 gap-8 mb-8">
+        <div class="grid grid-cols-1 gap-5 mb-6">
             <!-- Eficiencia por Departamento -->
-            <div class="bg-white rounded-lg shadow-sm p-6">
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Eficiencia por Departamento</h3>
-                <div style="height: 400px;">
+            <div class="liquid-glass rounded-2xl shadow-sm p-5 border border-gray-200/50 dark:border-white/5">
+                <h3 class="text-base font-bold text-gray-800 dark:text-gray-100 mb-3">Eficiencia por Departamento</h3>
+                <div style="height: 350px;">
                     <canvas id="efficiencyChart"></canvas>
                 </div>
             </div>
@@ -413,11 +458,11 @@ $export_data = [
         </div>
 
         <!-- Estadísticas por Categoría -->
-        <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">Estadísticas por Categoría</h3>
+        <div class="liquid-glass rounded-2xl shadow-sm p-5 border border-gray-200/50 dark:border-white/5 mb-6">
+            <h3 class="text-base font-bold text-gray-800 dark:text-gray-100 mb-3">Estadísticas por Categoría</h3>
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-white/10">
+                    <thead class="bg-gray-50 dark:bg-slate-800/50">
                         <tr>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Categoría
@@ -434,24 +479,24 @@ $export_data = [
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Sin Atender
                             </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                                 Tiempo Promedio
                             </th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody class="divide-y divide-gray-200 dark:divide-white/10">
                         <?php while ($category = $categories_result->fetch_assoc()): ?>
                             <tr>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm font-medium text-gray-900">
+                                    <div class="text-sm font-medium text-gray-900 dark:text-gray-200">
                                         <?php echo htmlspecialchars($category['category_name'] ?? 'Sin categoría'); ?>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900"><?php echo $category['total']; ?></div>
+                                    <div class="text-sm text-gray-900 dark:text-gray-300"><?php echo $category['total']; ?></div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-green-600">
+                                    <div class="text-sm font-medium text-green-600 dark:text-green-400">
                                         <?php 
                                         $percent = $category['total'] > 0 ? round(($category['attended_ontime'] / $category['total']) * 100) : 0;
                                         echo $category['attended_ontime'] . ' (' . $percent . '%)';
@@ -459,7 +504,7 @@ $export_data = [
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-yellow-600">
+                                    <div class="text-sm font-medium text-yellow-600 dark:text-yellow-400">
                                         <?php 
                                         $percent = $category['total'] > 0 ? round(($category['attended_late'] / $category['total']) * 100) : 0;
                                         echo $category['attended_late'] . ' (' . $percent . '%)';
@@ -467,7 +512,7 @@ $export_data = [
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-red-600">
+                                    <div class="text-sm font-medium text-red-600 dark:text-red-400">
                                         <?php 
                                         $unattended = $category['unattended_ontime'] + $category['unattended_late'];
                                         $percent = $category['total'] > 0 ? round(($unattended / $category['total']) * 100) : 0;
@@ -476,7 +521,7 @@ $export_data = [
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900">
+                                    <div class="text-sm text-gray-900 dark:text-gray-300">
                                         <?php 
                                         echo $category['avg_response_time'] ? 
                                             round($category['avg_response_time'], 1) . ' días' : 
@@ -492,11 +537,11 @@ $export_data = [
         </div>
 
         <!-- Estadísticas por Departamento -->
-        <div class="bg-white rounded-lg shadow-sm p-6">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">Estadísticas por Departamento</h3>
+        <div class="liquid-glass rounded-2xl shadow-sm p-5 border border-gray-200/50 dark:border-white/5 mb-6">
+            <h3 class="text-base font-bold text-gray-800 dark:text-gray-100 mb-3">Estadísticas por Departamento</h3>
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
+                <table class="min-w-full divide-y divide-gray-200 dark:divide-white/10">
+                    <thead class="bg-gray-50 dark:bg-slate-800/50">
                         <tr>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Departamento
@@ -510,24 +555,24 @@ $export_data = [
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Atendidos Tarde
                             </th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                                 Tiempo Promedio
                             </th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody class="divide-y divide-gray-200 dark:divide-white/10">
                         <?php while ($department = $departments_result->fetch_assoc()): ?>
                             <tr>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm font-medium text-gray-900">
+                                    <div class="text-sm font-medium text-gray-900 dark:text-gray-200">
                                         <?php echo htmlspecialchars($department['department_name']); ?>
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900"><?php echo $department['total_assigned']; ?></div>
+                                    <div class="text-sm text-gray-900 dark:text-gray-300"><?php echo $department['total_assigned']; ?></div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-green-600">
+                                    <div class="text-sm font-medium text-green-600 dark:text-green-400">
                                         <?php 
                                         $percent = $department['total_assigned'] > 0 ? 
                                             round(($department['attended_ontime'] / $department['total_assigned']) * 100) : 0;
@@ -536,7 +581,7 @@ $export_data = [
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-yellow-600">
+                                    <div class="text-sm font-medium text-yellow-600 dark:text-yellow-400">
                                         <?php 
                                         $percent = $department['total_assigned'] > 0 ? 
                                             round(($department['attended_late'] / $department['total_assigned']) * 100) : 0;
@@ -545,7 +590,7 @@ $export_data = [
                                     </div>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap">
-                                    <div class="text-sm text-gray-900">
+                                    <div class="text-sm text-gray-900 dark:text-gray-300">
                                         <?php 
                                         echo $department['avg_response_time'] ? 
                                             round($department['avg_response_time'], 1) . ' días' : 
@@ -565,6 +610,53 @@ $export_data = [
 <!-- Scripts para gráficas -->
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Función para actualizar colores de Chart.js según el tema
+    const updateChartColors = () => {
+        const isDark = document.documentElement.classList.contains('dark');
+        Chart.defaults.color = isDark ? '#f8fafc' : '#111827';
+        Chart.defaults.borderColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+        
+        // Actualizar instancias existentes
+        for (let id in Chart.instances) {
+            const chart = Chart.instances[id];
+            // Texto general y subtítulos
+            chart.options.color = isDark ? '#f8fafc' : '#111827';
+            
+            // Actualizar color de las escalas (X, Y)
+            if (chart.options.scales) {
+                Object.keys(chart.options.scales).forEach(axis => {
+                    if (chart.options.scales[axis]) {
+                        if (chart.options.scales[axis].ticks) {
+                            chart.options.scales[axis].ticks.color = isDark ? '#f8fafc' : '#111827';
+                        }
+                        if (chart.options.scales[axis].grid) {
+                            chart.options.scales[axis].grid.color = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+                        }
+                    }
+                });
+            }
+            
+            // Actualizar color de las leyendas (Legend plugin)
+            if (chart.options.plugins && chart.options.plugins.legend) {
+                if (!chart.options.plugins.legend.labels) chart.options.plugins.legend.labels = {};
+                chart.options.plugins.legend.labels.color = isDark ? '#f8fafc' : '#111827';
+            }
+            
+            chart.update();
+        }
+    };
+    
+    // Configurar color inicial y observar cambios futuros en el body (modo oscuro/claro)
+    updateChartColors();
+    const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            if (mutation.attributeName === 'class') {
+                updateChartColors();
+            }
+        });
+    });
+    observer.observe(document.documentElement, { attributes: true });
+
     // Gráfica de Estado de Reportes
     const statusCtx = document.getElementById('statusChart').getContext('2d');
     new Chart(statusCtx, {

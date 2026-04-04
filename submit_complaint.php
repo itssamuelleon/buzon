@@ -176,55 +176,68 @@ $categories = $categories_query->fetch_all(MYSQLI_ASSOC);
 
 // AHORA sí incluir el header
 $page_title = 'Enviar Reporte - Buzón de Quejas';
+$show_global_blobs = false; // Disable global blobs for Liquid Glass design
 include 'components/header.php';
-
 ?>
+
+<!-- Liquid Glass Pattern Implementation -->
+<div class="fixed inset-0 overflow-hidden pointer-events-none -z-50">
+    <div class="absolute inset-0 bg-institutional">
+        <div class="absolute inset-0 bg-gradient-to-b from-slate-50/40 via-transparent to-slate-50/40 dark:from-slate-900/60 dark:via-transparent dark:to-slate-900/60"></div>
+    </div>
+</div>
+
+<style>
+    /* Custom input overrides for Liquid Glass */
+    .glass-input {
+        background: rgba(255, 255, 255, 0.3) !important;
+        border: 1px solid rgba(255, 255, 255, 0.4) !important;
+        backdrop-filter: blur(5px);
+    }
+    .dark .glass-input {
+        background: rgba(15, 23, 42, 0.5) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        color: #e2e8f0 !important;
+    }
+
+    /* Native select dropdown styling for dark mode */
+    .dark select.glass-input option {
+        background: #1e293b;
+        color: #e2e8f0;
+    }
+    .dark select.glass-input option:hover,
+    .dark select.glass-input option:checked {
+        background: #334155;
+    }
+
+    /* Labels dark mode */
+    .dark label {
+        color: #e2e8f0 !important;
+    }
+</style>
 
 <!-- Phosphor Icons CDN -->
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
-<style>
-@keyframes fadeInUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
 
-.animate-fade-in-up {
-    animation: fadeInUp 0.6s ease-out;
-}
-
-.gradient-bg {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.card-shadow {
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-}
-</style>
-
-<div class="bg-transparent min-h-screen py-12">
+<div class="bg-transparent flex-grow py-12">
     <main class="container mx-auto px-4">
         <div class="max-w-4xl mx-auto">
             
-            <!-- Header con gradiente -->
-            <div class="text-center mb-10 animate-fade-in-up">
-                <div class="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg mb-4">
-                    <i class="ph-fill ph-file-text text-white text-4xl"></i>
-                </div>
-                <h1 class="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
-                    Enviar un Reporte
-                </h1>
-                <p class="text-gray-600 text-lg">Tu voz es importante. Ayúdanos a crear un mejor ambiente.</p>
-            </div>
-
-            <div class="bg-white rounded-3xl card-shadow overflow-hidden animate-fade-in-up" style="animation-delay: 0.2s;">
+            <div class="liquid-glass rounded-3xl overflow-hidden shadow-2xl">
                 <div class="p-8 md:p-12">
+                    <!-- Compact Inner Header -->
+                    <div class="mb-10 text-left flex items-center gap-4">
+                        <div class="inline-flex items-center justify-center w-12 h-12 bg-blue-600 dark:bg-blue-500/20 rounded-xl flex-shrink-0 shadow-sm dark:shadow-none border border-transparent dark:border-blue-500/30">
+                            <i class="ph ph-pencil-simple-line text-white dark:text-blue-400 text-2xl"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-3xl font-bold text-gray-800 dark:text-white mb-1">
+                                Enviar un Reporte
+                            </h1>
+                            <p class="text-gray-600 dark:text-gray-400 text-sm">Tu voz es importante. Ayúdanos a crear un mejor ambiente.</p>
+                        </div>
+                    </div>
 
                     <?php if ($error): ?>
                         <div class="bg-red-50 border-l-4 border-red-500 p-5 mb-8 rounded-r-xl flex items-start animate-fade-in-up" role="alert">
@@ -276,7 +289,7 @@ include 'components/header.php';
                                     Categoría del Reporte
                                 </label>
                                 <select id="category_id" name="category_id" required
-                                    class="mt-1 block w-full text-base rounded-xl border-2 border-gray-200 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 py-3 px-4"
+                                    class="mt-1 block w-full text-base rounded-xl glass-input shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 py-3 px-4"
                                     oninvalid="this.setCustomValidity('Por favor, selecciona una categoría para el reporte')"
                                     oninput="this.setCustomValidity('')">
                                     <option value="">Selecciona una categoría...</option>
@@ -299,7 +312,7 @@ include 'components/header.php';
                                     Descripción del Reporte
                                 </label>
                                 <textarea id="description" name="description" rows="8" required
-                                    class="mt-1 block w-full text-base rounded-xl border-2 border-gray-200 shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 py-3 px-4"
+                                    class="mt-1 block w-full text-base rounded-xl glass-input shadow-sm focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition-all duration-200 py-3 px-4"
                                     placeholder="Describe detalladamente la situación. Incluye fechas, personas involucradas y cualquier otro dato relevante..."></textarea>
                                 <p class="text-sm text-gray-500 flex items-center mt-2">
                                     <i class="ph ph-lightbulb mr-1"></i>
@@ -314,8 +327,8 @@ include 'components/header.php';
                                     Adjuntar Evidencia (Opcional)
                                 </label>
                                 <div 
-                                    class="mt-2 relative flex justify-center px-6 pt-8 pb-8 border-3 border-gray-300 border-dashed rounded-2xl transition-all duration-300 hover:border-blue-400 hover:bg-blue-50/30 cursor-pointer"
-                                    :class="{ 'border-blue-500 bg-blue-50 shadow-lg': isDragging }"
+                                    class="mt-2 relative flex justify-center px-6 pt-8 pb-8 border-3 border-gray-300 dark:border-white/10 border-dashed rounded-2xl transition-all duration-300 hover:border-blue-400 bg-white/60 dark:bg-slate-800/50 hover:bg-blue-50/50 dark:hover:bg-slate-800/80 cursor-pointer"
+                                    :class="{ 'border-blue-500 bg-blue-50/80 dark:bg-slate-800/80 shadow-lg': isDragging }"
                                     @dragover.prevent="isDragging = true"
                                     @dragleave.prevent="isDragging = false"
                                     @drop.prevent="handleDrop($event)">
@@ -376,7 +389,7 @@ include 'components/header.php';
                             </div>
 
                             <!-- Checkbox anónimo -->
-                            <div class="bg-gradient-to-r from-amber-50 to-orange-50 border-l-4 border-amber-400 p-5 rounded-r-xl">
+                            <div class="glass-inner border-l-4 border-amber-400 p-5 rounded-r-xl">
                                 <div class="flex items-start">
                                     <div class="flex-shrink-0 pt-0.5">
                                         <input type="checkbox" id="anonymous" name="anonymous" 
@@ -397,9 +410,9 @@ include 'components/header.php';
                             <!-- Botón de envío -->
                             <div class="pt-6">
                                 <button type="submit"
-                                    class="w-full flex justify-center items-center bg-gradient-to-r from-blue-600 to-purple-600 text-white text-lg font-bold py-5 px-6 rounded-xl hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-4 focus:ring-blue-300 shadow-xl transform hover:-translate-y-1 hover:shadow-2xl transition-all duration-300 ease-out group">
-                                    <i class="ph-bold ph-paper-plane-tilt mr-3 text-2xl group-hover:translate-x-1 transition-transform"></i>
-                                    Enviar Mi Reporte
+                                    class="w-full flex justify-center items-center bg-blue-600 text-white text-lg font-bold py-4 px-6 rounded-xl hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 shadow-lg transform hover:-translate-y-0.5 hover:shadow-xl transition-all duration-300 ease-out group">
+                                    <i class="ph-bold ph-paper-plane-tilt mr-3 text-2xl group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform"></i>
+                                    Enviar Reporte
                                 </button>
                             </div>
                         </form>
@@ -407,13 +420,6 @@ include 'components/header.php';
                 </div>
             </div>
             
-            <!-- Footer info -->
-            <div class="text-center mt-8 animate-fade-in-up" style="animation-delay: 0.4s;">
-                <p class="text-sm text-gray-600 flex items-center justify-center">
-                    <i class="ph-fill ph-shield-check text-blue-600 mr-2 text-lg"></i>
-                    Tu privacidad es importante. Toda la información será tratada de forma confidencial.
-                </p>
-            </div>
         </div>
     </main>
 </div>

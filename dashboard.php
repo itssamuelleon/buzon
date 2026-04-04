@@ -16,6 +16,7 @@ if (!canAccessDashboard()) {
 }
 
 $page_title = 'Dashboard - Buzón de Quejas'; 
+$show_global_blobs = false; // Disable global header blobs for this page
 include 'components/header.php'; 
 require_once 'status_helper.php'; 
 ?>
@@ -260,7 +261,123 @@ require_once 'status_helper.php';
     }
     ?>
 
-    <main class="container mx-auto px-4 py-6">
+    <!-- Institutional Background -->
+    <div class="fixed inset-0 overflow-hidden pointer-events-none -z-50">
+        <div class="absolute inset-0 bg-institutional">
+            <div class="absolute inset-0 bg-gradient-to-b from-slate-50/40 via-transparent to-slate-50/40 dark:from-slate-900/60 dark:via-transparent dark:to-slate-900/60"></div>
+        </div>
+    </div>
+
+    <!-- Liquid Glass Global Styles -->
+    <style>
+
+        /* Dashbord Filter Input Overrides */
+        .glass-input-dashboard {
+            background: rgba(255, 255, 255, 0.2) !important;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            transition: all 0.3s ease;
+        }
+        
+        .dark .glass-input-dashboard {
+            background: rgba(0, 0, 0, 0.3) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }
+
+        .glass-input-dashboard:focus {
+            background: rgba(255, 255, 255, 0.3) !important;
+            border-color: rgba(59, 130, 246, 0.5) !important;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1) !important;
+        }
+
+        /* TomSelect Transparency and Overflow Fix */
+        .ts-wrapper {
+            position: relative;
+            z-index: 50;
+        }
+        .ts-control {
+            background: rgba(255, 255, 255, 0.2) !important;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            border-radius: 0.75rem !important;
+            color: #111827 !important;
+        }
+        .dark .ts-control {
+            background: rgba(0, 0, 0, 0.3) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            color: #e2e8f0 !important;
+        }
+        .dark .ts-control input {
+            color: #e2e8f0 !important;
+        }
+        .dark .ts-control input::placeholder {
+            color: #94a3b8 !important;
+        }
+        .ts-control .item {
+            color: #fff !important;
+            border-radius: 0.375rem !important;
+        }
+        .dark .ts-control .item {
+            background: rgba(59, 130, 246, 0.2) !important;
+            color: #93c5fd !important;
+            border: 1px solid rgba(59, 130, 246, 0.3) !important;
+            border-radius: 0.375rem !important;
+        }
+        .ts-dropdown {
+            background: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(0, 0, 0, 0.1) !important;
+            border-radius: 0.75rem !important;
+            z-index: 1000 !important;
+            position: absolute !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1) !important;
+        }
+        .dark .ts-dropdown {
+            background: #1e293b !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4) !important;
+        }
+        .ts-dropdown .option {
+            color: #1f2937 !important;
+            border-radius: 0.375rem !important;
+            margin: 2px 4px !important;
+        }
+        .dark .ts-dropdown .option {
+            color: #e2e8f0 !important;
+        }
+        .ts-dropdown .option:hover,
+        .ts-dropdown .option.active {
+            background: rgba(59, 130, 246, 0.1) !important;
+            color: #2563eb !important;
+        }
+        .dark .ts-dropdown .option:hover,
+        .dark .ts-dropdown .option.active {
+            background: rgba(59, 130, 246, 0.2) !important;
+            color: #93c5fd !important;
+        }
+        .ts-dropdown .option.selected {
+            background: rgba(59, 130, 246, 0.15) !important;
+            color: #2563eb !important;
+        }
+        .dark .ts-dropdown .option.selected {
+            background: rgba(59, 130, 246, 0.25) !important;
+            color: #93c5fd !important;
+        }
+
+        /* Force dark text on filter labels and table headers for readability */
+        label.text-gray-500,
+        th.text-gray-500,
+        .text-gray-600 {
+            color: #111827 !important;
+        }
+        html.dark label.text-gray-500,
+        html.dark th.text-gray-500,
+        html.dark .text-gray-600 {
+            color: #e2e8f0 !important;
+        }
+    </style>
+
+    <main class="container mx-auto px-4 py-6 relative flex-grow">
         <?php if (isAdmin() && $failed_emails_count > 0): ?>
         <div class="mb-4 bg-amber-50 border border-amber-300 text-amber-800 px-5 py-3 rounded-lg flex items-center gap-3 shadow-sm">
             <i class="ph-warning text-xl text-amber-500 flex-shrink-0"></i>
@@ -272,8 +389,15 @@ require_once 'status_helper.php';
             </div>
         </div>
         <?php endif; ?>
+        <!-- Dashboard Header Card (Title + Buttons + Stats) -->
+        <div class="liquid-glass rounded-2xl p-5 mb-6">
         <div class="flex flex-wrap items-center gap-3 mb-4">
-            <h1 class="text-2xl font-bold text-gray-800">Dashboard</h1>
+            <div class="flex items-center gap-3">
+                <div class="inline-flex items-center justify-center w-12 h-12 bg-blue-600 dark:bg-blue-500/20 rounded-xl flex-shrink-0 shadow-sm dark:shadow-none border border-transparent dark:border-blue-500/30">
+                    <i class="ph-chart-bar text-white dark:text-blue-400 text-2xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Dashboard</h1>
+            </div>
             
             <div class="flex items-center gap-2 ml-auto">
                 <?php if (isAdmin() && intval($stats['unassigned']) > 0): ?>
@@ -300,66 +424,66 @@ require_once 'status_helper.php';
         
         <!-- Quick Stats (Admins and Managers) -->
         <?php if (function_exists('isAdmin') && (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager'))): ?>
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:flex lg:flex-row gap-3 mb-6 w-full">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:flex lg:flex-row gap-3 w-full">
             
-            <div class="bg-white rounded-lg border border-gray-200 p-3 flex items-center gap-3 lg:flex-1">
-                <div class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                    <i class="ph-fill ph-list-checks text-gray-600 text-lg"></i>
+            <div class="liquid-glass rounded-xl p-3 flex items-center gap-3 flex-1 min-w-[120px] border-l-4 border-l-gray-400">
+                <div class="w-12 h-12 rounded-xl bg-gray-500/10 dark:bg-gray-400/10 flex items-center justify-center flex-shrink-0">
+                    <i class="ph-fill ph-list-checks text-gray-600 dark:text-gray-400 text-xl"></i>
                 </div>
                 <div class="min-w-0">
-                    <div class="text-lg font-bold text-gray-900 leading-none truncate"><?php echo $stats['total']; ?></div>
-                    <div class="text-[10px] uppercase tracking-wider text-gray-500 font-semibold mt-0.5 truncate">Total</div>
+                    <div class="text-xl font-bold text-gray-900 dark:text-white leading-none"><?php echo $stats['total']; ?></div>
+                    <div class="text-[11px] uppercase tracking-widest text-gray-500 dark:text-gray-400 font-bold mt-1.5 whitespace-nowrap">Total</div>
                 </div>
             </div>
             
-            <div class="bg-white rounded-lg border border-green-200 p-3 flex items-center gap-3 lg:flex-1">
-                <div class="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center flex-shrink-0">
-                    <i class="ph-fill ph-check-circle text-green-600 text-lg"></i>
+            <div class="liquid-glass rounded-xl p-3 flex items-center gap-3 flex-1 min-w-[120px] border-l-4 border-l-green-500">
+                <div class="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center flex-shrink-0">
+                    <i class="ph-fill ph-check-circle text-green-600 dark:text-green-400 text-xl"></i>
                 </div>
                 <div class="min-w-0">
-                    <div class="text-lg font-bold text-green-600 leading-none truncate"><?php echo intval($stats['attended_ontime']); ?></div>
-                    <div class="mt-0.5" title="Atendido a tiempo">
-                        <div class="text-[10px] uppercase tracking-wider text-green-600 font-semibold truncate leading-tight">Atendido</div>
-                        <div class="text-[9px] uppercase tracking-wider text-green-600 font-medium opacity-80 truncate leading-tight mt-0.5">a tiempo</div>
+                    <div class="text-xl font-bold text-green-600 dark:text-green-400 leading-none"><?php echo intval($stats['attended_ontime']); ?></div>
+                    <div class="mt-1.5" title="Atendido a tiempo">
+                        <div class="text-[11px] uppercase tracking-widest text-green-600 dark:text-green-400/80 font-bold whitespace-nowrap leading-tight">Atendido</div>
+                        <div class="text-[9px] uppercase tracking-widest text-green-500/70 font-semibold whitespace-nowrap leading-tight mt-0.5">a tiempo</div>
                     </div>
                 </div>
             </div>
             
-            <div class="bg-white rounded-lg border border-orange-200 p-3 flex items-center gap-3 lg:flex-1">
-                <div class="w-9 h-9 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
-                    <i class="ph-fill ph-clock-afternoon text-orange-600 text-lg"></i>
+            <div class="liquid-glass rounded-xl p-3 flex items-center gap-3 flex-1 min-w-[120px] border-l-4 border-l-orange-500">
+                <div class="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center flex-shrink-0">
+                    <i class="ph-fill ph-clock-afternoon text-orange-600 dark:text-orange-400 text-xl"></i>
                 </div>
                 <div class="min-w-0">
-                    <div class="text-lg font-bold text-orange-600 leading-none truncate"><?php echo intval($stats['attended_late']); ?></div>
-                    <div class="mt-0.5" title="Atendido tarde">
-                        <div class="text-[10px] uppercase tracking-wider text-orange-600 font-semibold truncate leading-tight">Atendido</div>
-                        <div class="text-[9px] uppercase tracking-wider text-orange-600 font-medium opacity-80 truncate leading-tight mt-0.5">tarde</div>
+                    <div class="text-xl font-bold text-orange-600 dark:text-orange-400 leading-none"><?php echo intval($stats['attended_late']); ?></div>
+                    <div class="mt-1.5" title="Atendido tarde">
+                        <div class="text-[11px] uppercase tracking-widest text-orange-600 dark:text-orange-400/80 font-bold whitespace-nowrap leading-tight">Atendido</div>
+                        <div class="text-[9px] uppercase tracking-widest text-orange-500/70 font-semibold whitespace-nowrap leading-tight mt-0.5">tarde</div>
                     </div>
                 </div>
             </div>
             
-            <div class="bg-white rounded-lg border border-blue-200 p-3 flex items-center gap-3 xl:flex-1">
-                <div class="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                    <i class="ph-fill ph-hourglass-medium text-blue-600 text-lg"></i>
+            <div class="liquid-glass rounded-xl p-3 flex items-center gap-3 flex-1 min-w-[120px] border-l-4 border-l-blue-500">
+                <div class="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                    <i class="ph-fill ph-hourglass-medium text-blue-600 dark:text-blue-400 text-xl"></i>
                 </div>
                 <div class="min-w-0">
-                    <div class="text-lg font-bold text-blue-600 leading-none truncate"><?php echo intval($stats['unattended_ontime']); ?></div>
-                    <div class="mt-0.5" title="Sin atender a tiempo">
-                        <div class="text-[10px] uppercase tracking-wider text-blue-600 font-semibold truncate leading-tight">Sin atender</div>
-                        <div class="text-[9px] uppercase tracking-wider text-blue-600 font-medium opacity-80 truncate leading-tight mt-0.5">a tiempo</div>
+                    <div class="text-xl font-bold text-blue-600 dark:text-blue-400 leading-none"><?php echo intval($stats['unattended_ontime']); ?></div>
+                    <div class="mt-1.5" title="Sin atender a tiempo">
+                        <div class="text-[11px] uppercase tracking-widest text-blue-600 dark:text-blue-400/80 font-bold whitespace-nowrap leading-tight">Sin atender</div>
+                        <div class="text-[9px] uppercase tracking-widest text-blue-500/70 font-semibold whitespace-nowrap leading-tight mt-0.5">a tiempo</div>
                     </div>
                 </div>
             </div>
             
-            <div class="bg-white rounded-lg border border-red-200 p-3 flex items-center gap-3 xl:flex-1">
-                <div class="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center flex-shrink-0">
-                    <i class="ph-fill ph-warning text-red-600 text-lg"></i>
+            <div class="liquid-glass rounded-xl p-3 flex items-center gap-3 flex-1 min-w-[120px] border-l-4 border-l-red-500">
+                <div class="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center flex-shrink-0">
+                    <i class="ph-fill ph-warning text-red-600 dark:text-red-400 text-xl"></i>
                 </div>
                 <div class="min-w-0">
-                    <div class="text-lg font-bold text-red-600 leading-none truncate"><?php echo intval($stats['unattended_late']); ?></div>
-                    <div class="mt-0.5" title="Sin atender retrasado">
-                        <div class="text-[10px] uppercase tracking-wider text-red-600 font-semibold truncate leading-tight">Sin atender</div>
-                        <div class="text-[9px] uppercase tracking-wider text-red-600 font-medium opacity-80 truncate leading-tight mt-0.5">retrasado</div>
+                    <div class="text-xl font-bold text-red-600 dark:text-red-400 leading-none"><?php echo intval($stats['unattended_late']); ?></div>
+                    <div class="mt-1.5" title="Sin atender retrasado">
+                        <div class="text-[11px] uppercase tracking-widest text-red-600 dark:text-red-400/80 font-bold whitespace-nowrap leading-tight">Sin atender</div>
+                        <div class="text-[9px] uppercase tracking-widest text-red-500/70 font-semibold whitespace-nowrap leading-tight mt-0.5">retrasado</div>
                     </div>
                 </div>
             </div>
@@ -368,29 +492,30 @@ require_once 'status_helper.php';
             $show_unassigned_stat = isAdmin() || !$is_dashboard_restricted_for_managers;
             if ($show_unassigned_stat): 
             ?>
-            <div class="bg-white rounded-lg border border-yellow-200 p-3 flex items-center gap-3 xl:flex-1">
-                <div class="w-9 h-9 rounded-lg bg-yellow-50 flex items-center justify-center flex-shrink-0">
-                    <i class="ph-fill ph-folder text-yellow-600 text-lg"></i>
+            <div class="liquid-glass rounded-xl p-3 flex items-center gap-3 flex-1 min-w-[120px] border-l-4 border-l-yellow-500">
+                <div class="w-12 h-12 rounded-xl bg-yellow-500/10 flex items-center justify-center flex-shrink-0">
+                    <i class="ph-fill ph-folder text-yellow-600 dark:text-yellow-400 text-xl"></i>
                 </div>
                 <div class="min-w-0">
-                    <div class="text-lg font-bold text-yellow-600 leading-none truncate"><?php echo $stats['unassigned']; ?></div>
-                    <div class="text-[10px] uppercase tracking-wider text-yellow-600 font-semibold mt-0.5 truncate">Sin Asignar</div>
+                    <div class="text-xl font-bold text-yellow-600 dark:text-yellow-400 leading-none"><?php echo $stats['unassigned']; ?></div>
+                    <div class="text-[11px] uppercase tracking-widest text-yellow-600 dark:text-yellow-400/80 font-bold mt-1.5 whitespace-nowrap">Sin Asignar</div>
                 </div>
             </div>
             <?php endif; ?>
             
-            <div class="col-span-full md:col-span-3 xl:col-span-1 xl:flex-1 flex">
-                <a href="statistics.php" class="w-full h-full flex items-center justify-center gap-2 p-3 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-300 dark:border-indigo-500/30 dark:hover:bg-indigo-500/20 rounded-lg border border-indigo-200 transition-colors shadow-sm">
-                    <i class="ph-chart-line text-lg"></i>
+            <div class="col-span-full md:col-span-1 lg:flex-1 flex">
+                <a href="statistics.php" class="w-full h-full flex items-center justify-center gap-2 p-3 text-xs font-bold text-indigo-700 dark:text-indigo-400 liquid-glass hover:bg-white/30 dark:hover:bg-white/10 rounded-xl border border-indigo-200/50 dark:border-indigo-500/30 transition-all">
+                    <i class="ph-chart-line text-xl"></i>
                     <span>Ver más<span class="hidden md:inline xl:hidden"> estadísticas</span></span>
                 </a>
             </div>
             
         </div>
         <?php endif; ?>
+        </div>
 
         <!-- Compact Filters -->
-        <form method="GET" class="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-6" x-data="{ showFilters: false }">
+        <form method="GET" class="liquid-glass rounded-2xl p-4 mb-8 relative z-20" style="overflow: visible !important;" x-data="{ showFilters: false }">
             <div class="flex flex-col xl:flex-row xl:items-end gap-3">
                 <!-- Search Bar & Toggle (Always Visible) -->
                 <div class="flex items-center gap-2 xl:flex-1" x-data="{ query: '<?php echo htmlspecialchars($search, ENT_QUOTES); ?>' }">
@@ -401,7 +526,7 @@ require_once 'status_helper.php';
                         </div>
                         <input type="text" id="q" name="q" x-model="query"
                             placeholder="Folio o descripción..."
-                            class="block w-full pl-8 pr-8 py-2 text-sm rounded-md border-gray-300 focus:border-blue-500 focus:ring-blue-500" />
+                            class="block w-full pl-8 pr-8 py-2 text-sm rounded-xl glass-input-dashboard text-gray-900 dark:text-white placeholder-gray-400" />
                         
                         <!-- Clear Search X Button -->
                         <button type="button" 
@@ -423,7 +548,7 @@ require_once 'status_helper.php';
                     <!-- Mobile Filter Toggle -->
                     <button type="button" 
                             @click="showFilters = !showFilters"
-                            class="xl:hidden inline-flex items-center justify-center p-2 rounded-md border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                            class="xl:hidden inline-flex items-center justify-center p-2 rounded-xl glass-input-dashboard text-gray-700 dark:text-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                         <i class="ph-funnel text-lg" :class="showFilters ? 'text-blue-600' : 'text-gray-500'"></i>
                     </button>
 
@@ -496,20 +621,20 @@ require_once 'status_helper.php';
                                           (isset($_GET['date_range']) && $_GET['date_range'] !== 'this_year' && $_GET['date_range'] !== '');
                         if ($hasActiveFilters):
                         ?>
-                            <a href="dashboard.php" class="flex-1 xl:flex-none inline-flex justify-center items-center px-3 py-2 text-sm font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
+                            <a href="dashboard.php" class="flex-1 xl:flex-none inline-flex justify-center items-center px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 bg-gray-100/50 dark:bg-white/10 rounded-md hover:bg-gray-200 transition-colors">
                                 <i class="ph-trash mr-1"></i>
                                 Limpiar
                             </a>
                         <?php endif; ?>
                         
                         <!-- Mobile Apply Button -->
-                        <button type="submit" class="xl:hidden flex-1 inline-flex justify-center items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 shadow-sm transition-colors">
+                        <button type="submit" class="xl:hidden flex-1 inline-flex justify-center items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500/15 dark:text-blue-400 dark:border dark:border-blue-400/30 dark:hover:bg-blue-500/25 rounded-lg shadow-sm transition-all">
                             <i class="ph-magnifying-glass mr-1.5"></i>
                             Aplicar Filtros
                         </button>
 
-                        <!-- Desktop Filter Button (Hidden on Mobile) -->
-                        <button type="submit" class="hidden xl:inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 shadow-sm transition-colors">
+                        <!-- Desktop Filter Button -->
+                        <button type="submit" class="hidden xl:inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-500/15 dark:text-blue-400 dark:border dark:border-blue-400/30 dark:hover:bg-blue-500/25 rounded-lg shadow-sm transition-all">
                             <i class="ph-magnifying-glass mr-1.5"></i>
                             Buscar
                         </button>
@@ -563,7 +688,7 @@ require_once 'status_helper.php';
                         $daysAgo = $interval->days;
                         $timeAgoText = $daysAgo === 0 ? 'Hoy' : ($daysAgo === 1 ? 'Ayer' : "Hace $daysAgo días");
                     ?>
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+                    <div class="liquid-glass rounded-xl p-4 transition-all">
                         <div class="flex items-center justify-between mb-1.5">
                             <div class="flex items-center gap-2">
                                 <span class="text-xs font-bold text-gray-500">#<?php echo $row['folio'] ?? str_pad($row['id'], 6, '0', STR_PAD_LEFT); ?></span>
@@ -580,7 +705,7 @@ require_once 'status_helper.php';
                                     <?php endif; ?>
                                     <?php if (isset($row['attachment_count']) && $row['attachment_count'] > 0): ?>
                                         <div class="relative group flex items-center justify-center">
-                                            <span class="cursor-help inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-blue-100 text-blue-700 ring-1 ring-inset ring-blue-600/20">
+                                            <span class="cursor-help inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-blue-500/10 text-blue-700 dark:text-blue-400 ring-1 ring-inset ring-blue-600/20">
                                                 <i class="ph-paperclip text-[10px]"></i>
                                                 <?php echo $row['attachment_count']; ?>
                                             </span>
@@ -591,7 +716,7 @@ require_once 'status_helper.php';
                                     <?php endif; ?>
                                     <?php if (isset($row['comment_count']) && $row['comment_count'] > 0): ?>
                                         <div class="relative group flex items-center justify-center">
-                                            <span class="cursor-help inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                                            <span class="cursor-help inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 ring-1 ring-inset ring-emerald-600/20">
                                                 <i class="ph-chat-circle text-[10px]"></i>
                                                 <?php echo $row['comment_count']; ?>
                                             </span>
@@ -614,7 +739,7 @@ require_once 'status_helper.php';
 
                         <h3 class="text-sm font-medium text-gray-900 mb-2 line-clamp-2 leading-snug"><?php echo htmlspecialchars($shortDescription); ?></h3>
                         
-                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-900 dark:text-gray-200">
                             <div class="flex items-center gap-1.5">
                                 <i class="ph-tag text-gray-400"></i>
                                 <span class="truncate max-w-[140px]"><?php echo $row['category_name'] ? htmlspecialchars($row['category_name']) : 'Sin categoría'; ?></span>
@@ -625,11 +750,11 @@ require_once 'status_helper.php';
                                 <span><?php echo $timeAgoText; ?></span>
                             </div>
                             <?php if (function_exists('isAdmin') && (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager'))): ?>
-                                <div class="w-full flex items-start gap-1.5 pt-1 border-t border-gray-50 mt-0.5">
+                                <div class="w-full flex items-start gap-1.5 pt-1 border-t border-gray-200/50 dark:border-gray-600/30 mt-0.5">
                                     <i class="ph-buildings-light text-gray-400 mt-0.5"></i>
                                     <div class="flex-1 truncate">
                                         <?php if (empty($row['department_names'])): ?>
-                                            <span class="italic text-yellow-600">Sin asignación</span>
+                                            <span class="italic text-yellow-700 dark:text-yellow-400">Sin asignación</span>
                                         <?php else: 
                                             $department_names = explode('||', $row['department_names']);
                                             echo htmlspecialchars(implode(', ', $department_names));
@@ -648,11 +773,11 @@ require_once 'status_helper.php';
             </div>
 
             <!-- Desktop View (Table) -->
-            <div class="hidden xl:block bg-white rounded-lg shadow overflow-visible">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50 rounded-t-lg">
+            <div class="hidden xl:block liquid-glass rounded-2xl overflow-hidden border-none">
+                <table class="min-w-full divide-y divide-white/10">
+                    <thead class="bg-white/10">
                         <tr>
-                            <th scope="col" class="rounded-tl-lg px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
+                            <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-24">
                                 Folio
                             </th>
                             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-[40%]">
@@ -673,20 +798,20 @@ require_once 'status_helper.php';
                                 Fecha
                             </th>
                             <?php endif; ?>
-                            <th scope="col" class="rounded-tr-lg px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">
                                 Acciones
                             </th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
+                    <tbody class="divide-y divide-white/10">
                         <?php foreach ($complaints as $row): ?>
-                            <tr>
+                            <tr class="hover:bg-white/5 transition-colors">
                                 <?php
                                     $createdDate = new DateTime($row['created_at']);
                                     $now = new DateTime();
                                     $attendedDate = !empty($row['attended_at']) ? new DateTime($row['attended_at']) : null;
                                 ?>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                                     <div class="flex flex-col items-center gap-1.5">
                                         <span class="font-medium text-center">#<?php echo $row['folio'] ?? str_pad($row['id'], 6, '0', STR_PAD_LEFT); ?></span>
                                         <div class="flex items-center justify-center gap-1">
@@ -702,7 +827,7 @@ require_once 'status_helper.php';
                                             <?php endif; ?>
                                             <?php if (isset($row['attachment_count']) && $row['attachment_count'] > 0): ?>
                                                 <div class="relative group flex items-center justify-center">
-                                                    <span class="cursor-help inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-100 text-blue-700 ring-1 ring-inset ring-blue-600/20">
+                                                    <span class="cursor-help inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-500/10 text-blue-700 dark:text-blue-400 ring-1 ring-inset ring-blue-600/20">
                                                         <i class="ph-paperclip text-xs"></i>
                                                         <?php echo $row['attachment_count']; ?>
                                                     </span>
@@ -713,7 +838,7 @@ require_once 'status_helper.php';
                                             <?php endif; ?>
                                             <?php if (isset($row['comment_count']) && $row['comment_count'] > 0): ?>
                                                 <div class="relative group flex items-center justify-center">
-                                                    <span class="cursor-help inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                                                    <span class="cursor-help inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 ring-1 ring-inset ring-emerald-600/20">
                                                         <i class="ph-chat-circle text-xs"></i>
                                                         <?php echo $row['comment_count']; ?>
                                                     </span>
@@ -725,7 +850,7 @@ require_once 'status_helper.php';
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-6 py-4 text-sm text-gray-900 max-w-sm">
+                                <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 max-w-sm">
                                     <?php
                                         $rawDescription = isset($row['description']) ? $row['description'] : '';
                                         $cleanDescription = trim(strip_tags($rawDescription));
@@ -743,22 +868,22 @@ require_once 'status_helper.php';
                                         }
                                     ?>
                                     <div class="flex flex-col gap-1.5">
-                                        <div class="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+                                        <div class="flex items-center gap-1.5 text-xs text-gray-900 dark:text-gray-200 font-medium">
                                             <i class="ph-tag text-blue-500"></i>
                                             <span><?php echo $row['category_name'] ? htmlspecialchars($row['category_name']) : 'Sin categoría'; ?></span>
                                         </div>
-                                        <span class="text-gray-900 leading-snug"><?php echo htmlspecialchars($shortDescription); ?></span>
+                                        <span class="leading-snug"><?php echo htmlspecialchars($shortDescription); ?></span>
                                     </div>
                                 </td>
                                 <?php if (function_exists('isAdmin') && (isAdmin() || (isset($_SESSION['role']) && $_SESSION['role'] === 'manager'))): ?>
-                                <td class="px-6 py-4 text-sm text-gray-900">
+                                <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
                                     <?php if (empty($row['department_names'])): ?>
-                                        <div class="flex items-center gap-2 text-gray-500 italic">
+                                        <div class="flex items-center gap-2 text-gray-900 dark:text-gray-200 italic">
                                             <i class="ph-warning-circle text-yellow-500"></i>
                                             <span>Sin asignación</span>
                                         </div>
                                     <?php else: ?>
-                                        <div class="flex flex-col gap-1 text-[13px] text-gray-700 leading-tight">
+                                        <div class="flex flex-col gap-1 text-[13px] text-gray-900 dark:text-gray-200 leading-tight">
                                             <?php
                                             $department_names = explode('||', $row['department_names']);
                                             foreach ($department_names as $dept_name):
@@ -772,12 +897,12 @@ require_once 'status_helper.php';
                                     <?php endif; ?>
                                 </td>
                                 <?php else: ?>
-                                <td class="px-6 py-4 text-sm text-gray-900">
+                                <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100">
                                     <?php if (!empty($row['is_anonymous']) && intval($row['is_anonymous']) == 1): ?>
                                         <span class="text-gray-500">Anónimo</span>
                                     <?php else: ?>
                                         <div class="max-w-[20rem]">
-                                            <div class="text-gray-900 truncate whitespace-nowrap"><?php echo htmlspecialchars($row['user_name'] ?? ''); ?></div>
+                                            <div class="truncate whitespace-nowrap"><?php echo htmlspecialchars($row['user_name'] ?? ''); ?></div>
                                             <div class="text-gray-500 truncate whitespace-nowrap"><?php echo htmlspecialchars($row['user_email'] ?? ''); ?></div>
                                         </div>
                                     <?php endif; ?>
@@ -814,8 +939,8 @@ require_once 'status_helper.php';
                                     ?>
                                     <div class="flex flex-col gap-2">
                                         <!-- Fecha -->
-                                        <span class="px-2 inline-flex items-center gap-x-1.5 text-xs leading-5 font-medium rounded-full bg-gray-100 text-gray-800 ring-1 ring-inset ring-gray-600/20 w-fit whitespace-nowrap">
-                                            <i class="ph-clock text-gray-600"></i>
+                                        <span class="px-2 inline-flex items-center gap-x-1.5 text-xs leading-5 font-medium rounded-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 ring-1 ring-inset ring-gray-600/20 w-fit whitespace-nowrap">
+                                            <i class="ph-clock text-gray-600 dark:text-gray-400"></i>
                                             <?php echo $timeTextDate; ?>
                                         </span>
                                         <!-- Estado -->
@@ -837,15 +962,15 @@ require_once 'status_helper.php';
                                         $daysAgo = $interval->days;
                                         $timeTextDate = $daysAgo === 0 ? 'Hoy' : ($daysAgo === 1 ? 'Hace 1 día' : 'Hace ' . $daysAgo . ' días');
                                     ?>
-                                    <span class="px-2 inline-flex items-center gap-x-1.5 text-xs leading-5 font-medium rounded-full bg-gray-100 text-gray-800 ring-1 ring-inset ring-gray-600/20">
-                                        <i class="ph-clock text-gray-600"></i>
+                                    <span class="px-2 inline-flex items-center gap-x-1.5 text-xs leading-5 font-medium rounded-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 ring-1 ring-inset ring-gray-600/20">
+                                        <i class="ph-clock text-gray-600 dark:text-gray-400"></i>
                                         <?php echo $timeTextDate; ?>
                                     </span>
                                 </td>
                                 <?php endif; ?>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                     <a href="view_complaint.php?id=<?php echo $row['id']; ?>"
-                                        class="inline-flex items-center text-primary hover:text-blue-800 font-semibold">
+                                        class="inline-flex items-center text-blue-600 hover:text-blue-800 font-semibold">
                                         Ver Detalles
                                         <i class="ph-arrow-right ml-1"></i>
                                     </a>
@@ -874,7 +999,7 @@ require_once 'status_helper.php';
                     <?php if ($page > 1): ?>
                         <li>
                             <a href="<?php echo $baseUrl . 'page=' . ($page - 1); ?>" 
-                               class="px-3 py-2 ml-0 leading-tight text-gray-500 bg-white border border-gray-300 rounded-l-lg hover:bg-gray-100 hover:text-gray-700">
+                               class="px-3 py-2 ml-0 leading-tight text-gray-500 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-l-lg hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700">
                                 « Anterior
                             </a>
                         </li>
@@ -883,13 +1008,13 @@ require_once 'status_helper.php';
                     <?php if ($startPage > 1): ?>
                         <li>
                             <a href="<?php echo $baseUrl . 'page=1'; ?>" 
-                               class="px-3 py-2 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700">
+                               class="px-3 py-2 leading-tight text-gray-500 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700">
                                 1
                             </a>
                         </li>
                         <?php if ($startPage > 2): ?>
                             <li>
-                                <span class="px-3 py-2 leading-tight text-gray-400 bg-white border border-gray-300">…</span>
+                                <span class="px-3 py-2 leading-tight text-gray-400 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700">…</span>
                             </li>
                         <?php endif; ?>
                     <?php endif; ?>
@@ -900,7 +1025,7 @@ require_once 'status_helper.php';
                                 <span class="px-3 py-2 leading-tight text-white bg-blue-600 border border-blue-600"><?php echo $p; ?></span>
                             <?php else: ?>
                                 <a href="<?php echo $baseUrl . 'page=' . $p; ?>" 
-                                   class="px-3 py-2 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700">
+                                   class="px-3 py-2 leading-tight text-gray-500 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700">
                                    <?php echo $p; ?>
                                 </a>
                             <?php endif; ?>
@@ -910,12 +1035,12 @@ require_once 'status_helper.php';
                     <?php if ($endPage < $total_pages): ?>
                         <?php if ($endPage < $total_pages - 1): ?>
                             <li>
-                                <span class="px-3 py-2 leading-tight text-gray-400 bg-white border border-gray-300">…</span>
+                                <span class="px-3 py-2 leading-tight text-gray-400 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700">…</span>
                             </li>
                         <?php endif; ?>
                         <li>
                             <a href="<?php echo $baseUrl . 'page=' . $total_pages; ?>" 
-                               class="px-3 py-2 leading-tight text-gray-500 bg-white border border-gray-300 hover:bg-gray-100 hover:text-gray-700">
+                               class="px-3 py-2 leading-tight text-gray-500 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700">
                                 <?php echo $total_pages; ?>
                             </a>
                         </li>
@@ -924,7 +1049,7 @@ require_once 'status_helper.php';
                     <?php if ($page < $total_pages): ?>
                         <li>
                             <a href="<?php echo $baseUrl . 'page=' . ($page + 1); ?>" 
-                               class="px-3 py-2 leading-tight text-gray-500 bg-white border border-gray-300 rounded-r-lg hover:bg-gray-100 hover:text-gray-700">
+                               class="px-3 py-2 leading-tight text-gray-500 bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-r-lg hover:bg-gray-100 dark:hover:bg-slate-700 hover:text-gray-700">
                                 Siguiente »
                             </a>
                         </li>
@@ -946,6 +1071,7 @@ document.addEventListener('DOMContentLoaded', function() {
             plugins: ['remove_button'],
             maxItems: null,
             placeholder: el.getAttribute('placeholder') || 'Seleccionar...',
+            dropdownParent: 'body',
             render: {
                 no_results: function(data, escape) {
                     return '<div class="no-results p-2 text-gray-500 text-sm">Sin resultados</div>';
@@ -959,6 +1085,7 @@ document.addEventListener('DOMContentLoaded', function() {
         new TomSelect(el, {
             maxItems: 1,
             allowEmptyOption: false,
+            dropdownParent: 'body',
             render: {
                 no_results: function(data, escape) {
                     return '<div class="no-results p-2 text-gray-500 text-sm">Sin resultados</div>';
@@ -1018,6 +1145,35 @@ document.addEventListener('DOMContentLoaded', function() {
 .ts-dropdown .option.active:hover {
     background: #2563eb;
     color: white;
+}
+
+/* Liquid Glass Implementation */
+.liquid-glass {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.2));
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05), 
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    position: relative;
+    /* overflow: hidden removed to allow dropdowns to be visible */
+}
+
+html.dark .liquid-glass {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.2));
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.liquid-glass:hover {
+    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.12),
+                inset 0 1px 0 rgba(255, 255, 255, 0.4);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.3));
+}
+
+html.dark .liquid-glass:hover {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.5), rgba(15, 23, 42, 0.3));
+    box-shadow: 0 25px 60px -20px rgba(0, 0, 0, 0.5);
 }
 </style>
 
@@ -1550,7 +1706,7 @@ document.addEventListener('keydown', function(e) {
                     </h3>
                     <div class="mt-2 text-left">
                         <p class="text-sm text-gray-500 dark:text-gray-400">
-                            Se enviará <strong class="text-gray-700 dark:text-gray-200">un solo correo</strong> a cada uno de los siguientes departamentos con la lista de sus reportes sin atender.
+                            Se enviará <strong class="text-gray-700 dark:text-gray-200">un correo a cada uno</strong> de los siguientes departamentos con la lista de sus reportes sin atender.
                         </p>
 
                         <?php if (function_exists('isTestMode') && isTestMode()): ?>
