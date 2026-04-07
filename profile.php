@@ -132,7 +132,7 @@ function formatRoleName($role) {
                     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10">
                         <div class="flex items-center gap-4">
                             <?php if (!empty($user['profile_photo'])): ?>
-                                <div class="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 shadow-lg border-4 border-white">
+                                <div class="w-20 h-20 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 shadow-lg border-4 border-white dark:border-white/20">
                                     <img src="data:image/jpeg;base64,<?php echo $user['profile_photo']; ?>" 
                                          alt="Profile Photo" 
                                          class="w-full h-full object-cover"
@@ -156,84 +156,83 @@ function formatRoleName($role) {
 
                     <!-- User Statistics -->
                     <div class="grid grid-cols-2 <?php echo $is_staff ? 'md:grid-cols-4' : 'sm:grid-cols-2'; ?> gap-3 mb-8">
-                        <div class="flex items-center p-3 glass-inner rounded-lg border border-gray-200/50">
-                            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <i class="ph-files text-xl text-blue-600"></i>
+                        <div class="flex items-center p-3 liquid-glass rounded-lg">
+                            <div class="w-10 h-10 bg-blue-100 dark:bg-blue-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i class="ph-files text-xl text-blue-600 dark:text-blue-400"></i>
                             </div>
                             <div class="ml-3 overflow-hidden">
-                                <p class="text-gray-500 text-[10px] sm:text-xs uppercase tracking-wide truncate">Enviados</p>
-                                <p class="text-base sm:text-lg font-bold text-gray-800 leading-tight"><?php echo $stats['total_complaints']; ?></p>
+                                <p class="text-gray-500 dark:text-gray-400 text-[10px] sm:text-xs uppercase tracking-wide truncate">Enviados</p>
+                                <p class="text-base sm:text-lg font-bold text-gray-800 dark:text-white leading-tight"><?php echo $stats['total_complaints']; ?></p>
                             </div>
                         </div>
 
                         <?php if ($is_staff): ?>
-                        <div class="flex items-center p-3 glass-inner rounded-lg border border-gray-200/50">
-                            <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <i class="ph-chat-circle-text text-xl text-purple-600"></i>
+                        <div class="flex items-center p-3 liquid-glass rounded-lg">
+                            <div class="w-10 h-10 bg-purple-100 dark:bg-purple-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i class="ph-chat-circle-text text-xl text-purple-600 dark:text-purple-400"></i>
                             </div>
                             <div class="ml-3 overflow-hidden">
-                                <p class="text-gray-500 text-[10px] sm:text-xs uppercase tracking-wide truncate">Comentarios</p>
-                                <p class="text-base sm:text-lg font-bold text-gray-800 leading-tight"><?php echo $staff_stats['comments']; ?></p>
+                                <p class="text-gray-500 dark:text-gray-400 text-[10px] sm:text-xs uppercase tracking-wide truncate">Comentarios</p>
+                                <p class="text-base sm:text-lg font-bold text-gray-800 dark:text-white leading-tight"><?php echo $staff_stats['comments']; ?></p>
                             </div>
                         </div>
 
-                        <div class="flex items-center p-3 glass-inner rounded-lg border border-gray-200/50">
-                            <div class="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <i class="ph-check-circle text-xl text-indigo-600"></i>
+                        <div class="flex items-center p-3 liquid-glass rounded-lg">
+                            <div class="w-10 h-10 bg-indigo-100 dark:bg-indigo-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i class="ph-check-circle text-xl text-indigo-600 dark:text-indigo-400"></i>
                             </div>
                             <div class="ml-3 overflow-hidden">
-                                <p class="text-gray-500 text-[10px] sm:text-xs uppercase tracking-wide truncate">Atendidos</p>
-                                <p class="text-base sm:text-lg font-bold text-gray-800 leading-tight"><?php echo $staff_stats['attended']; ?></p>
+                                <p class="text-gray-500 dark:text-gray-400 text-[10px] sm:text-xs uppercase tracking-wide truncate">Atendidos</p>
+                                <p class="text-base sm:text-lg font-bold text-gray-800 dark:text-white leading-tight"><?php echo $staff_stats['attended']; ?></p>
                             </div>
                         </div>
                         <?php endif; ?>
 
-                        <div class="flex items-center p-3 glass-inner rounded-lg border border-gray-200/50">
-                            <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <i class="ph-calendar-check text-xl text-green-600"></i>
+                        <div class="flex items-center p-3 liquid-glass rounded-lg">
+                            <div class="w-10 h-10 bg-green-100 dark:bg-green-500/20 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <i class="ph-calendar-check text-xl text-green-600 dark:text-green-400"></i>
                             </div>
                             <div class="ml-3 overflow-hidden">
-                                <p class="text-gray-500 text-[10px] sm:text-xs uppercase tracking-wide truncate">Registro</p>
-                                <p class="text-sm font-bold text-gray-800 leading-tight truncate"><?php echo date('d M Y', strtotime($user['created_at'])); ?></p>
+                                <p class="text-gray-500 dark:text-gray-400 text-[10px] sm:text-xs uppercase tracking-wide truncate">Registro</p>
+                                <p class="text-sm font-bold text-gray-800 dark:text-white leading-tight truncate"><?php echo date('d M Y', strtotime($user['created_at'])); ?></p>
                             </div>
                         </div>
                     </div>
 
                     <!-- Profile Details -->
-                    <div class="space-y-6">
-                        <h3 class="text-xl font-bold text-gray-800 dark:text-white border-b border-gray-200/50 pb-3">Información de la Cuenta</h3>
+                    <div class="space-y-1">
+                        <h3 class="text-xl font-bold text-gray-800 dark:text-white border-b border-gray-200/50 dark:border-white/10 pb-3 mb-2">Información de la Cuenta</h3>
                         
                         <div class="flex items-center p-4">
-                            <div class="w-10 h-10 flex items-center justify-center text-gray-400 mr-4"><i class="ph-user text-2xl"></i></div>
+                            <div class="w-12 h-12 flex items-center justify-center text-gray-400 dark:text-gray-500 mr-4 bg-white dark:bg-white/10 rounded-lg shadow-sm"><i class="ph-user text-2xl"></i></div>
                             <div class="flex-grow">
-                                <p class="text-sm text-gray-500">Nombre Completo</p>
-                                <p class="text-base font-semibold text-gray-700"><?php echo htmlspecialchars($user['name']); ?></p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Nombre Completo</p>
+                                <p class="text-base font-semibold text-gray-800 dark:text-white"><?php echo htmlspecialchars($user['name']); ?></p>
                             </div>
                         </div>
                         
-                        <div class="flex items-center p-4 glass-inner rounded-lg">
-                            <div class="w-10 h-10 flex items-center justify-center text-gray-400 mr-4"><i class="ph-envelope-simple text-2xl"></i></div>
+                        <div class="flex items-center p-4">
+                            <div class="w-12 h-12 flex items-center justify-center text-gray-400 dark:text-gray-500 mr-4 bg-white dark:bg-white/10 rounded-lg shadow-sm"><i class="ph-envelope-simple text-2xl"></i></div>
                             <div class="flex-grow">
-                                <p class="text-sm text-gray-500">Dirección de Correo</p>
-                                <p class="text-base font-semibold text-gray-700 dark:text-gray-300"><?php echo htmlspecialchars($user['email']); ?></p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Dirección de Correo</p>
+                                <p class="text-base font-semibold text-gray-800 dark:text-white"><?php echo htmlspecialchars($user['email']); ?></p>
                             </div>
                         </div>
 
                         <div class="flex items-center p-4">
-                            <div class="w-10 h-10 flex items-center justify-center text-gray-400 mr-4"><i class="ph-shield-check text-2xl"></i></div>
+                            <div class="w-12 h-12 flex items-center justify-center text-gray-400 dark:text-gray-500 mr-4 bg-white dark:bg-white/10 rounded-lg shadow-sm"><i class="ph-shield-check text-2xl"></i></div>
                             <div class="flex-grow">
-                                <p class="text-sm text-gray-500">Rol de Usuario</p>
-                                <p class="text-base font-semibold text-gray-700"><?php echo formatRoleName($user['role']); ?></p>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">Rol de Usuario</p>
+                                <p class="text-base font-semibold text-gray-800 dark:text-white"><?php echo formatRoleName($user['role']); ?></p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Action Buttons -->
-                    <?php if (isAdmin()): ?>
-                    <div class="mt-12 pt-8 border-t border-gray-200 flex flex-col sm:flex-row gap-4">
+                    <?php if (isset($_SESSION['login_method']) && $_SESSION['login_method'] === 'password'): ?>
+                    <div class="mt-12 pt-8 border-t border-gray-200/50 dark:border-white/10 flex flex-col sm:flex-row gap-4">
                         <button type="button" 
                                 @click="openPasswordModal()"
-                                class="w-full sm:w-auto flex justify-center items-center bg-gray-200 text-gray-800 font-semibold py-3 px-6 rounded-lg hover:bg-gray-300 transition-colors duration-300">
+                                class="w-full sm:w-auto flex justify-center items-center bg-black text-white dark:bg-white dark:text-black font-semibold py-3 px-6 rounded-xl hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors duration-300 shadow-sm">
                             <i class="ph-key text-lg mr-2"></i>
                             Cambiar Contraseña
                         </button>
@@ -275,16 +274,16 @@ function formatRoleName($role) {
                 <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <i class="ph-lock-key text-3xl text-blue-600"></i>
                 </div>
-                <h3 class="text-2xl font-bold text-gray-800 mb-2">Cambiar Contraseña</h3>
+                <h3 class="text-2xl font-bold text-gray-800 dark:text-white mb-2">Cambiar Contraseña</h3>
                 
                 <!-- Step 1 Title -->
-                <p x-show="step === 1" class="text-gray-600">Por seguridad, ingresa tu contraseña actual</p>
+                <p x-show="step === 1" class="text-gray-600 dark:text-gray-400">Por seguridad, ingresa tu contraseña actual</p>
                 
                 <!-- Step 2 Title -->
-                <p x-show="step === 2" class="text-gray-600">Ingresa tu nueva contraseña</p>
+                <p x-show="step === 2" class="text-gray-600 dark:text-gray-400">Ingresa tu nueva contraseña</p>
                 
                 <!-- Step 3 Title -->
-                <p x-show="step === 3" class="text-gray-600">¡Tu contraseña ha sido actualizada!</p>
+                <p x-show="step === 3" class="text-gray-600 dark:text-gray-400">¡Tu contraseña ha sido actualizada!</p>
             </div>
 
             <div class="space-y-4">
@@ -292,11 +291,11 @@ function formatRoleName($role) {
                 <!-- Step 1: Current Password -->
                 <div x-show="step === 1" class="space-y-4">
                     <div>
-                        <label for="current_password" class="block text-sm font-medium text-gray-700 mb-2">Contraseña Actual</label>
+                        <label for="current_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Contraseña Actual</label>
                         <input type="password" 
                                x-model="currentPassword" 
                                id="current_password" 
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                               class="w-full px-4 py-3 border border-gray-300 dark:border-white/20 bg-white/50 dark:bg-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
                                placeholder="••••••••">
                         <p x-show="errorMessage" class="mt-2 text-sm text-red-600 flex items-center gap-1">
                             <i class="ph-warning-circle"></i> <span x-text="errorMessage"></span>
@@ -306,7 +305,7 @@ function formatRoleName($role) {
                     <div class="flex gap-3 mt-6">
                         <button type="button" 
                                 @click="closePasswordModal()"
-                                class="flex-1 px-4 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-colors">
+                                class="flex-1 px-4 py-3 bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-gray-300 font-semibold rounded-lg hover:bg-gray-300 dark:hover:bg-white/20 transition-colors">
                             Cancelar
                         </button>
                         <button type="button" 
@@ -324,19 +323,19 @@ function formatRoleName($role) {
                 <!-- Step 2: New Password -->
                 <div x-show="step === 2" class="space-y-4">
                     <div>
-                        <label for="new_password" class="block text-sm font-medium text-gray-700 mb-2">Nueva Contraseña</label>
+                        <label for="new_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nueva Contraseña</label>
                         <input type="password" 
                                x-model="newPassword" 
                                id="new_password" 
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                               class="w-full px-4 py-3 border border-gray-300 dark:border-white/20 bg-white/50 dark:bg-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
                                placeholder="Mínimo 8 caracteres">
                     </div>
                     <div>
-                        <label for="confirm_password" class="block text-sm font-medium text-gray-700 mb-2">Confirmar Nueva Contraseña</label>
+                        <label for="confirm_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Confirmar Nueva Contraseña</label>
                         <input type="password" 
                                x-model="confirmPassword" 
                                id="confirm_password" 
-                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
+                               class="w-full px-4 py-3 border border-gray-300 dark:border-white/20 bg-white/50 dark:bg-white/10 dark:text-white rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" 
                                placeholder="Repite la contraseña">
                         <p x-show="errorMessage" class="mt-2 text-sm text-red-600 flex items-center gap-1">
                             <i class="ph-warning-circle"></i> <span x-text="errorMessage"></span>
@@ -346,7 +345,7 @@ function formatRoleName($role) {
                     <div class="flex gap-3 mt-6">
                         <button type="button" 
                                 @click="closePasswordModal()"
-                                class="flex-1 px-4 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-colors">
+                                class="flex-1 px-4 py-3 bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-gray-300 font-semibold rounded-lg hover:bg-gray-300 dark:hover:bg-white/20 transition-colors">
                             Cancelar
                         </button>
                         <button type="button" 
@@ -366,7 +365,7 @@ function formatRoleName($role) {
                     <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 mb-6 animate-bounce-slow">
                         <i class="ph-check text-green-600 text-3xl"></i>
                     </div>
-                    <p class="text-gray-500 mb-8">Ahora puedes usar tu nueva contraseña para iniciar sesión.</p>
+                    <p class="text-gray-500 dark:text-gray-400 mb-8">Ahora puedes usar tu nueva contraseña para iniciar sesión.</p>
                     
                     <button type="button" 
                             @click="closePasswordModal()"

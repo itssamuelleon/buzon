@@ -173,6 +173,7 @@ if ($result->num_rows > 0) {
     $_SESSION['name'] = $user['name']; 
     $_SESSION['email'] = $email;
     $_SESSION['role'] = $user['role'];
+    $_SESSION['login_method'] = 'microsoft';
 } else {
     // Usuario no existe: Registrar nuevo usuario
     
@@ -197,6 +198,7 @@ if ($result->num_rows > 0) {
         $_SESSION['name'] = $name;
         $_SESSION['email'] = $email;
         $_SESSION['role'] = $role;
+        $_SESSION['login_method'] = 'microsoft';
     } else {
         die('Error al registrar el usuario en la base de datos: ' . $conn->error);
     }

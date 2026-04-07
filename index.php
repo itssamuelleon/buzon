@@ -56,6 +56,21 @@ if (isLoggedIn()) {
         .wb-content { text-align: center; }
         .wb-actions { justify-content: center; }
         .greeting-sub { margin-left: auto; margin-right: auto; }
+        
+        /* Ajustes para la imagen en móvil */
+        #wbBgImage, .guest-hero img {
+            width: 100% !important;
+            object-position: center !important;
+            opacity: 0.25 !important;
+            mask-image: radial-gradient(circle at center, black 0%, transparent 100%) !important;
+            -webkit-mask-image: radial-gradient(circle at center, black 0%, transparent 100%) !important;
+        }
+        
+        /* Ocultar overlays de gradiente lateral que causan la "línea vertical" en móvil */
+        #wbImgOverlayLight, #wbImgOverlayDark, 
+        .guest-hero [style*="linear-gradient(to right"] {
+            display: none !important;
+        }
     }
 
     /* Aurora mesh background — z-index 0 */
@@ -346,9 +361,9 @@ if (isLoggedIn()) {
     <div class="wb-blob" id="blob3" style="width:300px;height:300px;top:30%;right:5%;opacity:0.45;animation-delay:5s;filter:blur(80px);"></div>
 
     <!-- z:2 imagen + overlays (tapa blobs en el lado opaco/derecho) -->
-    <div class="absolute inset-0 hidden md:block" style="z-index:2; pointer-events:none;">
+    <div class="absolute inset-0" style="z-index:2; pointer-events:none;">
         <img src="assets/tecnm.jpg" alt="" id="wbBgImage"
-             class="absolute right-0 top-0 h-full w-[62%] object-cover object-left"
+             class="absolute right-0 top-0 h-full w-full md:w-[62%] object-cover object-center md:object-left"
              style="mask-image:linear-gradient(to left,black 30%,transparent 100%);
                     -webkit-mask-image:linear-gradient(to left,black 30%,transparent 100%);">
         <!-- opacidad dark via CSS para evitar clase Tailwind que no aplica bien en <img> sin Tailwind CDN compilado -->
@@ -532,7 +547,7 @@ if (isLoggedIn()) {
 <section class="guest-hero bg-transparent relative">
 
     <!-- Contenedor de capas de fondo -->
-    <div class="absolute inset-0 overflow-hidden pointer-events-none bg-slate-50 dark:bg-transparent rounded-b-[3rem]" style="z-index:0;">
+    <div class="absolute inset-0 overflow-hidden pointer-events-none bg-slate-50 dark:bg-transparent" style="z-index:0;">
 
         <!-- z:0 blobs -->
         <div class="absolute -top-[10%] -left-[10%] w-[55%] h-[55%] rounded-full bg-blue-400/15 blur-[120px] animate-pulse" style="z-index:0;"></div>
@@ -540,9 +555,9 @@ if (isLoggedIn()) {
         <div class="bg-mesh"></div>
 
         <!-- z:10 imagen + overlays (encima de los blobs) -->
-        <div class="absolute inset-0 hidden md:block" style="z-index:10;">
+        <div class="absolute inset-0" style="z-index:10;">
             <img src="assets/tecnm.jpg" alt=""
-                 class="absolute right-0 top-0 h-full w-[62%] object-cover object-left"
+                 class="absolute right-0 top-0 h-full w-full md:w-[62%] object-cover object-center md:object-left"
                  style="opacity:1;
                         mask-image:linear-gradient(to left,black 30%,transparent 100%);
                         -webkit-mask-image:linear-gradient(to left,black 30%,transparent 100%);">

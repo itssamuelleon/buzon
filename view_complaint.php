@@ -638,7 +638,7 @@ function getFileIcon($file_type) {
 }
 
 // AHORA sí incluir el header después de todo el procesamiento
-$page_title = 'Ver Reporte - Buzón de Quejas';
+$page_title = 'Detalles del Reporte - Buzón de Quejas';
 $show_global_blobs = false; // Disable global header blobs to use institutional background
 include 'components/header.php';
 ?>
@@ -794,7 +794,7 @@ include 'components/header.php';
     </div>
 
     <!-- Modal: Asignar Departamentos -->
-    <div x-show="isAdminPanelOpen && adminModalMode === 'departments'" 
+    <div x-show="isAdminPanelOpen && adminModalMode === 'departments'" x-cloak 
          x-transition:enter="ease-out duration-300"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
@@ -804,86 +804,109 @@ include 'components/header.php';
          class="fixed inset-0 z-50 flex items-center justify-center p-4" 
          style="display: none;">
         <div @click="isAdminPanelOpen = false" class="fixed inset-0 bg-black/70 backdrop-blur-sm"></div>
-        <div class="relative bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl shadow-2xl">
-            <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-                <h3 class="text-xl font-bold text-gray-800">Asignar Departamentos</h3>
-                <button @click="isAdminPanelOpen = false" class="text-gray-400 hover:text-gray-500">
-                    <i class="ph-x text-2xl"></i>
+        <div class="relative bg-white dark:bg-slate-900 w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-white/20 dark:border-slate-700">
+            <div class="sticky top-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-gray-200 dark:border-slate-700/80 px-6 py-4 flex items-center justify-between z-10">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-md">
+                        <i class="ph-buildings text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-white">Asignar Departamentos</h3>
+                </div>
+                <button type="button" @click="isAdminPanelOpen = false" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-white transition-all">
+                    <i class="ph-x text-lg"></i>
                 </button>
             </div>
 
-            <div class="p-6">
-                <!-- Departments Form -->
-                <div class="space-y-4" x-data="{ searchQuery: '' }">
+            <form method="POST" class="flex flex-col flex-1 min-h-0 bg-gray-50/30 dark:bg-slate-800/20" x-data="{ searchQuery: '' }">
+                <div class="p-6 overflow-y-auto flex-1">
                     <?php
-                    // Get all departments for admin form (excluding hidden ones)
-                    $all_departments = $conn->query("SELECT * FROM departments WHERE is_hidden = 0 ORDER BY name");
+                    // Get all departments for admin form (excluding hidden ones), sorted with assigned ones at the top
+                    $stmt_all = $conn->prepare("
+                        SELECT d.*, 
+                               EXISTS(SELECT 1 FROM complaint_departments cd WHERE cd.department_id = d.id AND cd.complaint_id = ?) as is_assigned
+                        FROM departments d 
+                        WHERE is_hidden = 0 
+                        ORDER BY is_assigned DESC, d.name ASC
+                    ");
+                    $stmt_all->bind_param("i", $complaint_id);
+                    $stmt_all->execute();
+                    $all_departments = $stmt_all->get_result();
                     
-                    // Get current assignments for checkbox states
+                    // Populate assigned_dept_ids for the checkbox state management below
                     $assigned_dept_ids = [];
-                    $stmt_curr = $conn->prepare("SELECT department_id FROM complaint_departments WHERE complaint_id = ?");
-                    $stmt_curr->bind_param("i", $complaint_id);
-                    $stmt_curr->execute();
-                    $result = $stmt_curr->get_result();
-                    while ($row = $result->fetch_assoc()) {
-                        $assigned_dept_ids[] = $row['department_id'];
+                    while ($dept_row = $all_departments->fetch_assoc()) {
+                        if ($dept_row['is_assigned']) {
+                            $assigned_dept_ids[] = $dept_row['id'];
+                        }
+                        $all_departments_data[] = $dept_row;
                     }
                     ?>
-                    <form method="POST" class="space-y-4">
+                    <div class="space-y-4">
                         <div class="space-y-2">
-                            <label class="block text-sm font-medium text-gray-700">Selecciona los departamentos responsables:</label>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Selecciona los departamentos responsables:</label>
                             
                             <!-- Search Bar -->
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <i class="ph-magnifying-glass text-gray-400"></i>
+                            <div class="relative mb-6">
+                                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                                    <i class="ph-magnifying-glass text-gray-400 dark:text-gray-500 text-lg"></i>
                                 </div>
                                 <input type="text" 
                                        x-model="searchQuery"
                                        placeholder="Buscar por nombre, encargado o email..."
-                                       class="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+                                       class="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white shadow-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 dark:focus:border-blue-400 outline-none transition-all p-3.5 pl-11">
                             </div>
                             
-                            <div class="grid gap-3 max-h-[40vh] overflow-y-auto pr-2">
-                                <?php while ($dept = $all_departments->fetch_assoc()): ?>
+                            <div class="grid gap-3">
+                                <?php foreach ($all_departments_data as $dept): 
+                                    $isChecked = in_array($dept['id'], $assigned_dept_ids);
+                                ?>
                                     <label x-show="searchQuery === '' || 
                                                    '<?php echo strtolower(htmlspecialchars($dept['name'])); ?>'.includes(searchQuery.toLowerCase()) || 
                                                    '<?php echo strtolower(htmlspecialchars($dept['manager'])); ?>'.includes(searchQuery.toLowerCase()) || 
                                                    '<?php echo strtolower(htmlspecialchars($dept['email'])); ?>'.includes(searchQuery.toLowerCase())"
-                                           class="relative flex items-start py-2.5 px-3 rounded-lg border border-gray-200 bg-white hover:border-blue-200 transition-colors">
-                                        <div class="flex items-center h-5">
+                                           class="group relative flex items-start gap-4 p-4 rounded-xl border-2 transition-all cursor-pointer bg-white dark:bg-slate-800/80 hover:shadow-md <?php echo $isChecked ? 'border-blue-500 dark:border-blue-400 ring-1 ring-blue-500 dark:ring-blue-400' : 'border-transparent hover:border-blue-300 dark:hover:border-blue-600 border-gray-100 dark:border-slate-700/50'; ?>">
+                                        <div class="flex items-center h-5 mt-1">
                                             <input type="checkbox" 
                                                    name="departments[]" 
                                                    value="<?php echo $dept['id']; ?>"
-                                                   <?php echo in_array($dept['id'], $assigned_dept_ids) ? 'checked' : ''; ?>
-                                                   class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                                   <?php echo $isChecked ? 'checked' : ''; ?>
+                                                   class="h-5 w-5 rounded border-gray-300 dark:border-slate-500 text-blue-600 dark:text-blue-500 focus:ring-blue-500 bg-white dark:bg-slate-700 transition-colors">
                                         </div>
-                                        <div class="ml-3">
-                                            <p class="font-medium text-gray-900"><?php echo htmlspecialchars($dept['name']); ?></p>
-                                            <div class="text-sm text-gray-500 mt-0.5">
-                                                <span class="font-medium"><?php echo htmlspecialchars($dept['manager']); ?></span> · 
-                                                <a href="mailto:<?php echo htmlspecialchars($dept['email']); ?>" class="text-blue-600 hover:text-blue-800">
-                                                    <?php echo htmlspecialchars($dept['email']); ?>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="font-bold text-gray-900 dark:text-white text-base <?php echo $isChecked ? 'text-blue-800 dark:text-blue-300' : ''; ?>"><?php echo htmlspecialchars($dept['name']); ?></p>
+                                            <div class="text-sm text-gray-500 dark:text-gray-400 mt-1 flex flex-wrap items-center gap-1.5">
+                                                <span class="font-medium flex items-center gap-1"><i class="ph-user"></i> <?php echo htmlspecialchars($dept['manager']); ?></span>
+                                                <span class="hidden md:inline text-gray-300 dark:text-gray-600">•</span>
+                                                <a href="mailto:<?php echo htmlspecialchars($dept['email']); ?>" class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors flex items-center gap-1" @click.stop>
+                                                    <i class="ph-envelope-simple"></i> <?php echo htmlspecialchars($dept['email']); ?>
                                                 </a>
                                             </div>
                                         </div>
                                     </label>
-                                <?php endwhile; ?>
+                                <?php endforeach; ?>
                             </div>
                         </div>
-                        <button type="submit" 
-                                name="assign_departments" 
-                                class="w-full bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow">
-                            Guardar Asignaciones
-                        </button>
-                    </form>
+                    </div>
                 </div>
-            </div>
+                
+                <!-- Sticky Button at Bottom -->
+                <div class="sticky bottom-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-gray-200 dark:border-slate-700/80 p-5 flex flex-shrink-0 justify-end gap-3 rounded-b-2xl z-20">
+                    <button type="button" @click="isAdminPanelOpen = false" class="px-5 py-2.5 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+                        Cancelar
+                    </button>
+                    <button type="submit" 
+                            name="assign_departments" 
+                            class="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold py-2.5 px-6 rounded-lg transition-all shadow-md hover:shadow-lg active:scale-95">
+                        <i class="ph-floppy-disk text-lg"></i>
+                        Guardar Asignaciones
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 
     <!-- Modal: Cambiar Estado del Reporte -->
-    <div x-show="isAdminPanelOpen && adminModalMode === 'status'" 
+    <div x-show="isAdminPanelOpen && adminModalMode === 'status'" x-cloak 
          x-transition:enter="ease-out duration-300"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
@@ -943,7 +966,7 @@ include 'components/header.php';
     </div>
 
     <!-- Modal: Cerrar Reporte -->
-    <div x-show="isAdminPanelOpen && adminModalMode === 'close'" 
+    <div x-show="isAdminPanelOpen && adminModalMode === 'close'" x-cloak 
          @click.away="isAdminPanelOpen = false;"
          @keydown.escape.window="isAdminPanelOpen = false;"
          x-transition:enter="ease-out duration-300"
@@ -1023,7 +1046,7 @@ include 'components/header.php';
                                         </div>
                                     </div>
                                     <h3 class="font-semibold text-gray-800 text-center mb-2 flex-shrink-0">Inválido</h3>
-                                    <p class="text-xs text-gray-600 text-center flex-shrink-0">No cumple con los requisitos o información inválida</p>
+                                    <p class="text-xs text-gray-600 text-center flex-shrink-0">No cumple con los requisitos o contiene información inválida</p>
                                 </div>
                             </label>
                         </div>
@@ -1041,7 +1064,7 @@ include 'components/header.php';
     </div>
 
     <!-- Modal: Editar Categoría -->
-    <div x-show="isAdminPanelOpen && adminModalMode === 'category'" 
+    <div x-show="isAdminPanelOpen && adminModalMode === 'category'" x-cloak 
          x-transition:enter="ease-out duration-300"
          x-transition:enter-start="opacity-0"
          x-transition:enter-end="opacity-100"
@@ -1051,15 +1074,20 @@ include 'components/header.php';
          class="fixed inset-0 z-50 flex items-center justify-center p-4" 
          style="display: none;">
         <div @click="isAdminPanelOpen = false" class="fixed inset-0 bg-black/70 backdrop-blur-sm"></div>
-        <div class="relative bg-white w-full max-w-2xl max-h-[90vh] rounded-xl shadow-2xl flex flex-col">
-            <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
-                <h3 class="text-xl font-bold text-gray-800">Editar Categoría</h3>
-                <button @click="isAdminPanelOpen = false" class="text-gray-400 hover:text-gray-500">
-                    <i class="ph-x text-2xl"></i>
+        <div class="relative bg-white dark:bg-slate-900 w-full max-w-2xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-white/20 dark:border-slate-700">
+            <div class="sticky top-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-gray-200 dark:border-slate-700/80 px-6 py-4 flex items-center justify-between z-10">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-md">
+                        <i class="ph-tag text-xl"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 dark:text-white">Editar Categoría</h3>
+                </div>
+                <button @click="isAdminPanelOpen = false" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-slate-800 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-slate-700 hover:text-gray-700 dark:hover:text-white transition-all">
+                    <i class="ph-x text-lg"></i>
                 </button>
             </div>
 
-            <form method="POST" class="flex flex-col flex-1 min-h-0">
+            <form method="POST" class="flex flex-col flex-1 min-h-0 bg-gray-50/30 dark:bg-slate-800/20">
                 <div class="p-6 overflow-y-auto flex-1" x-data="{ searchQuery: '' }">
                     <?php
                     // Get all categories for admin form
@@ -1083,7 +1111,7 @@ include 'components/header.php';
                         12 => ['from' => 'from-blue-500',    'to' => 'to-indigo-600',  'icon' => 'ph-folders'],
                         13 => ['from' => 'from-emerald-500', 'to' => 'to-teal-600',    'icon' => 'ph-handshake'],
                         14 => ['from' => 'from-rose-500',    'to' => 'to-pink-600',    'icon' => 'ph-credit-card'],
-                        15 => ['from' => 'from-sky-500',     'to' => 'to-cyan-600',    'icon' => 'ph-user-sound'],
+                        15 => ['from' => 'from-sky-500',     'to' => 'to-cyan-600',    'icon' => 'ph-headset'],
                         16 => ['from' => 'from-violet-500',  'to' => 'to-purple-600',  'icon' => 'ph-megaphone'],
                         17 => ['from' => 'from-red-600',     'to' => 'to-rose-700',    'icon' => 'ph-prohibit'],
                         18 => ['from' => 'from-red-500',     'to' => 'to-orange-600',  'icon' => 'ph-warning'],
@@ -1094,26 +1122,26 @@ include 'components/header.php';
                     ?>
                     
                     <!-- Search Input -->
-                    <div class="relative mb-4">
+                    <div class="relative mb-6">
                         <input type="text" 
                                x-model="searchQuery" 
                                placeholder="Buscar categoría..." 
-                               class="w-full rounded-lg border border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 transition p-3 pl-10">
-                        <i class="ph-magnifying-glass absolute left-3 top-3.5 text-gray-400 text-lg"></i>
+                               class="w-full rounded-xl border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-gray-800 dark:text-white shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 dark:focus:border-indigo-400 outline-none transition-all p-3.5 pl-11">
+                        <i class="ph-magnifying-glass absolute left-4 top-4 text-gray-400 dark:text-gray-500 text-lg"></i>
                     </div>
 
                     <!-- Categories List (scrollable) -->
-                    <div class="space-y-2">
+                    <div class="grid grid-cols-1 gap-3">
                         <!-- No Category Option -->
-                        <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 cursor-pointer transition">
-                            <input type="radio" name="category_id" value="" <?php echo $current_category_id == null ? 'checked' : ''; ?> class="w-4 h-4">
-                            <div class="flex items-center gap-2 flex-1">
-                                <div class="w-10 h-10 bg-gradient-to-br from-gray-500 to-slate-500 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <label class="group relative flex items-start gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer bg-white dark:bg-slate-800/80 hover:shadow-md <?php echo $current_category_id == null ? 'border-indigo-500 dark:border-indigo-400 ring-1 ring-indigo-500 dark:ring-indigo-400' : 'border-transparent hover:border-indigo-300 dark:hover:border-indigo-600 border-gray-100 dark:border-slate-700/50'; ?>">
+                            <input type="radio" name="category_id" value="" <?php echo $current_category_id == null ? 'checked' : ''; ?> class="mt-1 w-4 h-4 text-indigo-600 dark:text-indigo-500 border-gray-300 dark:border-slate-500 focus:ring-indigo-500">
+                            <div class="flex items-start gap-3 flex-1 min-w-0">
+                                <div class="w-10 h-10 bg-gradient-to-br from-gray-400 to-slate-500 rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform">
                                     <i class="ph-file-text ph-fill text-white text-lg"></i>
                                 </div>
-                                <div>
-                                    <p class="font-medium text-gray-700">Sin categoría</p>
-                                    <p class="text-xs text-gray-500">No asignar categoría</p>
+                                <div class="flex-1 min-w-0">
+                                    <p class="font-bold text-gray-900 dark:text-white text-sm <?php echo $current_category_id == null ? 'text-indigo-800 dark:text-indigo-300' : ''; ?>">Sin categoría</p>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">No asignar categoría</p>
                                 </div>
                             </div>
                         </label>
@@ -1125,17 +1153,18 @@ include 'components/header.php';
                             $info = $category_info[$cat_id] ?? $default_info;
                             $cat_name = htmlspecialchars($cat['name']);
                             $cat_desc = htmlspecialchars($cat['description'] ?? '');
+                            $isChecked = ($current_category_id == $cat_id);
                         ?>
-                            <label class="flex items-center gap-3 p-3 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 cursor-pointer transition"
-                                   x-show="searchQuery === '' || '<?php echo $cat_name; ?>'.toLowerCase().includes(searchQuery.toLowerCase()) || '<?php echo $cat_desc; ?>'.toLowerCase().includes(searchQuery.toLowerCase())">
-                                <input type="radio" name="category_id" value="<?php echo $cat_id; ?>" <?php echo $current_category_id == $cat_id ? 'checked' : ''; ?> class="w-4 h-4">
-                                <div class="flex items-center gap-2 flex-1">
-                                    <div class="w-10 h-10 bg-gradient-to-br <?php echo $info['from'] . ' ' . $info['to']; ?> rounded-lg flex items-center justify-center flex-shrink-0">
+                            <label class="group relative flex items-start gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer bg-white dark:bg-slate-800/80 hover:shadow-md <?php echo $isChecked ? 'border-indigo-500 dark:border-indigo-400 ring-1 ring-indigo-500 dark:ring-indigo-400' : 'border-transparent hover:border-indigo-300 dark:hover:border-indigo-600 border-gray-100 dark:border-slate-700/50'; ?>"
+                                   x-show="searchQuery === '' || '<?php echo strtolower($cat_name); ?>'.includes(searchQuery.toLowerCase()) || '<?php echo strtolower($cat_desc); ?>'.includes(searchQuery.toLowerCase())">
+                                <input type="radio" name="category_id" value="<?php echo $cat_id; ?>" <?php echo $isChecked ? 'checked' : ''; ?> class="mt-1 w-4 h-4 text-indigo-600 dark:text-indigo-500 border-gray-300 dark:border-slate-500 focus:ring-indigo-500">
+                                <div class="flex items-start gap-3 flex-1 min-w-0">
+                                    <div class="w-10 h-10 bg-gradient-to-br <?php echo $info['from'] . ' ' . $info['to']; ?> rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm group-hover:scale-105 transition-transform">
                                         <i class="<?php echo $info['icon']; ?> ph-fill text-white text-lg"></i>
                                     </div>
-                                    <div>
-                                        <p class="font-medium text-gray-700"><?php echo $cat_name; ?></p>
-                                        <p class="text-xs text-gray-500"><?php echo $cat_desc; ?></p>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="font-bold text-gray-900 dark:text-white text-sm truncate <?php echo $isChecked ? 'text-indigo-800 dark:text-indigo-300' : ''; ?>"><?php echo $cat_name; ?></p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2" title="<?php echo $cat_desc; ?>"><?php echo $cat_desc; ?></p>
                                     </div>
                                 </div>
                             </label>
@@ -1144,10 +1173,14 @@ include 'components/header.php';
                 </div>
 
                 <!-- Sticky Button at Bottom -->
-                <div class="sticky bottom-0 bg-white border-t border-gray-200 p-6 flex-shrink-0 rounded-b-xl">
+                <div class="sticky bottom-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-gray-200 dark:border-slate-700/80 p-5 flex flex-shrink-0 justify-end gap-3 rounded-b-2xl z-20">
+                    <button type="button" @click="isAdminPanelOpen = false" class="px-5 py-2.5 rounded-lg text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
+                        Cancelar
+                    </button>
                     <button type="submit" 
                             name="update_category"
-                            class="w-full bg-blue-600 text-white font-semibold py-2.5 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow">
+                            class="inline-flex items-center gap-2 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold py-2.5 px-6 rounded-lg transition-all shadow-md hover:shadow-lg active:scale-95">
+                        <i class="ph-floppy-disk text-lg"></i>
                         Actualizar Categoría
                     </button>
                 </div>
@@ -1255,7 +1288,7 @@ include 'components/header.php';
                                         <button type="button"
                                                 @click="analyze()"
                                                 :disabled="isLoading"
-                                                class="inline-flex items-center gap-1 md:gap-2 text-purple-600 hover:text-purple-800 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                                class="inline-flex items-center gap-1 md:gap-2 text-purple-600 hover:text-purple-800 dark:text-purple-400 dark:hover:text-purple-300 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                                             <template x-if="!isLoading">
                                                 <div class="flex items-center gap-1 md:gap-2">
                                                     <i class="ph-sparkle text-base md:text-lg"></i>
@@ -1477,39 +1510,21 @@ include 'components/header.php';
                             <!-- Enviado Por -->
                             <div class="flex items-start gap-3">
                                 <?php if ($complaint['is_anonymous']): ?>
-                                    <?php if ($complaint['user_id'] == $_SESSION['user_id']): ?>
-                                        <!-- Anonymous but viewing own report - show profile photo or initials -->
-                                        <?php if (!empty($complaint['user_profile_photo'])): ?>
-                                            <div class="w-10 h-10 md:w-12 md:h-12 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 border-2 border-gray-200">
-                                                <img src="data:image/jpeg;base64,<?php echo $complaint['user_profile_photo']; ?>" 
-                                                     alt="Profile" 
-                                                     class="w-full h-full object-cover"
-                                                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center\'><span class=\'text-white font-bold text-lg md:text-xl\'><?php echo strtoupper(substr($complaint['user_name'], 0, 1)); ?></span></div>';">
-                                            </div>
-                                        <?php else: ?>
-                                            <div class="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                                                <span class="text-white font-bold text-lg md:text-xl">
-                                                    <?php echo strtoupper(substr($complaint['user_name'], 0, 1)); ?>
-                                                </span>
-                                            </div>
-                                        <?php endif; ?>
-                                    <?php else: ?>
-                                        <!-- Anonymous - show 'A' for others -->
-                                        <div class="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-gray-400 to-gray-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                                            <span class="text-white font-bold text-lg md:text-xl">A</span>
-                                        </div>
-                                    <?php endif; ?>
+                                    <!-- Anonymous - Always show the detective icon -->
+                                    <div class="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-gray-400 to-gray-600 rounded-xl flex items-center justify-center flex-shrink-0">
+                                        <i class="ph-detective text-white text-xl md:text-2xl"></i>
+                                    </div>
                                 <?php else: ?>
                                     <!-- Not anonymous - show profile photo or initials -->
                                     <?php if (!empty($complaint['user_profile_photo'])): ?>
-                                        <div class="w-10 h-10 md:w-12 md:h-12 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 border-2 border-gray-200">
+                                        <div class="w-10 h-10 md:w-12 md:h-12 rounded-xl overflow-hidden flex items-center justify-center flex-shrink-0 border-2 border-gray-200">
                                             <img src="data:image/jpeg;base64,<?php echo $complaint['user_profile_photo']; ?>" 
                                                  alt="Profile" 
                                                  class="w-full h-full object-cover"
-                                                 onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center\'><span class=\'text-white font-bold text-lg md:text-xl\'><?php echo strtoupper(substr($complaint['user_name'], 0, 1)); ?></span></div>';">
+                                                 onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center\'><span class=\'text-white font-bold text-lg md:text-xl\'><?php echo strtoupper(substr($complaint['user_name'], 0, 1)); ?></span></div>';">
                                         </div>
                                     <?php else: ?>
-                                        <div class="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                                        <div class="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center flex-shrink-0">
                                             <span class="text-white font-bold text-lg md:text-xl">
                                                 <?php echo strtoupper(substr($complaint['user_name'], 0, 1)); ?>
                                             </span>
@@ -1519,18 +1534,15 @@ include 'components/header.php';
                                 <div class="min-w-0 flex-1">
                                     <h3 class="font-semibold text-gray-500 text-xs md:text-sm">Enviado Por</h3>
                                     <?php if ($complaint['is_anonymous']): ?>
-                                        <?php if ($complaint['user_id'] == $_SESSION['user_id']): ?>
-                                            <div class="space-y-0.5">
-                                                <p class="text-sm md:text-base font-bold text-gray-800 truncate"><?php echo htmlspecialchars($complaint['user_name']); ?></p>
-                                                <p class="text-[10px] md:text-xs text-gray-500 truncate"><?php echo htmlspecialchars($complaint['user_email']); ?></p>
+                                        <div class="space-y-0.5">
+                                            <p class="text-sm md:text-base font-bold text-gray-800">Usuario Anónimo</p>
+                                            <?php if ($complaint['user_id'] == $_SESSION['user_id']): ?>
                                                 <p class="text-[10px] md:text-xs text-purple-600">
                                                     <i class="ph-info"></i>
-                                                    Anónimo. Solo tú puedes ver esto
+                                                    Este es tu reporte anónimo
                                                 </p>
-                                            </div>
-                                        <?php else: ?>
-                                            <p class="text-sm md:text-base font-bold text-gray-800">Usuario Anónimo</p>
-                                        <?php endif; ?>
+                                            <?php endif; ?>
+                                        </div>
                                     <?php else: ?>
                                         <p class="text-sm md:text-base font-bold text-gray-800 truncate"><?php echo htmlspecialchars($complaint['user_name']); ?></p>
                                         <p class="text-[10px] md:text-xs text-gray-500 truncate"><?php echo htmlspecialchars($complaint['user_email']); ?></p>
@@ -1562,8 +1574,8 @@ include 'components/header.php';
                                         <?php if (isAdmin()): ?>
                                             <button type="button"
                                                     @click="isAdminPanelOpen = true; adminModalMode = 'category'; activeTab = 'category';"
-                                                    class="inline-flex items-center gap-1 text-xs md:text-sm font-semibold text-blue-600 hover:text-blue-800">
-                                                <i class="ph-pencil-simple text-sm md:text-base"></i>
+                                                    class="inline-flex items-center gap-1 text-xs md:text-sm font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors group">
+                                                <i class="ph-pencil-simple text-sm md:text-base group-hover:scale-110 transition-transform duration-300"></i>
                                                 <span class="hidden md:inline">Editar</span>
                                             </button>
                                         <?php endif; ?>
@@ -1580,9 +1592,10 @@ include 'components/header.php';
                         // Get assigned departments
                         if (!isset($assigned_departments)) {
                             $stmt_dept = $conn->prepare("
-                                SELECT d.*, cd.assigned_at 
+                                SELECT d.*, cd.assigned_at, u.profile_photo 
                                 FROM departments d 
                                 JOIN complaint_departments cd ON d.id = cd.department_id 
+                                LEFT JOIN users u ON u.email = d.email
                                 WHERE cd.complaint_id = ?
                                 ORDER BY cd.assigned_at DESC
                             ");
@@ -1593,54 +1606,83 @@ include 'components/header.php';
                             $assigned_departments->data_seek(0);
                         }
                         ?>
-                        <div class="flex items-start gap-3">
-                            <div class="w-10 h-10 md:w-12 md:h-12 bg-white/10 dark:bg-white/5 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <i class="ph-buildings text-xl md:text-2xl text-gray-500 dark:text-gray-400"></i>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center justify-between gap-2">
-                                    <h3 class="font-semibold text-gray-500 dark:text-gray-400 text-xs md:text-sm">Departamentos Asignados</h3>
-                                    <?php if (isAdmin()): ?>
-                                        <button type="button"
-                                                @click="isAdminPanelOpen = true; adminModalMode = 'departments'; activeTab = 'departments';"
-                                                class="inline-flex items-center gap-1 text-xs md:text-sm font-semibold text-blue-600 dark:text-blue-400 hover:text-blue-800">
-                                            <i class="ph-buildings text-sm md:text-base"></i>
-                                            <span class="hidden md:inline">Asignar</span>
-                                        </button>
-                                    <?php endif; ?>
+                        <div class="mt-4 md:mt-5 pt-4 md:pt-5 border-t border-gray-200 dark:border-gray-700/50">
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-2.5">
+                                    <h3 class="text-sm md:text-base font-bold text-gray-800 dark:text-white">Departamentos Asignados</h3>
                                 </div>
-                                <?php if ($assigned_departments->num_rows == 0): ?>
-                                    <div class="mt-2 glass-inner rounded-lg p-2 md:p-3 border border-yellow-200 dark:border-yellow-500/40 dark:bg-yellow-900/20 animate-pulse">
-                                        <div class="flex items-center gap-2">
-                                            <i class="ph-warning-circle text-yellow-600 dark:text-yellow-400 text-base md:text-lg"></i>
-                                            <div>
-                                                <p class="font-medium text-yellow-800 dark:text-yellow-300 text-xs md:text-sm">Reporte sin asignar</p>
-                                            </div>
-                                        </div>
+                                <?php if (isAdmin()): ?>
+                                    <button type="button"
+                                            @click="isAdminPanelOpen = true; adminModalMode = 'departments'; activeTab = 'departments';"
+                                            class="inline-flex items-center gap-1 text-xs md:text-sm font-semibold text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors group">
+                                        <i class="ph-pencil-simple text-sm md:text-base group-hover:scale-110 transition-transform duration-300"></i>
+                                        <span class="hidden md:inline">Editar</span>
+                                    </button>
+                                <?php endif; ?>
+                            </div>
+
+                            <?php if ($assigned_departments->num_rows == 0): ?>
+                                <div class="bg-yellow-50/80 dark:bg-yellow-900/20 backdrop-blur-sm rounded-lg p-3 border border-yellow-200 dark:border-yellow-700/50 flex items-center gap-3 animate-pulse">
+                                    <div class="w-8 h-8 rounded-full bg-yellow-100 dark:bg-yellow-800/60 flex items-center justify-center flex-shrink-0 text-yellow-600 dark:text-yellow-400">
+                                        <i class="ph-warning-circle text-xl"></i>
                                     </div>
-                                <?php else: ?>
-                                    <div class="mt-2 space-y-2">
-                                        <?php while ($dept = $assigned_departments->fetch_assoc()): ?>
-                                            <div class="glass-inner rounded-lg p-2 md:p-3">
-                                                <div class="flex justify-between items-start gap-2 md:gap-4">
-                                                    <div class="flex-1 min-w-0">
-                                                        <p class="font-bold text-gray-900 dark:text-white text-sm md:text-base truncate"><?php echo htmlspecialchars($dept['name']); ?></p>
-                                                        <p class="text-gray-600 dark:text-gray-400 text-xs md:text-sm mt-0.5 truncate">
-                                                            <span class="font-medium"><?php echo htmlspecialchars($dept['manager']); ?></span> · 
-                                                            <a href="mailto:<?php echo htmlspecialchars($dept['email']); ?>" class="text-blue-600 dark:text-blue-400 hover:text-blue-800">
-                                                                <?php echo htmlspecialchars($dept['email']); ?>
-                                                            </a>
-                                                        </p>
+                                    <p class="font-semibold text-yellow-800 dark:text-yellow-300 text-xs md:text-sm">Reporte sin asignar</p>
+                                </div>
+                            <?php else: ?>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3">
+                                    <?php while ($dept = $assigned_departments->fetch_assoc()): ?>
+                                        <div class="bg-gray-50/80 dark:bg-slate-800/60 backdrop-blur-sm rounded-lg p-2.5 md:p-3 border border-white dark:border-slate-700/50 shadow-sm hover:shadow-md transition-all flex items-center gap-3 relative hover:z-50 group">
+                                            <!-- Decorative bg safely bounded -->
+                                            <div class="absolute inset-0 rounded-lg overflow-hidden pointer-events-none">
+                                                <div class="absolute -right-4 -top-4 w-12 h-12 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-full blur-xl hover:bg-indigo-500/20 transition-all"></div>
+                                            </div>
+                                            
+                                            <?php if (!empty($dept['profile_photo'])): ?>
+                                                <div class="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 shadow-sm transition-transform duration-300 border-2 border-white dark:border-slate-700 relative z-10">
+                                                    <img src="data:image/jpeg;base64,<?php echo $dept['profile_photo']; ?>" alt="Profile" class="w-full h-full object-cover">
+                                                </div>
+                                            <?php else: ?>
+                                                <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white flex-shrink-0 shadow-sm transition-transform duration-300 font-bold text-lg border border-white/50 dark:border-slate-700/50 relative z-10">
+                                                    <?php echo strtoupper(substr($dept['manager'], 0, 1)); ?>
+                                                </div>
+                                            <?php endif; ?>
+                                            <div class="flex-1 min-w-0 relative z-10">
+                                                <div class="flex items-center justify-between gap-2">
+                                                    <div class="relative group/name min-w-0 flex-1 cursor-default">
+                                                        <h4 class="font-bold text-gray-900 dark:text-white text-xs md:text-sm truncate"><?php echo htmlspecialchars($dept['name']); ?></h4>
+                                                        <div class="absolute bottom-full left-0 mb-2 opacity-0 group-hover/name:opacity-100 transition-all duration-200 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white text-xs font-semibold rounded-lg py-1.5 px-2.5 pointer-events-none z-50 shadow-xl border border-gray-200 dark:border-gray-700 w-max max-w-[250px] whitespace-normal break-words">
+                                                            <?php echo htmlspecialchars($dept['name']); ?>
+                                                        </div>
                                                     </div>
-                                                    <div class="text-[10px] md:text-xs text-gray-500 dark:text-gray-500 whitespace-nowrap">
-                                                        <?php echo date('d/m/Y H:i', strtotime($dept['assigned_at'])); ?>
+                                                    <span class="text-[9px] md:text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap flex-shrink-0">
+                                                        <?php echo date('d/m/y H:i', strtotime($dept['assigned_at'])); ?>
+                                                    </span>
+                                                </div>
+                                                
+                                                <div class="flex items-center gap-3 mt-0.5">
+                                                    <div class="relative group/mgr min-w-0 max-w-[50%] cursor-default">
+                                                        <p class="text-[10px] md:text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1 truncate">
+                                                            <span class="font-medium truncate"><?php echo htmlspecialchars($dept['manager']); ?></span>
+                                                        </p>
+                                                        <div class="absolute bottom-full left-0 mb-2 opacity-0 group-hover/mgr:opacity-100 transition-all duration-200 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white text-[10px] md:text-xs font-semibold rounded-lg py-1.5 px-2.5 pointer-events-none z-50 shadow-xl border border-gray-200 dark:border-gray-700 w-max max-w-[200px] whitespace-normal break-words">
+                                                            <?php echo htmlspecialchars($dept['manager']); ?>
+                                                        </div>
+                                                    </div>
+                                                    <div class="relative group/mail min-w-0 flex-1">
+                                                        <a href="mailto:<?php echo htmlspecialchars($dept['email']); ?>" class="text-[10px] md:text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline flex items-center gap-1 truncate transition-colors">
+                                                            <i class="ph-envelope-simple text-blue-500 flex-shrink-0"></i>
+                                                            <span class="truncate"><?php echo htmlspecialchars($dept['email']); ?></span>
+                                                        </a>
+                                                        <div class="absolute bottom-full right-0 md:left-0 md:right-auto mb-2 opacity-0 group-hover/mail:opacity-100 transition-all duration-200 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white text-[10px] md:text-xs font-semibold rounded-lg py-1.5 px-2.5 pointer-events-none z-50 shadow-xl border border-gray-200 dark:border-gray-700 w-max max-w-[200px] whitespace-normal break-words">
+                                                            <?php echo htmlspecialchars($dept['email']); ?>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        <?php endwhile; ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
+                                        </div>
+                                    <?php endwhile; ?>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                     
@@ -1798,7 +1840,6 @@ include 'components/header.php';
                     }">
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
                             <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
-                                <i class="ph-chats-circle text-blue-600"></i>
                                 Respuestas y Seguimiento
                             </h2>
                             
@@ -1993,7 +2034,7 @@ include 'components/header.php';
                                                     $is_anonymous_author = ($comment['user_id'] == $complaint['user_id'] && $comment['is_anonymous']);
                                                     $avatar_char = $is_anonymous_author ? '?' : strtoupper(substr($comment['user_name'] ?? '?', 0, 1));
                                                     ?>
-                                                    <?php if (!empty($comment['user_profile_photo'])): ?>
+                                                    <?php if (!$is_anonymous_author && !empty($comment['user_profile_photo'])): ?>
                                                         <div class="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 border-2 border-white/20">
                                                             <img src="data:image/jpeg;base64,<?php echo $comment['user_profile_photo']; ?>" 
                                                                  alt="Profile" 
@@ -2001,8 +2042,12 @@ include 'components/header.php';
                                                                  onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold\'><?php echo $avatar_char; ?></div>';">
                                                         </div>
                                                     <?php else: ?>
-                                                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold flex-shrink-0">
-                                                            <?php echo $avatar_char; ?>
+                                                        <div class="w-10 h-10 rounded-full bg-gradient-to-br <?php echo $is_anonymous_author ? 'from-gray-400 to-gray-600' : 'from-blue-500 to-indigo-600'; ?> flex items-center justify-center text-white font-bold flex-shrink-0">
+                                                            <?php if ($is_anonymous_author): ?>
+                                                                <i class="ph-detective text-xl"></i>
+                                                            <?php else: ?>
+                                                                <?php echo $avatar_char; ?>
+                                                            <?php endif; ?>
                                                         </div>
                                                     <?php endif; ?>
                                                     <div class="flex-1 min-w-0">

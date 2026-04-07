@@ -401,7 +401,7 @@ include 'components/header.php';
                                             Enviar de forma anónima
                                         </label>
                                         <p class="text-sm text-amber-800 mt-1">
-                                            Si marcas esta opción, tu identidad no será revelada a los administradores, pero podrás ver y dar seguimiento a tu reporte desde "Mis Reportes".
+                                            Marca esta opción para enviar tu reporte de forma confidencial. Mantendrás el acceso para dar seguimiento sin revelar tu identidad.
                                         </p>
                                     </div>
                                 </div>

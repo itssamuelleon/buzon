@@ -38,8 +38,8 @@ if (!isset($show_global_blobs)) {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
+    <link rel="stylesheet" href="css/output.css">
+
     <!-- Phosphor Icons -->
     <script src="https://cdn.jsdelivr.net/npm/phosphor-icons"></script>
     
@@ -71,46 +71,12 @@ if (!isset($show_global_blobs)) {
                 localStorage.setItem('theme', 'dark');
             }
         };
-
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        'inter': ['Inter', 'sans-serif'],
-                    },
-                    colors: {
-                        primary: {
-                            50: '#eff6ff',
-                            100: '#dbeafe',
-                            200: '#bfdbfe',
-                            300: '#93c5fd',
-                            400: '#60a5fa',
-                            500: '#3b82f6',
-                            600: '#2563eb',
-                            700: '#1d4ed8',
-                            800: '#1e40af',
-                            900: '#1e3a8a',
-                        }
-                    },
-                    animation: {
-                        'float': 'float 6s ease-in-out infinite',
-                        'glow': 'glow 2s ease-in-out infinite',
-                        'slide-down': 'slide-down 0.3s ease-out',
-                        'bounce-slow': 'bounce 3s ease-in-out infinite',
-                    },
-                    backgroundImage: {
-                        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
-                        'gradient-conic': 'conic-gradient(from 180deg at 50% 50%, var(--tw-gradient-stops))',
-                    }
-                }
-            }
-        }
     </script>
     
     <style>
+        [x-cloak] { display: none !important; }
         :root {
-            --glass-opacity: 0.7;
+            --glass-opacity: 0.8;
             --glass-border: rgba(255, 255, 255, 0.05);
             --glass-inner-opacity: 0.05;
             
@@ -124,7 +90,7 @@ if (!isset($show_global_blobs)) {
         }
 
         .dark {
-            --glass-opacity: 0.7;
+            --glass-opacity: 0.8;
             --glass-border: rgba(255, 255, 255, 0.05);
             --glass-inner-opacity: 0.05;
 
@@ -303,6 +269,10 @@ if (!isset($show_global_blobs)) {
         html.dark .hover\:bg-red-50:hover { background-color: rgba(239, 68, 68, 0.2) !important; }
         html.dark .hover\:bg-blue-50:hover { background-color: rgba(59, 130, 246, 0.2) !important; }
         html.dark .hover\:bg-indigo-50:hover { background-color: rgba(99, 102, 241, 0.2) !important; }
+        .icon-sun  { display: block; }
+        .icon-moon { display: none;  }
+        html.dark .icon-sun  { display: none;  }
+        html.dark .icon-moon { display: block; }
         
         /* Shadows adjustment */
         html.dark .shadow-xl, html.dark .shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.7), 0 4px 6px -2px rgba(0, 0, 0, 0.5) !important; }
@@ -562,8 +532,8 @@ if (!function_exists('isAdmin')) {
                             <button onclick="toggleDarkMode()" 
                                     class="nav-item flex items-center justify-center text-white/90 hover:text-white bg-white/10 hover:bg-white/20 h-10 w-10 rounded-xl transition-all duration-300 group icon-animated leading-none" 
                                     title="Alternar Modo Oscuro">
-                                <i class="ph-sun text-xl block dark:hidden leading-none"></i>
-                                <i class="ph-moon text-xl hidden dark:block leading-none"></i>
+                                <i class="ph-sun  text-xl icon-sun  leading-none"></i>
+                                <i class="ph-moon text-xl icon-moon leading-none"></i>
                             </button>
                             <div class="h-8 w-px bg-white/20 mx-2"></div>
                             <?php if (isLoggedIn()): ?>
@@ -613,15 +583,15 @@ if (!function_exists('isAdmin')) {
                                     <button @click="userDropdownOpen = !userDropdownOpen" 
                                             class="flex items-center space-x-3 text-white bg-white/10 hover:bg-white/20 px-4 py-2.5 rounded-xl transition-all duration-300">
                                         <?php if ($user_profile_photo): ?>
-                                            <div class="w-8 h-8 rounded-lg overflow-hidden flex items-center justify-center border-2 border-white/20">
+                                            <div class="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center border-2 border-white/20 shadow-sm">
                                                 <img src="data:image/jpeg;base64,<?php echo $user_profile_photo; ?>" 
                                                      alt="Profile" 
                                                      class="w-full h-full object-cover"
-                                                     onerror="this.onerror=null; this.parentElement.innerHTML='<span class=\'text-white font-semibold text-sm\'><?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?></span>';">
+                                                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-full h-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center\'><span class=\'text-white font-bold text-sm\'><?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?></span></div>';">
                                             </div>
                                         <?php else: ?>
-                                            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
-                                                <span class="text-white font-semibold text-sm">
+                                            <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
+                                                <span class="text-white font-bold text-sm">
                                                     <?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?>
                                                 </span>
                                             </div>
@@ -631,7 +601,7 @@ if (!function_exists('isAdmin')) {
                                     </button>
                                     
                                     <!-- Dropdown Menu -->
-                                    <div x-show="userDropdownOpen" 
+                                    <div x-show="userDropdownOpen" x-cloak 
                                          @click.away="userDropdownOpen = false"
                                          x-transition:enter="transition ease-out duration-200"
                                          x-transition:enter-start="opacity-0 transform scale-95"
@@ -679,8 +649,8 @@ if (!function_exists('isAdmin')) {
                         <div class="md:hidden flex items-center space-x-3">
                             <button onclick="toggleDarkMode()" 
                                     class="flex items-center justify-center text-white bg-white/10 hover:bg-white/20 h-10 w-10 rounded-lg transition-colors leading-none">
-                                <i class="ph-sun text-2xl block dark:hidden leading-none"></i>
-                                <i class="ph-moon text-2xl hidden dark:block leading-none"></i>
+                                <i class="ph-sun  text-xl icon-sun  leading-none"></i>
+                                <i class="ph-moon text-xl icon-moon leading-none"></i>
                             </button>
                             <button @click="mobileMenuOpen = !mobileMenuOpen" 
                                     class="p-2 rounded-lg flex items-center justify-center text-white bg-white/10 hover:bg-white/20 transition-colors">
@@ -693,7 +663,7 @@ if (!function_exists('isAdmin')) {
                 </div>
 
                 <!-- Mobile Menu -->
-                <div x-show="mobileMenuOpen"
+                <div x-show="mobileMenuOpen" x-cloak
                      x-transition:enter="transition ease-out duration-300"
                      x-transition:enter-start="opacity-0 -translate-y-3 scale-95"
                      x-transition:enter-end="opacity-100 translate-y-0 scale-100"
@@ -708,14 +678,14 @@ if (!function_exists('isAdmin')) {
                                 <div class="mb-8">
                                     <div class="mobile-profile-card flex items-center p-4 rounded-xl transition-all">
                                         <?php if ($user_profile_photo): ?>
-                                            <div class="w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 shadow-lg border-2 border-white/20">
+                                            <div class="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 shadow-lg border-2 border-white/20">
                                                 <img src="data:image/jpeg;base64,<?php echo $user_profile_photo; ?>" 
                                                      alt="Profile" 
                                                      class="w-full h-full object-cover"
-                                                     onerror="this.onerror=null; this.parentElement.innerHTML='<span class=\'text-white font-bold text-lg\'><?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?></span>';">
+                                                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-full h-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center\'><span class=\'text-white font-bold text-lg\'><?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?></span></div>';">
                                             </div>
                                         <?php else: ?>
-                                            <div class="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center flex-shrink-0 shadow-lg">
+                                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg">
                                                 <span class="text-white font-bold text-lg">
                                                     <?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?>
                                                 </span>

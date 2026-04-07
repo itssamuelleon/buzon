@@ -2,6 +2,7 @@
 // --- PHP LOGIC FIRST ---
 
 require_once 'config.php';
+$show_global_blobs = false; // Disable global header blobs for this page
 
 // Capturar URL de redirección (para volver a la página original después del login)
 $redirect_url = '';
@@ -60,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['name'] = $user['name'];
             $_SESSION['email'] = $user['email'];
             $_SESSION['role'] = $user['role'];
+            $_SESSION['login_method'] = 'password';
             header('Location: ' . ($redirect_url ?: 'index.php'));
             exit;
         }
@@ -78,11 +80,16 @@ include 'components/header.php';
 
 <!-- Animated Background -->
 <div class="min-h-screen relative overflow-hidden flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-    <!-- Gradient Background with Animated Blobs -->
-    <div class="absolute inset-0 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-slate-900 dark:via-blue-950 dark:to-slate-900">
+    <!-- Background institucional global -->
+    <div class="fixed inset-0 z-0 pointer-events-none bg-institutional"></div>
+    
+    <!-- Overlay de contraste suplementario para el formulario -->
+    <div class="fixed inset-0 z-0 pointer-events-none bg-white/30 dark:bg-slate-950/60 transition-colors duration-700"></div>
+    
+    <!-- Subtle Animated Blobs -->
+    <div class="fixed inset-0 z-0 pointer-events-none overflow-hidden opacity-40">
         <div class="absolute top-0 left-1/4 w-96 h-96 bg-blue-400/20 dark:bg-blue-600/10 rounded-full blur-3xl animate-blob"></div>
-        <div class="absolute top-1/2 right-1/4 w-96 h-96 bg-purple-400/20 dark:bg-purple-600/10 rounded-full blur-3xl animate-blob animation-delay-2000"></div>
-        <div class="absolute bottom-0 left-1/2 w-96 h-96 bg-indigo-400/20 dark:bg-indigo-600/10 rounded-full blur-3xl animate-blob animation-delay-4000"></div>
+        <div class="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-400/20 dark:bg-purple-600/10 rounded-full blur-3xl animate-blob animation-delay-2000"></div>
     </div>
 
     <!-- Main Container -->
@@ -91,7 +98,7 @@ include 'components/header.php';
             
             <!-- Left Side: Login Form -->
             <div class="order-1 lg:order-1">
-                <div class="bg-white/90 dark:bg-slate-800/20 backdrop-blur-xl rounded-3xl shadow-2xl p-8 md:p-12 border border-white/20 dark:border-slate-700/50 animate-slide-in-left">
+                <div class="bg-white/90 dark:bg-slate-800/70 backdrop-blur-2xl rounded-3xl shadow-2xl p-8 md:p-12 border border-white/20 dark:border-slate-700/50 animate-slide-in-left liquid-glass">
                     <!-- Logo and Header -->
                     <div class="text-center mb-8">
                         <div class="inline-block relative mb-6">
@@ -253,7 +260,7 @@ include 'components/header.php';
                     <!-- Decorative Elements -->
                     <div class="absolute -top-10 -left-10 w-72 h-72 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-full blur-3xl"></div>
                     
-                    <div class="relative bg-white/40 dark:bg-slate-800/40 backdrop-blur-lg rounded-3xl p-6 md:p-12 border border-white/50 dark:border-slate-700/50 shadow-2xl">
+                    <div class="relative bg-white/40 dark:bg-slate-800/40 backdrop-blur-lg rounded-3xl pt-14 pb-8 px-6 md:p-12 border border-white/50 dark:border-slate-700/50 shadow-2xl liquid-glass">
                         <!-- Icon Grid -->
                         <div class="grid grid-cols-3 gap-4 mb-6 md:mb-8 mx-auto max-w-sm md:max-w-none">
                             <div class="bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-800 dark:to-blue-900 rounded-2xl p-6 shadow-lg animate-float">

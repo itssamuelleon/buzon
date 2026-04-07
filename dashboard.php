@@ -773,7 +773,7 @@ require_once 'status_helper.php';
             </div>
 
             <!-- Desktop View (Table) -->
-            <div class="hidden xl:block liquid-glass rounded-2xl overflow-hidden border-none">
+            <div class="hidden xl:block liquid-glass rounded-2xl border-none" style="overflow: visible;">
                 <table class="min-w-full divide-y divide-white/10">
                     <thead class="bg-white/10">
                         <tr>

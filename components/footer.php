@@ -7,7 +7,7 @@
 
     <!-- Modern Footer -->
     <!-- UPDATED: Replaced 'bg-gray-900' with the new blue gradient -->
-    <footer class="relative blue-footer text-white pt-20 pb-8 overflow-hidden">
+    <footer class="relative blue-footer text-white pt-12 pb-10 overflow-hidden">
         <div class="absolute inset-0 pointer-events-none">
             <div class="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-blue-600 to-purple-900 rounded-full filter blur-3xl opacity-40 animate-float"></div>
             <div class="absolute bottom-0 right-0 w-80 h-80 bg-gradient-to-tl from-indigo-800 to-blue-900 rounded-full filter blur-3xl opacity-30" style="animation-delay: -3s;"></div>
@@ -89,7 +89,7 @@
             </div>
             
             <!-- Bottom Bar -->
-            <div class="mt-16 pt-8 border-t border-white/10 text-center text-white/40 text-sm">
+            <div class="mt-10 pt-8 border-t border-white/10 text-center text-white/40 text-sm">
                 <p>&copy; <?php echo date('Y'); ?> Instituto Tecnológico Superior de Ciudad Constitución. Todos los derechos reservados.</p>
                 <p class="mt-2">Diseñado con <i id="footer-heart" class="ph-heart-fill text-red-500/80 cursor-default select-none transition-all duration-200"></i> para la comunidad tecnológica.</p>
             </div>
@@ -149,43 +149,56 @@
                     
                     anonLabels.forEach(el => {
                         if (el.textContent.trim() === 'Usuario Anónimo') {
-                            // Capturar referencias ANTES de modificar el DOM
-                            const container = el.closest('.min-w-0');
-                            const avatarRow = el.closest('.flex.items-start.gap-3');
-                            
-                            // Reemplazar texto con datos reales
-                            if (container) {
-                                container.innerHTML = `
-                                    <h3 class="font-semibold text-gray-500 text-xs md:text-sm">Enviado Por</h3>
-                                    <div class="space-y-0.5">
-                                        <p class="text-sm md:text-base font-bold text-gray-800 truncate">${escapeHtml(data.name)}</p>
-                                        <p class="text-[10px] md:text-xs text-gray-500 truncate">${escapeHtml(data.email)}</p>
-                                    </div>
-                                `;
-                                container.style.animation = 'fadeIn 0.5s ease-in-out';
-                            }
-                            
-                            // Actualizar el avatar (referencia capturada arriba, antes del innerHTML)
-                            if (avatarRow) {
-                                const avatarDiv = avatarRow.querySelector('.w-10.h-10');
-                                if (avatarDiv) {
-                                    if (data.has_photo && data.photo) {
-                                        avatarDiv.outerHTML = `
-                                            <div class="w-10 h-10 md:w-12 md:h-12 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 border-2 border-gray-200">
-                                                <img src="data:image/jpeg;base64,${data.photo}" alt="Profile" class="w-full h-full object-cover">
-                                            </div>
+                            try {
+                                const container = el.closest('.min-w-0');
+                                const avatarRow = el.closest('.flex.items-start.gap-3');
+                                const h3Elem = container ? container.querySelector('h3') : null;
+                                const isMainBlock = h3Elem && h3Elem.textContent.includes('Enviado Por');
+                                
+                                // Reemplazar texto con datos reales
+                                if (isMainBlock) {
+                                    const spaceY = el.closest('.space-y-0\\.5');
+                                    if (spaceY) {
+                                        spaceY.innerHTML = `
+                                            <p class="text-sm md:text-base font-bold text-gray-800 truncate">${escapeHtml(data.name)}</p>
+                                            <p class="text-[10px] md:text-xs text-gray-500 truncate">${escapeHtml(data.email)}</p>
                                         `;
+                                        spaceY.style.animation = 'fadeIn 0.5s ease-in-out';
                                     } else {
-                                        avatarDiv.outerHTML = `
-                                            <div class="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                                                <span class="text-white font-bold text-lg md:text-xl">${data.initial}</span>
-                                            </div>
-                                        `;
+                                        el.innerHTML = `${escapeHtml(data.name)} <span class="text-[10px] md:text-xs text-gray-500 block">${escapeHtml(data.email)}</span>`;
+                                    }
+                                } else {
+                                    // Es un comentario
+                                    el.innerHTML = escapeHtml(data.name);
+                                }
+                                
+                                // Actualizar el avatar
+                                if (avatarRow) {
+                                    const avatarDiv = avatarRow.querySelector('.w-10.h-10');
+                                    if (avatarDiv) {
+                                        const roundedClass = isMainBlock ? 'rounded-xl' : 'rounded-full';
+                                        const extraSize = isMainBlock ? 'md:w-12 md:h-12' : '';
+                                        const textSize = isMainBlock ? 'text-lg md:text-xl' : '';
+                                        
+                                        if (data.has_photo && data.photo) {
+                                            avatarDiv.outerHTML = `
+                                                <div class="w-10 h-10 ${extraSize} ${roundedClass} overflow-hidden flex items-center justify-center flex-shrink-0 border-2 border-gray-200">
+                                                    <img src="data:image/jpeg;base64,${data.photo}" alt="Profile" class="w-full h-full object-cover">
+                                                </div>
+                                            `;
+                                        } else {
+                                            avatarDiv.outerHTML = `
+                                                <div class="w-10 h-10 ${extraSize} bg-gradient-to-br from-blue-500 to-indigo-600 ${roundedClass} flex items-center justify-center flex-shrink-0">
+                                                    <span class="text-white font-bold ${textSize}">${data.initial}</span>
+                                                </div>
+                                            `;
+                                        }
                                     }
                                 }
+                                revealed = true;
+                            } catch (e) {
+                                console.error('Error procesando DOM para revelar:', e);
                             }
-                            
-                            revealed = true;
                         }
                     });
                     
