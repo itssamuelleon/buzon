@@ -735,22 +735,22 @@ if (isLoggedIn()) {
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
             <div class="liquid-glass rounded-3xl p-10 group" data-aos="fade-up" data-aos-delay="0">
-                <div class="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-blue-500 transition-colors duration-300">
-                    <i class="ph-duotone ph-trash text-3xl text-blue-600 dark:text-blue-400 group-hover:text-white transition-colors duration-300"></i>
+                <div class="w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mb-8 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <i class="ph-fill ph-leaf text-3xl text-white"></i>
                 </div>
                 <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-4" style="font-family:'Outfit',sans-serif;">Sin papeletas</h3>
-                <p class="text-slate-700 dark:text-slate-300 leading-relaxed text-lg">El buzón físico quedó en el pasado. Envía tu queja, sugerencia o felicitación desde tu celular o computadora en segundos, sin imprimir nada ni depender de que alguien vacíe el buzón.</p>
+                <p class="text-slate-700 dark:text-slate-300 leading-relaxed text-lg">El buzón físico quedó en el pasado. Envía tu queja, sugerencia o felicitación desde tu celular o computadora en segundos. Sin imprimir nada, 100% eco-friendly y sin depender de que alguien vacíe el buzón.</p>
             </div>
             <div class="liquid-glass rounded-3xl p-10 group" data-aos="fade-up" data-aos-delay="100">
-                <div class="w-16 h-16 bg-amber-500/20 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-amber-500 transition-colors duration-300">
-                    <i class="ph-duotone ph-shield-check text-3xl text-amber-600 dark:text-amber-400 group-hover:text-white transition-colors duration-300"></i>
+                <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mb-8 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <i class="ph-fill ph-shield-check text-3xl text-white"></i>
                 </div>
                 <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-4" style="font-family:'Outfit',sans-serif;">Seguro y confidencial</h3>
                 <p class="text-slate-700 dark:text-slate-300 leading-relaxed text-lg">Tu identidad está protegida en todo momento. Puedes reportar irregularidades o situaciones incómodas sin temor a represalias, sabiendo que tu información es manejada con total discreción.</p>
             </div>
             <div class="liquid-glass rounded-3xl p-10 group" data-aos="fade-up" data-aos-delay="200">
-                <div class="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-emerald-500 transition-colors duration-300">
-                    <i class="ph-duotone ph-eye text-3xl text-emerald-600 dark:text-emerald-400 group-hover:text-white transition-colors duration-300"></i>
+                <div class="w-16 h-16 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mb-8 shadow-lg group-hover:scale-110 transition-transform duration-300">
+                    <i class="ph-fill ph-timer text-3xl text-white"></i>
                 </div>
                 <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-4" style="font-family:'Outfit',sans-serif;">Seguimiento en tiempo real</h3>
                 <p class="text-slate-700 dark:text-slate-300 leading-relaxed text-lg">Olvídate de entregar algo y nunca saber qué pasó. Puedes consultar el estado de tu reporte en cualquier momento: si está siendo revisado, en proceso o ya atendido. Tienes visibilidad completa desde el momento en que lo envías.</p>

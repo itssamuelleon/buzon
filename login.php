@@ -263,20 +263,17 @@ include 'components/header.php';
                     <div class="relative bg-white/40 dark:bg-slate-800/40 backdrop-blur-lg rounded-3xl pt-14 pb-8 px-6 md:p-12 border border-white/50 dark:border-slate-700/50 shadow-2xl liquid-glass">
                         <!-- Icon Grid -->
                         <div class="grid grid-cols-3 gap-4 mb-6 md:mb-8 mx-auto max-w-sm md:max-w-none">
-                            <div class="bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-800 dark:to-blue-900 rounded-2xl p-6 shadow-lg animate-float">
-                                <svg class="w-12 h-12 text-white mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
+                            <!-- 1. Cero Papel -->
+                            <div class="bg-gradient-to-br from-green-500 to-emerald-600 dark:from-green-800 dark:to-emerald-900 rounded-2xl p-6 shadow-lg animate-float flex items-center justify-center">
+                                <i class="ph-fill ph-leaf text-5xl text-white"></i>
                             </div>
-                            <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 dark:from-indigo-800 dark:to-indigo-900 rounded-2xl p-6 shadow-lg animate-float animation-delay-1000">
-                                <svg class="w-12 h-12 text-white mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
-                                </svg>
+                            <!-- 2. Seguro -->
+                            <div class="bg-gradient-to-br from-blue-500 to-indigo-600 dark:from-blue-700 dark:to-indigo-900 rounded-2xl p-6 shadow-lg animate-float animation-delay-1000 flex items-center justify-center">
+                                <i class="ph-fill ph-shield-check text-5xl text-white"></i>
                             </div>
-                            <div class="bg-gradient-to-br from-purple-500 to-purple-600 dark:from-purple-800 dark:to-purple-900 rounded-2xl p-6 shadow-lg animate-float animation-delay-2000">
-                                <svg class="w-12 h-12 text-white mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                                </svg>
+                            <!-- 3. Seguimiento -->
+                            <div class="bg-gradient-to-br from-purple-500 to-pink-600 dark:from-purple-800 dark:to-pink-900 rounded-2xl p-6 shadow-lg animate-float animation-delay-2000 flex items-center justify-center">
+                                <i class="ph-fill ph-timer text-5xl text-white"></i>
                             </div>
                         </div>
 
@@ -294,22 +291,22 @@ include 'components/header.php';
                         <!-- Stats -->
                         <div class="grid grid-cols-3 gap-3 md:gap-6 mx-auto max-w-sm md:max-w-none">
                             <div class="text-center">
+                                <div class="text-2xl md:text-3xl font-black bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-1">
+                                    Cero
+                                </div>
+                                <div class="text-xs md:text-sm text-slate-600 dark:text-slate-400 font-medium">Papel</div>
+                            </div>
+                            <div class="text-center">
                                 <div class="text-2xl md:text-3xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-1">
                                     100%
                                 </div>
                                 <div class="text-xs md:text-sm text-slate-600 dark:text-slate-400 font-medium">Seguro</div>
                             </div>
                             <div class="text-center">
-                                <div class="text-2xl md:text-3xl font-black bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">
-                                    24/7
-                                </div>
-                                <div class="text-xs md:text-sm text-slate-600 dark:text-slate-400 font-medium">Disponible</div>
-                            </div>
-                            <div class="text-center">
                                 <div class="text-2xl md:text-3xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-1">
-                                    Rápido
+                                    Tiempo
                                 </div>
-                                <div class="text-xs md:text-sm text-slate-600 dark:text-slate-400 font-medium">Respuesta</div>
+                                <div class="text-xs md:text-sm text-slate-600 dark:text-slate-400 font-medium">Real</div>
                             </div>
                         </div>
                     </div>
