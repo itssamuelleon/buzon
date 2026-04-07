@@ -81,9 +81,8 @@ if (!isset($show_global_blobs)) {
             --glass-inner-opacity: 0.05;
             
             --glass-inner-blur: 20px;
-            --glass-blur: 5px;
+            --glass-blur: 12px;
 
-            /* Background image controls */
             --bg-opacity: 0.7;
             --bg-blur: 3px;
             --bg-brightness: 1;
@@ -113,13 +112,20 @@ if (!isset($show_global_blobs)) {
 
         /* Global Liquid Glass Utility Classes */
         .liquid-glass {
-            background: rgba(255, 255, 255, var(--glass-opacity)) !important;
+            background: rgba(255, 255, 255, 0.5) !important;
             backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
             -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(180%) !important;
-            border: 1px solid var(--glass-border) !important;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07), 
-                        inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+            border: 1px solid rgba(255, 255, 255, 0.3) !important;
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.1), 
+                        inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
             transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .dark .liquid-glass {
+            background: rgba(15, 23, 42, 0.6) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.5), 
+                        inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
         }
 
         .glass-inner {
@@ -184,8 +190,6 @@ if (!isset($show_global_blobs)) {
         nav > div:first-child {
             background: linear-gradient(to right, #2563eb, #1e40af) !important;
             transition: background 0.5s ease-out !important;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
         }
 
@@ -205,7 +209,7 @@ if (!isset($show_global_blobs)) {
 
         /* Mobile Menu Dark Mode */
         html.dark .mobile-menu-glass {
-            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%) !important;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.50) 0%, rgba(30, 41, 59, 0.50) 100%) !important;
             border-color: rgba(255, 255, 255, 0.1) !important;
         }
         
@@ -372,16 +376,19 @@ if (!isset($show_global_blobs)) {
         }
 
         .mobile-menu-glass {
-            background: linear-gradient(135deg, rgba(30, 58, 138, 0.90) 0%, rgba(79, 70, 229, 0.90) 100%);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 
-                        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(5px) saturate(180%);
+            -webkit-backdrop-filter: blur(5px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15); 
+            -webkit-transform: translate3d(0, 0, 0);
+            transform: translate3d(0, 0, 0);
+            will-change: transform, opacity;
         }
 
         .mobile-menu-item-gradient {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.03) 100%);
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid rgba(0, 0, 0, 0.05);
             position: relative;
             overflow: hidden;
             transition: all 0.3s ease;
@@ -394,7 +401,7 @@ if (!isset($show_global_blobs)) {
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent);
             transition: left 0.5s ease;
         }
 
@@ -403,15 +410,16 @@ if (!isset($show_global_blobs)) {
         }
 
         .mobile-menu-item-gradient:hover {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%);
+            background: rgba(255, 255, 255, 0.8);
+            border-color: rgba(0, 0, 0, 0.1);
             transform: translateX(4px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.05);
         }
 
         .mobile-profile-card {
-            background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.05) 100%);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
         }
 
         .mobile-section-divider {
@@ -609,28 +617,29 @@ if (!function_exists('isAdmin')) {
                                          x-transition:leave="transition ease-in duration-150"
                                          x-transition:leave-start="opacity-100 transform scale-100"
                                          x-transition:leave-end="opacity-0 transform scale-95"
-                                         class="absolute right-0 mt-2 w-56 rounded-xl bg-white shadow-xl ring-1 ring-black/5 divide-y divide-gray-100">
-                                        
+                                         class="absolute right-0 mt-2 w-56 rounded-xl liquid-glass shadow-2xl ring-1 ring-black/5 divide-y divide-white/10 overflow-hidden"
+                                         style="position:absolute;">
+
                                         <div class="px-4 py-3">
-                                            <p class="text-sm text-gray-500">Conectado como</p>
-                                            <p class="text-sm font-medium text-gray-900 truncate"><?php echo htmlspecialchars($_SESSION['email'] ?? ''); ?></p>
+                                            <p class="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1">Cuenta institucional</p>
+                                            <p class="text-sm font-bold text-gray-900 dark:text-white truncate"><?php echo htmlspecialchars($_SESSION['email'] ?? ''); ?></p>
                                         </div>
                                         
                                         <div class="py-1">
-                                            <a href="profile.php" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
-                                                <i class="ph-user-circle text-lg mr-2"></i>
-                                                Mi Perfil
+                                            <a href="profile.php" class="flex items-center px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-white/10 dark:hover:bg-white/5 transition-all duration-200 group">
+                                                <i class="ph-user-circle text-xl mr-3 text-blue-500 group-hover:scale-110 transition-transform"></i>
+                                                <span class="font-medium">Mi Perfil</span>
                                             </a>
                                             <?php if (isAdmin()): ?>
-                                                <a href="admin_settings.php" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
-                                                    <i class="ph-gear text-lg mr-2"></i>
-                                                    Configuración Admin
+                                                <a href="admin_settings.php" class="flex items-center px-4 py-3 text-sm text-gray-700 dark:text-gray-200 hover:bg-white/10 dark:hover:bg-white/5 transition-all duration-200 group">
+                                                    <i class="ph-gear text-xl mr-3 text-indigo-500 group-hover:rotate-45 transition-transform"></i>
+                                                    <span class="font-medium">Configuración Admin</span>
                                                 </a>
                                             <?php endif; ?>
                                             <form action="logout.php" method="POST">
-                                                <button type="submit" class="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
-                                                    <i class="ph-sign-out text-lg mr-2"></i>
-                                                    Cerrar Sesión
+                                                <button type="submit" class="flex items-center w-full px-4 py-3 text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-all duration-200 group">
+                                                    <i class="ph-sign-out text-xl mr-3 group-hover:translate-x-1 transition-transform"></i>
+                                                    <span class="font-bold">Cerrar Sesión</span>
                                                 </button>
                                             </form>
                                         </div>
@@ -670,87 +679,81 @@ if (!function_exists('isAdmin')) {
                      x-transition:leave="transition ease-in duration-200"
                      x-transition:leave-start="opacity-100 translate-y-0 scale-100"
                      x-transition:leave-end="opacity-0 -translate-y-3 scale-95"
-                     class="absolute top-20 inset-x-0 p-2 md:hidden z-40">
-                    <div class="mobile-menu-glass rounded-2xl">
-                        <div class="px-6 py-6">
-                            <?php if (isLoggedIn()): ?>
-                                <!-- User Profile Section -->
-                                <div class="mb-8">
-                                    <div class="mobile-profile-card flex items-center p-4 rounded-xl transition-all">
-                                        <?php if ($user_profile_photo): ?>
-                                            <div class="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 shadow-lg border-2 border-white/20">
-                                                <img src="data:image/jpeg;base64,<?php echo $user_profile_photo; ?>" 
-                                                     alt="Profile" 
-                                                     class="w-full h-full object-cover"
-                                                     onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-full h-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center\'><span class=\'text-white font-bold text-lg\'><?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?></span></div>';">
-                                            </div>
-                                        <?php else: ?>
-                                            <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg">
-                                                <span class="text-white font-bold text-lg">
-                                                    <?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?>
-                                                </span>
-                                            </div>
-                                        <?php endif; ?>
-                                        <div class="ml-4 flex-1 min-w-0">
-                                            <div class="text-white text-sm font-semibold truncate"><?php echo htmlspecialchars(mb_strlen($_SESSION['name']) > 20 ? mb_substr($_SESSION['name'], 0, 20) . '...' : $_SESSION['name']); ?></div>
-                                            <div class="text-white/70 text-xs truncate"><?php echo htmlspecialchars($_SESSION['email']); ?></div>
+                     class="absolute top-20 right-2 mt-2 w-100 max-w-[calc(100vw-1rem)] md:hidden z-40 mobile-menu-glass rounded-2xl overflow-hidden origin-top-right">
+                    <div class="px-6 py-6">
+                        <?php if (isLoggedIn()): ?>
+                            <div class="mb-8">
+                                <div class="mobile-profile-card flex items-center p-4 rounded-xl transition-all">
+                                    <?php if ($user_profile_photo): ?>
+                                        <div class="w-12 h-12 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 shadow-lg border-2 border-white/20">
+                                            <img src="data:image/jpeg;base64,<?php echo $user_profile_photo; ?>" 
+                                                    alt="Profile" 
+                                                    class="w-full h-full object-cover"
+                                                    onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\'w-full h-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center\'><span class=\'text-white font-bold text-lg\'><?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?></span></div>';">
                                         </div>
+                                    <?php else: ?>
+                                        <div class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-lg">
+                                            <span class="text-white font-bold text-lg">
+                                                <?php echo strtoupper(substr($_SESSION['name'], 0, 1)); ?>
+                                            </span>
+                                        </div>
+                                    <?php endif; ?>
+                                    <div class="ml-4 flex-1 min-w-0">
+                                        <div class="text-slate-900 dark:text-white text-sm font-semibold truncate"><?php echo htmlspecialchars(mb_strlen($_SESSION['name']) > 20 ? mb_substr($_SESSION['name'], 0, 20) . '...' : $_SESSION['name']); ?></div>
+                                        <div class="text-slate-600 dark:text-white/70 text-xs truncate"><?php echo htmlspecialchars($_SESSION['email']); ?></div>
                                     </div>
                                 </div>
+                            </div>
 
-                                <!-- Navigation Links -->
-                                <div class="space-y-3">
-                                    <?php if (canAccessDashboard()): ?>
-                                        <a href="dashboard.php" class="mobile-menu-item-gradient flex items-center text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
-                                            <i class="ph-chart-line text-2xl mr-4 icon-animated icon-wiggle-on-hover text-blue-300"></i>
-                                            <span class="font-medium">Dashboard</span>
-                                        </a>
-                                    <?php endif; ?>
-                                    
-                                    <a href="submit_complaint.php" class="mobile-menu-item-gradient flex items-center text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
-                                        <i class="ph-plus-circle text-2xl mr-4 icon-animated icon-rotate-on-hover text-emerald-300"></i>
-                                        <span class="font-medium">Nuevo Reporte</span>
+                            <div class="space-y-3">
+                                <?php if (canAccessDashboard()): ?>
+                                    <a href="dashboard.php" class="mobile-menu-item-gradient flex items-center text-slate-800 dark:text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
+                                        <i class="ph-chart-line text-2xl mr-4 icon-animated icon-wiggle-on-hover text-blue-600 dark:text-blue-300"></i>
+                                        <span class="font-medium">Dashboard</span>
                                     </a>
-                                    
-                                    <a href="my_complaints.php" class="mobile-menu-item-gradient flex items-center text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
-                                        <i class="ph-folder-open text-2xl mr-4 icon-animated icon-bounce-on-hover text-orange-300"></i>
-                                        <span class="font-medium">Mis Reportes</span>
-                                    </a>
-
-                                    <a href="profile.php" class="mobile-menu-item-gradient flex items-center text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
-                                        <i class="ph-user-circle text-2xl mr-4 icon-animated icon-pulse-soft text-pink-300"></i>
-                                        <span class="font-medium">Mi Perfil</span>
-                                    </a>
-
-                                    <?php if (isAdmin()): ?>
-                                        <a href="admin_settings.php" class="mobile-menu-item-gradient flex items-center text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
-                                            <i class="ph-gear text-2xl mr-4 icon-animated icon-rotate-on-hover text-yellow-300"></i>
-                                            <span class="font-medium">Configuración Admin</span>
-                                        </a>
-                                    <?php endif; ?>
-                                </div>
-
-                                <!-- Logout Button -->
-                                <div class="mt-6 pt-4 border-t border-white/10">
-                                    <form action="logout.php" method="POST" class="block w-full">
-                                        <button type="submit" 
-                                                class="logout-button-gradient flex items-center justify-center w-full text-red-100 px-5 py-3.5 rounded-xl transition-all duration-300 font-semibold hover:text-red-50">
-                                            <i class="ph-sign-out text-2xl mr-3"></i>
-                                            <span>Cerrar Sesión</span>
-                                        </button>
-                                    </form>
-                                </div>
+                                <?php endif; ?>
                                 
-                            <?php else: ?>
-                                <div class="space-y-3">
-                                    <a href="login.php" class="mobile-menu-item-gradient flex items-center text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
-                                        <i class="ph-sign-in text-2xl mr-4 icon-animated icon-bounce-on-hover text-blue-300"></i>
-                                        <span class="font-medium">Iniciar Sesión</span>
-                                    </a>
+                                <a href="submit_complaint.php" class="mobile-menu-item-gradient flex items-center text-slate-800 dark:text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
+                                    <i class="ph-plus-circle text-2xl mr-4 icon-animated icon-rotate-on-hover text-emerald-600 dark:text-emerald-300"></i>
+                                    <span class="font-medium">Nuevo Reporte</span>
+                                </a>
+                                
+                                <a href="my_complaints.php" class="mobile-menu-item-gradient flex items-center text-slate-800 dark:text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
+                                    <i class="ph-folder-open text-2xl mr-4 icon-animated icon-bounce-on-hover text-orange-600 dark:text-orange-300"></i>
+                                    <span class="font-medium">Mis Reportes</span>
+                                </a>
 
-                                </div>
-                            <?php endif; ?>
-                        </div>
+                                <a href="profile.php" class="mobile-menu-item-gradient flex items-center text-slate-800 dark:text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
+                                    <i class="ph-user-circle text-2xl mr-4 icon-animated icon-pulse-soft text-pink-600 dark:text-pink-300"></i>
+                                    <span class="font-medium">Mi Perfil</span>
+                                </a>
+
+                                <?php if (isAdmin()): ?>
+                                    <a href="admin_settings.php" class="mobile-menu-item-gradient flex items-center text-slate-800 dark:text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
+                                        <i class="ph-gear text-2xl mr-4 icon-animated icon-rotate-on-hover text-yellow-600 dark:text-yellow-300"></i>
+                                        <span class="font-medium">Configuración Admin</span>
+                                    </a>
+                                <?php endif; ?>
+                            </div>
+
+                            <div class="mt-6 pt-4 border-t border-slate-200 dark:border-white/10">
+                                <form action="logout.php" method="POST" class="block w-full">
+                                    <button type="submit" 
+                                            class="logout-button-gradient flex items-center justify-center w-full text-red-700 dark:text-red-100 px-5 py-3.5 rounded-xl transition-all duration-300 font-semibold hover:text-red-800 dark:hover:text-red-50">
+                                        <i class="ph-sign-out text-2xl mr-3"></i>
+                                        <span>Cerrar Sesión</span>
+                                    </button>
+                                </form>
+                            </div>
+                            
+                        <?php else: ?>
+                            <div class="space-y-3">
+                                <a href="login.php" class="mobile-menu-item-gradient flex items-center text-slate-800 dark:text-white/95 px-5 py-3.5 rounded-xl transition-all duration-300">
+                                    <i class="ph-sign-in text-2xl mr-4 icon-animated icon-bounce-on-hover text-blue-600 dark:text-blue-300"></i>
+                                    <span class="font-medium">Iniciar Sesión</span>
+                                </a>
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
