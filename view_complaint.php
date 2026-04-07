@@ -1622,7 +1622,7 @@ include 'components/header.php';
                             </div>
 
                             <?php if ($assigned_departments->num_rows == 0): ?>
-                                <div class="bg-yellow-50/80 dark:bg-yellow-900/20 backdrop-blur-sm rounded-lg p-3 border border-yellow-200 dark:border-yellow-700/50 flex items-center gap-3 animate-pulse">
+                                <div class="bg-yellow-50/80 dark:bg-yellow-900/20 backdrop-blur-sm rounded-lg p-3 border border-yellow-200 dark:border-yellow-700/50 flex items-center gap-3">
                                     <div class="w-8 h-8 rounded-full bg-yellow-100 dark:bg-yellow-800/60 flex items-center justify-center flex-shrink-0 text-yellow-600 dark:text-yellow-400">
                                         <i class="ph-warning-circle text-xl"></i>
                                     </div>
@@ -1898,7 +1898,6 @@ include 'components/header.php';
                                         
                                         <div>
                                             <label for="comment" class="block text-sm font-semibold text-gray-700 mb-2">
-                                                <i class="ph-pencil-line mr-1"></i>
                                                 Agregar Respuesta
                                             </label>
                                             <div class="relative">
@@ -1919,7 +1918,7 @@ include 'components/header.php';
                                                 <button 
                                                     type="button"
                                                     @click="document.getElementById('comment_attachments').click();"
-                                                    class="absolute bottom-3 left-2 inline-flex items-center gap-1 px-2 py-1 text-sm font-medium transition-colors text-gray-600 hover:text-blue-600">
+                                                    class="absolute bottom-3 left-2 inline-flex items-center gap-1 px-2 py-1 text-sm font-medium transition-colors text-gray-500 hover:text-blue-500 dark:text-gray-400 dark:hover:text-blue-400">
                                                     <i class="ph-paperclip text-lg"></i>
                                                     <span>Adjuntar</span>
                                                 </button>
@@ -1994,10 +1993,10 @@ include 'components/header.php';
                                             </div>
                                         </div>
                                         
-                                        <div class="flex items-center justify-between pt-2">
-                                            <p class="text-xs text-gray-600">
+                                        <div class="flex items-center justify-between">
+                                            <p class="text-xs text-gray-600 dark:text-gray-400">
                                                 <i class="ph-info mr-1"></i>
-                                                Visible para el usuario
+                                                Máximo 25 MB por archivo
                                             </p>
                                             <button 
                                                 type="submit"

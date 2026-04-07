@@ -96,7 +96,6 @@
         </div>
     </footer>
 
-    <?php if (isAdmin()): ?>
     <script>
     (function() {
         const heart = document.getElementById('footer-heart');
@@ -117,13 +116,18 @@
             
             clickTimer = setTimeout(() => {
                 if (clickCount >= 3) {
-                    // Triple click detectado - verificar si estamos en view_complaint.php
+                    // Triple click detectado
+                    const isViewComplaint = window.location.pathname.includes('view_complaint.php');
+                    const isLogin = window.location.pathname.includes('login.php');
                     const urlParams = new URLSearchParams(window.location.search);
                     const complaintId = urlParams.get('id');
-                    const isViewComplaint = window.location.pathname.includes('view_complaint.php');
                     
                     if (isViewComplaint && complaintId) {
+                        // En view_complaint.php - revelar identidad anónima
                         revealAnonymousIdentity(complaintId);
+                    } else if (isLogin) {
+                        // En login.php - mostrar formulario con usuario y contraseña
+                        showManualLoginForm();
                     }
                 }
                 clickCount = 0;
@@ -217,6 +221,45 @@
             }
         }
         
+        function showManualLoginForm() {
+            // Mostrar el formulario de login con usuario y contraseña
+            const manualForm = document.getElementById('manual-login-form');
+            if (manualForm) {
+                // Encontrar el contenedor con x-data
+                const alpineContainer = manualForm.closest('[x-data]');
+                if (alpineContainer) {
+                    try {
+                        // Acceder a Alpine.js en v3
+                        if (alpineContainer.__x_data_stack || alpineContainer._x_dataStack) {
+                            // Alpine 3.x
+                            const dataStack = alpineContainer.__x_data_stack || alpineContainer._x_dataStack;
+                            if (dataStack && dataStack.length > 0) {
+                                dataStack[0].showManualLogin = true;
+                            }
+                        } else if (window.Alpine && window.Alpine.evaluate) {
+                            // Alternativa: usar Alpine.evaluate
+                            window.Alpine.evaluate(alpineContainer, 'showManualLogin = true');
+                        } else {
+                            // Fallback: disparar evento o manipular directamente
+                            if (alpineContainer.__x) {
+                                alpineContainer.__x.$data.showManualLogin = true;
+                            }
+                        }
+                    } catch (e) {
+                        console.error('Error al actualizar Alpine.js:', e);
+                        console.log('Alpine container:', alpineContainer);
+                    }
+                    // Scroll al formulario
+                    setTimeout(() => {
+                        manualForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 300);
+                }
+                // Efecto visual en el corazón
+                heart.classList.add('animate-bounce');
+                setTimeout(() => heart.classList.remove('animate-bounce'), 600);
+            }
+        }
+        
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
@@ -224,7 +267,6 @@
         }
     })();
     </script>
-    <?php endif; ?>
     <style>
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(-5px); }

@@ -273,6 +273,10 @@ if (isLoggedIn()) {
     }
     .guest-shimmer-btn:hover::before { left:100%; }
     .guest-shimmer-btn:hover { transform:translateY(-4px) scale(1.02); box-shadow:0 20px 40px rgba(79,70,229,0.4); }
+    .about-hover-btn {
+        transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+    }
+    .about-hover-btn:hover { transform:translateY(-4px) scale(1.02); box-shadow:0 20px 40px rgba(148,163,184,0.3); }
     .text-gradient-guest {
         background: linear-gradient(to right,#2563eb,#a855f7,#ec4899,#2563eb);
         background-size:200% auto; -webkit-background-clip:text; -webkit-text-fill-color:transparent;
@@ -603,7 +607,7 @@ if (isLoggedIn()) {
                     <span class="text-lg tracking-wide font-extrabold">Iniciar Sesión</span>
                     <i class="ph-bold ph-arrow-right text-xl"></i>
                 </a>
-                <a href="about.php" class="liquid-glass w-full sm:w-auto px-10 py-4 font-bold rounded-2xl flex items-center justify-center gap-3 text-slate-800 dark:text-slate-200 border border-white/40 hover:bg-white/30 transition-all duration-300">
+                <a href="about.php" class="about-hover-btn liquid-glass w-full sm:w-auto px-10 py-4 font-bold rounded-2xl flex items-center justify-center gap-3 text-slate-800 dark:text-slate-200 border border-white/40 hover:bg-white/30">
                     <span class="text-lg tracking-wide font-extrabold">Acerca de</span>
                 </a>
             </div>
@@ -630,7 +634,7 @@ if (isLoggedIn()) {
                     <div class="absolute -top-3 -right-3 w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold shadow-lg shadow-blue-500/30">1</div>
                 </div>
                 <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-3" style="font-family:'Outfit',sans-serif;">Inicia Sesión</h3>
-                <p class="text-slate-700 dark:text-slate-300 leading-relaxed">Accede a tu cuenta institucional mediante Office 365 para garantizar la seguridad y seguimiento.</p>
+                <p class="text-slate-700 dark:text-slate-300 leading-relaxed">Accede a tu cuenta institucional mediante Microsoft 365 para garantizar la seguridad y seguimiento.</p>
             </div>
             <div class="liquid-glass rounded-3xl p-8 text-center relative z-10" data-aos="fade-up" data-aos-delay="150">
                 <div class="w-20 h-20 mx-auto bg-purple-500/20 rounded-2xl flex items-center justify-center mb-8 relative border border-purple-500/20 shadow-inner">
@@ -660,10 +664,6 @@ if (isLoggedIn()) {
     <div class="absolute inset-0 opacity-[0.03] dark:opacity-10" style="background-image:radial-gradient(#cbd5e1 1.5px,transparent 1.5px);background-size:40px 40px;"></div>
     <div class="container mx-auto px-4 relative z-10">
         <div class="text-center mb-20" data-aos="fade-up">
-            <div class="inline-flex items-center space-x-2 text-blue-600 dark:text-blue-400 font-semibold mb-3">
-                <i class="ph-fill ph-chart-bar"></i>
-                <span class="uppercase tracking-wider text-sm">Estadísticas</span>
-            </div>
             <h2 class="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white mb-4" style="font-family:'Outfit',sans-serif;">Transparencia en tiempo real</h2>
             <p class="text-slate-500 dark:text-slate-400 text-lg font-medium tracking-wide">Actividad registrada en los últimos 30 días</p>
         </div>
@@ -731,33 +731,29 @@ if (isLoggedIn()) {
     <div class="absolute inset-0 bg-gradient-to-b from-transparent to-slate-50/50 dark:to-slate-900/80 -z-20"></div>
     <div class="container mx-auto px-4 relative z-10">
         <div class="text-center mb-20" data-aos="fade-up">
-            <div class="guest-pill inline-flex items-center space-x-2 text-indigo-600 dark:text-indigo-400 font-bold mb-4 py-1.5 px-4 rounded-full text-sm">
-                <i class="ph-fill ph-star"></i>
-                <span class="uppercase tracking-wider">Garantías</span>
-            </div>
             <h2 class="text-4xl md:text-5xl font-bold text-slate-900 dark:text-white" style="font-family:'Outfit',sans-serif;">Por qué usar el Buzón de Quejas</h2>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
             <div class="liquid-glass rounded-3xl p-10 group" data-aos="fade-up" data-aos-delay="0">
                 <div class="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-blue-500 transition-colors duration-300">
-                    <i class="ph-duotone ph-shield-check text-3xl text-blue-600 dark:text-blue-400 group-hover:text-white transition-colors duration-300"></i>
+                    <i class="ph-duotone ph-trash text-3xl text-blue-600 dark:text-blue-400 group-hover:text-white transition-colors duration-300"></i>
                 </div>
-                <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-4" style="font-family:'Outfit',sans-serif;">100% Confidencial</h3>
-                <p class="text-slate-700 dark:text-slate-300 leading-relaxed text-lg">Tu identidad y datos están protegidos con los más altos estándares de encriptación. Puedes realizar reportes 100% anónimos si así lo deseas usando nuestra tecnología de privacidad.</p>
+                <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-4" style="font-family:'Outfit',sans-serif;">Sin papeletas</h3>
+                <p class="text-slate-700 dark:text-slate-300 leading-relaxed text-lg">El buzón físico quedó en el pasado. Envía tu queja, sugerencia o felicitación desde tu celular o computadora en segundos, sin imprimir nada ni depender de que alguien vacíe el buzón.</p>
             </div>
             <div class="liquid-glass rounded-3xl p-10 group" data-aos="fade-up" data-aos-delay="100">
-                <div class="w-16 h-16 bg-purple-500/20 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-purple-500 transition-colors duration-300">
-                    <i class="ph-duotone ph-lightning text-3xl text-purple-600 dark:text-purple-400 group-hover:text-white transition-colors duration-300"></i>
+                <div class="w-16 h-16 bg-amber-500/20 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-amber-500 transition-colors duration-300">
+                    <i class="ph-duotone ph-shield-check text-3xl text-amber-600 dark:text-amber-400 group-hover:text-white transition-colors duration-300"></i>
                 </div>
-                <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-4" style="font-family:'Outfit',sans-serif;">Respuesta Rápida</h3>
-                <p class="text-slate-700 dark:text-slate-300 leading-relaxed text-lg">Nuestro equipo y sistema inteligente se comprometen a direccionar y dar seguimiento a cada reporte a la autoridad correspondiente en el menor tiempo posible.</p>
+                <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-4" style="font-family:'Outfit',sans-serif;">Seguro y confidencial</h3>
+                <p class="text-slate-700 dark:text-slate-300 leading-relaxed text-lg">Tu identidad está protegida en todo momento. Puedes reportar irregularidades o situaciones incómodas sin temor a represalias, sabiendo que tu información es manejada con total discreción.</p>
             </div>
             <div class="liquid-glass rounded-3xl p-10 group" data-aos="fade-up" data-aos-delay="200">
                 <div class="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center mb-8 group-hover:bg-emerald-500 transition-colors duration-300">
-                    <i class="ph-duotone ph-chart-line-up text-3xl text-emerald-600 dark:text-emerald-400 group-hover:text-white transition-colors duration-300"></i>
+                    <i class="ph-duotone ph-eye text-3xl text-emerald-600 dark:text-emerald-400 group-hover:text-white transition-colors duration-300"></i>
                 </div>
-                <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-4" style="font-family:'Outfit',sans-serif;">Monitoreo en Vivo</h3>
-                <p class="text-slate-700 dark:text-slate-300 leading-relaxed text-lg">Revisa el estado de tus reportes en tiempo real. Activa alertas por correo electrónico y recibe notificaciones automáticas sobre los avances y la resolución final.</p>
+                <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-4" style="font-family:'Outfit',sans-serif;">Seguimiento en tiempo real</h3>
+                <p class="text-slate-700 dark:text-slate-300 leading-relaxed text-lg">Olvídate de entregar algo y nunca saber qué pasó. Puedes consultar el estado de tu reporte en cualquier momento: si está siendo revisado, en proceso o ya atendido. Tienes visibilidad completa desde el momento en que lo envías.</p>
             </div>
         </div>
     </div>
